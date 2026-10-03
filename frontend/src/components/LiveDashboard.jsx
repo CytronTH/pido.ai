@@ -320,6 +320,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                     title={config.title} 
                     value={getNestedValue(metadata, config.dataPath)} 
                     unit={config.unit} 
+                    config={config}
                   />
                 )}
                 {type === 'gauge' && (
@@ -365,6 +366,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                   <TextFeedWidget 
                     title={config.title} 
                     feedData={getNestedValue(metadata, config.dataPath) || []} 
+                    config={config}
                   />
                 )}
                 {type === 'chart' && (

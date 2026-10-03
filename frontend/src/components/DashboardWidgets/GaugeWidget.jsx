@@ -65,7 +65,7 @@ export default function GaugeWidget({ title, value, unit, config = {} }) {
   const activeColor = getActiveColor(percentage, sortedStops);
   
   const displayColor = activeColor;
-  const SelectedIcon = config.iconName ? ICON_MAP[config.iconName] : null;
+  const SelectedIcon = (config.iconName && ICON_MAP[config.iconName]) ? ICON_MAP[config.iconName] : Activity;
   
   if (config.gaugeStyle === 'horseshoe') {
     const C = 2 * Math.PI * 40; // 251.327
@@ -90,14 +90,18 @@ export default function GaugeWidget({ title, value, unit, config = {} }) {
     const needleRotation = percentage * 270 - 135;
     
     return (
-      <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] transition-colors duration-300 relative items-center justify-center ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
-        {title && (
-          <div className="absolute top-4 left-4 flex items-center gap-2 text-fg-muted opacity-80 z-10">
-            {SelectedIcon && <SelectedIcon size={14} />}
-            <span className="text-xs font-semibold uppercase tracking-widest" style={{ fontSize: `calc(0.75rem * ${unitScale})` }}>{title}</span>
+      <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl transition-colors duration-300 relative ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+        {config?.showTitle !== false && (
+          <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0 w-full z-10">
+            <div className="flex items-center gap-2 min-w-0">
+              {SelectedIcon && <SelectedIcon size={16} className={`shrink-0 ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`} />}
+              <span className={`text-xs sm:text-sm font-semibold truncate ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg'}`}>
+                {title || config?.title || 'Gauge'}
+              </span>
+            </div>
           </div>
         )}
-        <div className="relative flex-1 w-full min-h-0 flex items-center justify-center mt-4">
+        <div className="relative flex-1 w-full min-h-0 flex items-center justify-center p-3">
           <div 
             className="relative flex items-center justify-center shrink-0 w-full h-full max-w-[100cqh] max-h-[100cqw]"
             style={{ width: 'min(100cqw, 100cqh - 10px)', height: 'min(100cqw, 100cqh - 10px)' }}
@@ -165,15 +169,19 @@ export default function GaugeWidget({ title, value, unit, config = {} }) {
   }
   
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] transition-colors duration-300 relative items-center justify-center ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
-      {title && config.showTitle !== false && (
-        <div className="absolute top-4 left-4 flex items-center gap-2 text-fg-muted opacity-80 z-10">
-          {SelectedIcon && <SelectedIcon size={14} />}
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ fontSize: `calc(0.75rem * ${unitScale})` }}>{title}</span>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl transition-colors duration-300 relative ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0 w-full z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            {SelectedIcon && <SelectedIcon size={16} className={`shrink-0 ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`} />}
+            <span className={`text-xs sm:text-sm font-semibold truncate ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg'}`}>
+              {title || config?.title || 'Gauge'}
+            </span>
+          </div>
         </div>
       )}
       
-      <div className="relative w-full flex-1 flex flex-col justify-center items-center mt-6 mb-2">
+      <div className="relative w-full flex-1 flex flex-col justify-center items-center p-3 mb-2 min-h-0">
         <div 
           className="relative flex flex-col items-center w-full"
           style={{ maxWidth: 'min(90cqw, calc((100cqh - 60px) * 2))' }}

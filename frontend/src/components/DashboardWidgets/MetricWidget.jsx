@@ -73,14 +73,18 @@ export default function MetricWidget({ title, value, unit, config = {}, icon: De
   }
 
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl p-4 transition-colors duration-300 ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl transition-colors duration-300 ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
       {config.showTitle !== false && (
-        <div className="flex items-center gap-2 mb-2 shrink-0">
-          <SelectedIcon size={20} className={isAlert ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'} />
-          <h3 className={`font-semibold text-sm uppercase tracking-wider ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg-muted'}`}>{title}</h3>
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <SelectedIcon size={16} className={`shrink-0 ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`} />
+            <span className={`text-xs sm:text-sm font-semibold truncate ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg'}`}>
+              {title || config?.title || 'Live Metric'}
+            </span>
+          </div>
         </div>
       )}
-      <div className="flex-1 flex items-center justify-center overflow-hidden">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
         {value !== undefined && value !== null ? (
           typeof value === 'boolean' ? (
             <div className="font-black tracking-tighter flex items-baseline" style={{ fontSize: `calc(clamp(2rem, 15cqw, 6rem) * ${valScale})` }}>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { PieChart } from 'lucide-react';
 
 export default function RadialDonutWidget({ title, value, unit, config = {} }) {
   const max = config.max || 100;
@@ -14,10 +15,20 @@ export default function RadialDonutWidget({ title, value, unit, config = {} }) {
   const color = config.color || '#a855f7'; // Default to purple to match mockup
 
   return (
-    <div className="flex flex-col h-full w-full rounded-xl overflow-hidden p-4 bg-surface border border-line-strong/50 shadow-well transition-colors duration-300 relative items-center justify-center" style={{ containerType: 'inline-size' }}>
-      {title && <div className="absolute top-4 left-4 text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-widest opacity-80">{title}</div>}
+    <div className="flex flex-col h-full w-full rounded-xl overflow-hidden bg-surface border border-line shadow-xl transition-colors duration-300 relative" style={{ containerType: 'size' }}>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0 w-full z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            <PieChart size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-fg truncate">
+              {title || config?.title || 'Radial Donut'}
+            </span>
+          </div>
+        </div>
+      )}
       
-      <div className="relative w-[65cqw] h-[65cqw] max-w-[200px] max-h-[200px] flex items-center justify-center mt-4">
+      <div className="flex-1 flex items-center justify-center p-3 min-h-0 w-full relative">
+        <div className="relative w-[min(80cqw,80cqh)] h-[min(80cqw,80cqh)] max-w-[200px] max-h-[200px] flex items-center justify-center">
         {/* Outer segmented ring (fake it with a dashed border) */}
         <div className="absolute inset-[-10%] rounded-full border-[3px] border-line border-dashed opacity-70"></div>
         <div className="absolute inset-[-3%] rounded-full border border-line-strong"></div>
@@ -57,5 +68,6 @@ export default function RadialDonutWidget({ title, value, unit, config = {} }) {
         </div>
       </div>
     </div>
+  </div>
   );
 }

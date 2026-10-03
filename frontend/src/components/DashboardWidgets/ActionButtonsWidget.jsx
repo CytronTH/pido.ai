@@ -1,7 +1,7 @@
 import React from 'react';
 import { ToggleRight, Siren, DoorOpen, Lightbulb } from 'lucide-react';
 
-export default function ActionButtonsWidget() {
+export default function ActionButtonsWidget({ config = {} }) {
   const triggerAction = (actionName) => {
     // In the future, this will POST to FastAPI to trigger a specific webhook/GPIO
     console.log(`Triggering manual action: ${actionName}`);
@@ -9,10 +9,12 @@ export default function ActionButtonsWidget() {
 
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-      <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
-        <ToggleRight size={16} className="text-cyan-600 dark:text-cyan-400" />
-        <span className="text-sm font-semibold text-fg">Manual Triggers</span>
-      </div>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
+          <ToggleRight size={16} className="text-cyan-600 dark:text-cyan-400 shrink-0" />
+          <span className="text-xs sm:text-sm font-semibold text-fg truncate">{config?.title || 'Manual Triggers'}</span>
+        </div>
+      )}
       
       <div className="flex-1 p-3 grid grid-cols-2 gap-3">
         <button 

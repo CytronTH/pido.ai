@@ -50,9 +50,14 @@
 - **ปรับปรุง Data Source Dropdown สำหรับ Video:**
   - วิดีโอสตรีมไม่มีค่าตัวเลขแบบ realtime ค่า `[${displayVal}]` จึงแสดงเป็น `[N/A]` หรือค่าว่างซึ่งทำให้สับสน
   - ปรับใน `WidgetSettingsModal.jsx` ไม่ให้แสดงวงเล็บค่า realtime สำหรับ source ที่เป็น `video` แสดงเฉพาะชื่อ data path สะอาดตา
-- **ซ่อนช่อง Unit Suffix / Label สำหรับ Widget ที่ไม่ใช้ Unit:**
-  - เดิมแสดงช่อง Unit Suffix / Label สำหรับ widget ทุกชนิด ทำให้ตอนแก้ไข Video Widget มีช่องหน่วยโผล่มา
-  - จำกัดให้แสดงเฉพาะ Widget ที่รองรับการใส่หน่วย (`metric`, `gauge`, `capacityBar`, `radialDonut`, `text`, `targetTracker`) และซ่อนใน Video Widget และ widget อื่นๆ ที่ไม่เกี่ยวข้อง
+- **ปรับปรุง Title Style ของทุก Dashboard Widget ให้เป็นมาตรฐานเดียวกัน:**
+  - กำหนดมาตรฐาน Header Bar ทุก Widget เป็น `bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0`
+  - ไอคอนขนาด 16px (`shrink-0`) พร้อมสี accent ตามประเภท widget
+  - ข้อความ Title ใช้ `text-xs sm:text-sm font-semibold text-fg truncate` แทน uppercase และสีจางเดิม
+  - รองรับการปิด Show Title (`config.showTitle === false`) สอดคล้องกันทุกตัว (`GaugeWidget`, `MetricWidget`, `ChartWidget`, `CapacityBarWidget`, `RadialDonutWidget`, `TrafficLightWidget`, `TextWidget`, `TextFeedWidget`, `TargetTrackerWidget`, `HistoricalChartWidget`, `ActionButtonsWidget`, `AlertsFeedWidget`, `PipelineStatusWidget`, `SystemResourceWidget`, `SnapshotsWidget`, `LogWidget`, `HeatmapWidget`)
+- **แก้ปัญหา Gauge Widget มี Inner Shadow ที่กรอบ:**
+  - ตรวจพบว่า `GaugeWidget.jsx` มีการใส่คลาส `shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]` แบบ hardcoded บนการ์ดด้านนอก ทำให้เกิดเงามืดวงในรอบขอบกรอบ
+  - แก้ไขโดยเอา inset shadow ออก แล้วเปลี่ยนมาใช้เงา `shadow-xl` และ `border-line` มาตรฐานเหมือน widget อื่นๆ
 - **Widget Props อื่นๆ:** เชื่อมต่อ props `value`, `unit`, `config` ให้ `GaugeWidget`, `TrafficLightWidget`, `RadialDonutWidget`, `CapacityBarWidget`, `TargetTrackerWidget`, และ `MetricWidget` บน `LiveDashboard.jsx`
 - ทดสอบ build ด้วย Vite ผ่านฉลุย 100% และ oxlint 0 errors
 
