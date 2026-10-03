@@ -1,9 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Settings2, ToggleRight } from 'lucide-react';
 
+// Mock output for the playground — pure function of the input (no state/effect needed).
+const computeOutput = (type, inputVal) => {
+  switch (type) {
+    case 'boolean-slider':
+      return inputVal > 0 ? 'TRUE (Triggered)' : 'FALSE';
+    case 'boolean-toggle':
+      return inputVal ? 'TRUE (Active)' : 'FALSE';
+    case 'number-slider':
+    case 'number-input':
+      return inputVal;
+    case 'text-input':
+      return `"${inputVal}"`;
+    case 'ai-mock':
+      return inputVal ? '[ { label: "person", bbox: [...] } ]' : '[]';
+    default:
+      return 'N/A';
+  }
+};
+
 const NodeSimulator = ({ config, nodeType }) => {
   const [inputVal, setInputVal] = useState(0);
-  const [outputVal, setOutputVal] = useState(null);
 
   // Initialize inputVal based on config type
   useEffect(() => {
@@ -16,29 +34,7 @@ const NodeSimulator = ({ config, nodeType }) => {
     return null; // Not simulatable
   }
 
-  // Calculate output based on mock logic
-  useEffect(() => {
-    switch (config.type) {
-      case 'boolean-slider':
-        setOutputVal(inputVal > 0 ? 'TRUE (Triggered)' : 'FALSE');
-        break;
-      case 'boolean-toggle':
-        setOutputVal(inputVal ? 'TRUE (Active)' : 'FALSE');
-        break;
-      case 'number-slider':
-      case 'number-input':
-        setOutputVal(inputVal);
-        break;
-      case 'text-input':
-        setOutputVal(`"${inputVal}"`);
-        break;
-      case 'ai-mock':
-        setOutputVal(inputVal ? '[ { label: "person", bbox: [...] } ]' : '[]');
-        break;
-      default:
-        setOutputVal('N/A');
-    }
-  }, [inputVal, config.type]);
+  const outputVal = computeOutput(config.type, inputVal);
 
   const renderControl = () => {
     switch (config.type) {
@@ -101,7 +97,7 @@ const NodeSimulator = ({ config, nodeType }) => {
                type="number"
                value={inputVal} 
                onChange={(e) => setInputVal(Number(e.target.value))}
-               className="w-full bg-black/50 border border-line-strong rounded-lg p-3 text-center text-xl font-bold text-fg focus:outline-none focus:border-blue-500" 
+               className="w-full bg-canvas border border-line-strong rounded-lg p-3 text-center text-xl font-bold text-fg focus:outline-none focus:border-blue-500" 
              />
            </div>
         );
@@ -113,7 +109,7 @@ const NodeSimulator = ({ config, nodeType }) => {
                value={inputVal} 
                onChange={(e) => setInputVal(e.target.value)}
                placeholder="Enter text..."
-               className="w-full bg-black/50 border border-line-strong rounded-lg p-3 text-center text-fg focus:outline-none focus:border-blue-500" 
+               className="w-full bg-canvas border border-line-strong rounded-lg p-3 text-center text-fg focus:outline-none focus:border-blue-500" 
              />
            </div>
         );
@@ -144,7 +140,7 @@ const NodeSimulator = ({ config, nodeType }) => {
         </div>
 
         {/* Output Display */}
-        <div className="flex-1 w-full bg-black/40 border border-line p-6 rounded-xl relative flex items-center justify-center min-h-[120px] shadow-inner">
+        <div className="flex-1 w-full bg-canvas border border-line p-6 rounded-xl relative flex items-center justify-center min-h-[120px] shadow-inner">
           <div className="absolute -top-3 left-4 bg-surface-2 px-2 text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider rounded border border-line-strong">Output Result</div>
           
           <div className={`text-xl md:text-2xl font-mono font-bold text-center break-all ${outputVal && outputVal.toString().includes('TRUE') ? 'text-green-600 dark:text-green-400' : 'text-fg-secondary'}`}>
