@@ -447,7 +447,7 @@ export default memo(({ data, isConnectable, id }) => {
         {whepUrl && status === 'error' && (
           <div className="absolute flex flex-col items-center gap-2">
             <div className="text-red-500 text-[10px]">Stream Error</div>
-            <button onClick={reconnect} className="text-[10px] bg-red-900/30 text-red-300 px-2 py-1 rounded hover:bg-red-900/50">Retry</button>
+            <button onClick={reconnect} className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/50">Retry</button>
           </div>
         )}
         
@@ -471,10 +471,10 @@ export default memo(({ data, isConnectable, id }) => {
       if (typeof state === 'boolean' || typeof state?.value === 'boolean') {
         const val = typeof state === 'boolean' ? state : state.value;
         displayValue = val ? "TRUE" : "FALSE";
-        color = val ? "text-green-400" : "text-red-400";
+        color = val ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
       } else {
         displayValue = String(state?.value || state);
-        color = "text-blue-400";
+        color = "text-blue-600 dark:text-blue-400";
       }
     }
     content = (
@@ -492,7 +492,7 @@ export default memo(({ data, isConnectable, id }) => {
     content = (
       <div className="flex flex-col p-3 gap-2 bg-surface/60 min-w-[200px]">
         <div className="flex items-center justify-between border-b border-line-strong/60 pb-1.5 text-xs text-fg-muted">
-          <span className="flex items-center gap-1.5 text-teal-400 font-semibold">
+          <span className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400 font-semibold">
             <span>⇄</span> Flow Counts
           </span>
           <span className="text-white font-bold bg-teal-950 border border-teal-700 px-2 py-0.5 rounded text-xs font-mono">
@@ -504,7 +504,7 @@ export default memo(({ data, isConnectable, id }) => {
           <div className="flex flex-col gap-1 max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
             {entries.map(([cls, cnt]) => (
               <div key={cls} className="flex items-center justify-between bg-canvas/80 px-2.5 py-1.5 rounded text-xs border border-line">
-                <span className="text-teal-300 font-medium truncate max-w-[130px]" title={cls}>
+                <span className="text-teal-700 dark:text-teal-300 font-medium truncate max-w-[130px]" title={cls}>
                   {cls}
                 </span>
                 <span className="text-fg font-bold font-mono bg-surface px-2 py-0.5 rounded border border-line-strong/60">
@@ -526,7 +526,7 @@ export default memo(({ data, isConnectable, id }) => {
     content = (
       <div className="flex flex-col items-center justify-center p-3 gap-1 bg-surface/50 min-w-[160px]">
         <span className="text-xs text-fg-muted">Event Counter</span>
-        <span className="text-2xl font-bold text-emerald-400 font-mono">{val}</span>
+        <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">{val}</span>
       </div>
     );
   } else if (isForkliftNode) {
@@ -544,7 +544,7 @@ export default memo(({ data, isConnectable, id }) => {
           </div>
           <div className={`text-xl font-black font-mono tracking-wider px-3.5 py-1.5 rounded-lg border ${
             isCriticalVal
-              ? "bg-red-950/90 text-red-200 border-red-600 animate-pulse shadow-lg shadow-red-950/80"
+              ? "bg-red-50 dark:bg-red-950/90 text-red-800 dark:text-red-200 border-red-600 animate-pulse shadow-lg shadow-red-950/80"
               : "bg-canvas/80 text-fg-muted border-line"
           }`}>
             {isCriticalVal ? "TRUE (SIREN)" : "FALSE"}
@@ -558,13 +558,13 @@ export default memo(({ data, isConnectable, id }) => {
       content = (
         <div className="flex flex-col items-center justify-center p-3.5 gap-2 bg-surface/80 min-w-[210px]">
           <div className="flex items-center gap-1.5 text-xs text-fg-secondary font-medium">
-            <AlertTriangle size={15} className={isDangerVal ? "text-amber-400 animate-pulse" : "text-fg-subtle"} />
+            <AlertTriangle size={15} className={isDangerVal ? "text-amber-700 dark:text-amber-400 animate-pulse" : "text-fg-subtle"} />
             <span>Any Forklift Warning</span>
           </div>
           <div className={`text-xl font-black font-mono tracking-wider px-3.5 py-1.5 rounded-lg border ${
             isDangerVal
-              ? "bg-amber-950/90 text-amber-200 border-amber-600 shadow-md shadow-amber-950/60"
-              : "bg-canvas/80 text-emerald-400 border-line"
+              ? "bg-amber-50 dark:bg-amber-950/90 text-amber-800 dark:text-amber-200 border-amber-600 shadow-md shadow-amber-950/60"
+              : "bg-canvas/80 text-emerald-600 dark:text-emerald-400 border-line"
           }`}>
             {isDangerVal ? "TRUE (WARN)" : "FALSE (CLEAR)"}
           </div>
@@ -597,11 +597,11 @@ export default memo(({ data, isConnectable, id }) => {
           <div className="flex items-center justify-around bg-canvas/90 py-1.5 px-2 rounded border border-line text-center">
             <div>
               <span className="text-[9px] text-fg-muted block">Forklifts</span>
-              <span className="text-sm font-bold font-mono text-rose-400">{fkCount}</span>
+              <span className="text-sm font-bold font-mono text-rose-600 dark:text-rose-400">{fkCount}</span>
             </div>
             <div>
               <span className="text-[9px] text-fg-muted block">Persons</span>
-              <span className="text-sm font-bold font-mono text-cyan-400">{pCount}</span>
+              <span className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">{pCount}</span>
             </div>
           </div>
         </div>
@@ -620,7 +620,7 @@ export default memo(({ data, isConnectable, id }) => {
       content = (
         <div className="flex flex-col p-3 gap-2 bg-surface/80 min-w-[240px]">
           <div className="flex items-center justify-between border-b border-line-strong/60 pb-1.5">
-            <span className="flex items-center gap-1.5 text-rose-400 font-semibold text-xs">
+            <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold text-xs">
               <ShieldAlert size={14} /> Forklift Safety Telemetry
             </span>
             <span
@@ -639,15 +639,15 @@ export default memo(({ data, isConnectable, id }) => {
           <div className="grid grid-cols-3 gap-1 bg-canvas/90 p-1.5 rounded border border-line text-center">
             <div>
               <div className="text-[9px] text-fg-muted">Forklifts</div>
-              <div className="text-xs font-bold font-mono text-rose-400">{fkCount}</div>
+              <div className="text-xs font-bold font-mono text-rose-600 dark:text-rose-400">{fkCount}</div>
             </div>
             <div>
               <div className="text-[9px] text-fg-muted">Persons</div>
-              <div className="text-xs font-bold font-mono text-cyan-400">{pCount}</div>
+              <div className="text-xs font-bold font-mono text-cyan-600 dark:text-cyan-400">{pCount}</div>
             </div>
             <div>
               <div className="text-[9px] text-fg-muted">Near-Miss</div>
-              <div className="text-xs font-bold font-mono text-amber-400">{nearMiss}</div>
+              <div className="text-xs font-bold font-mono text-amber-700 dark:text-amber-400">{nearMiss}</div>
             </div>
           </div>
 
@@ -662,7 +662,7 @@ export default memo(({ data, isConnectable, id }) => {
                   key={z.id}
                   className={`flex items-center justify-between px-2 py-1 rounded text-[10px] border ${
                     z.occupied
-                      ? 'bg-rose-950/60 border-rose-800/80 text-rose-200'
+                      ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-800/80 text-rose-800 dark:text-rose-200'
                       : 'bg-canvas/60 border-line text-fg-muted'
                   }`}
                 >
@@ -695,10 +695,10 @@ export default memo(({ data, isConnectable, id }) => {
     } ${isPaused ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : ''}`}>
       <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-fg-muted border-2 border-line" />
       <div className={`px-3 py-2 border-b flex items-center justify-between ${
-        isPaused ? 'bg-amber-950/40 border-amber-900/50' : 'bg-surface-2/80 border-line-strong/80'
+        isPaused ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-900/50' : 'bg-surface-2/80 border-line-strong/80'
       }`}>
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-md ${isPaused ? 'bg-amber-500/20 text-amber-400' : 'bg-surface-3 text-fg-secondary'}`}>
+          <div className={`p-1.5 rounded-md ${isPaused ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-surface-3 text-fg-secondary'}`}>
             <Bug size={14} />
           </div>
           <span className="text-xs font-bold text-fg uppercase tracking-wider">Debug Node</span>
@@ -706,7 +706,7 @@ export default memo(({ data, isConnectable, id }) => {
         <div className="flex items-center gap-1">
           {hasVideoPreview && (
             <button onClick={togglePause} className="bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors" title={isPaused ? "Resume Node" : "Pause Node"}>
-              {isPaused ? <Play size={12} className="text-green-400" /> : <Pause size={12} className="text-amber-400" />}
+              {isPaused ? <Play size={12} className="text-green-600 dark:text-green-400" /> : <Pause size={12} className="text-amber-700 dark:text-amber-400" />}
             </button>
           )}
           <NodeMenu id={id} />

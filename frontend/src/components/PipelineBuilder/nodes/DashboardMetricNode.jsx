@@ -161,7 +161,7 @@ export default function DashboardMetricNode({ id, data }) {
               <button
                 type="button"
                 onClick={() => setIsCustomMode(!showCustomInput)}
-                className="text-[10px] text-pink-400 hover:text-pink-300 flex items-center gap-1 transition-colors nodrag cursor-pointer"
+                className="text-[10px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 flex items-center gap-1 transition-colors nodrag cursor-pointer"
                 title={showCustomInput ? "Choose from property list" : "Enter custom path manually"}
               >
                 {showCustomInput ? (
@@ -208,7 +208,7 @@ export default function DashboardMetricNode({ id, data }) {
                   {prop.label}
                 </option>
               ))}
-              <option value="__custom__" className="bg-surface text-pink-400">
+              <option value="__custom__" className="bg-surface text-pink-600 dark:text-pink-400">
                 ✏️ Custom Path...
               </option>
             </select>

@@ -47,7 +47,7 @@ export default function SqlExplorer() {
         <div className="w-full lg:w-1/3 flex flex-col gap-4 border-r border-line pr-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold flex items-center gap-2 text-fg">
-              <Terminal size={18} className="text-blue-400" />
+              <Terminal size={18} className="text-blue-600 dark:text-blue-400" />
               SQL Explorer
             </h2>
             <select
@@ -62,7 +62,7 @@ export default function SqlExplorer() {
 
           <div className="flex-1 min-h-[200px] flex flex-col">
             <textarea
-              className="w-full flex-1 bg-surface border border-line rounded-xl p-4 font-mono text-sm text-green-400 focus:outline-none focus:border-blue-500/50 resize-none shadow-inner"
+              className="w-full flex-1 bg-surface border border-line rounded-xl p-4 font-mono text-sm text-green-600 dark:text-green-400 focus:outline-none focus:border-blue-500/50 resize-none shadow-inner"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="SELECT * FROM table_name..."
@@ -120,7 +120,7 @@ export default function SqlExplorer() {
                 <p className="text-sm">Run a query to see results here</p>
               </div>
             ) : result.status === 'error' ? (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-400">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-600 dark:text-red-400">
                 <AlertCircle size={18} className="mt-0.5 shrink-0" />
                 <div className="text-sm font-mono whitespace-pre-wrap">{result.message}</div>
               </div>
@@ -142,7 +142,7 @@ export default function SqlExplorer() {
                           return (
                             <td 
                               key={colIdx} 
-                              className={`px-4 py-2.5 ${isClickable ? 'text-blue-400 hover:text-blue-300 hover:underline cursor-pointer' : ''}`}
+                              className={`px-4 py-2.5 ${isClickable ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer' : ''}`}
                               onClick={() => isClickable && handleCellClick(col, row[col])}
                             >
                               {row[col] === null ? <span className="italic text-fg-faint">null</span> : String(row[col])}

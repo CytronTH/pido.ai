@@ -79,15 +79,15 @@ export default function InputNodeSettings({ nodeId, data, onChange }) {
       {/* Preview */}
       {selectedCam && (
         <div className="text-xs bg-surface-2 p-3 rounded-md break-all border border-line-strong/50 text-fg-muted">
-          <span className="text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
+          <span className="text-blue-600 dark:text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
           <span className="truncate">{selectedCam.path?.split('/').pop() || selectedCam.path}</span>
         </div>
       )}
 
       {/* Disabled Warning */}
       {selectedCam && selectedCam.is_enabled === false && (
-        <div className="flex items-start gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 p-3 rounded-md">
-          <AlertTriangle size={16} className="shrink-0 text-amber-400 mt-0.5" />
+        <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-3 rounded-md">
+          <AlertTriangle size={16} className="shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
           <span>This camera is currently <strong>disabled</strong> in the Device Settings. No feed will be available.</span>
         </div>
       )}

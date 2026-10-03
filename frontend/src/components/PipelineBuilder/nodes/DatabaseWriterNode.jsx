@@ -17,7 +17,7 @@ export default function DatabaseWriterNode({ id, data, selected }) {
     <div className={`bg-surface border-2 rounded-xl shadow-xl overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-64'} ${selected ? 'border-teal-500' : 'border-teal-500/30'}`}>
       <div className="bg-gradient-to-r from-teal-900/50 to-teal-800/50 p-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Database size={18} className="text-teal-400" />
+          <Database size={18} className="text-teal-600 dark:text-teal-400" />
           <div className="flex flex-col justify-center">
             <span className="font-semibold text-sm tracking-wide truncate max-w-[120px] leading-tight text-fg">{data?.label || 'Database Writer'}</span>
             {data?.label && data.label !== 'Database Writer' && (

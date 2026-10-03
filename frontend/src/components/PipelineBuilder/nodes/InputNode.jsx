@@ -93,15 +93,15 @@ export default function InputNode({ id, data }) {
         {/* Preview */}
         {selectedCam && (
           <div className="text-[10px] text-fg-subtle bg-surface-2 p-2 rounded-md break-all">
-            <span className="text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
+            <span className="text-blue-600 dark:text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
             <span className="truncate">{selectedCam.path?.split('/').pop() || selectedCam.path}</span>
           </div>
         )}
 
         {/* Disabled Warning */}
         {selectedCam && selectedCam.is_enabled === false && (
-          <div className="flex items-center gap-1.5 text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2 rounded-md">
-            <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+          <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2 rounded-md">
+            <AlertTriangle size={14} className="shrink-0 text-amber-700 dark:text-amber-400" />
             <span>Camera is <strong>disabled</strong> in Settings.</span>
           </div>
         )}

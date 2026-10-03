@@ -24,7 +24,7 @@ export default function LEDNode({ id, data }) {
       <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
         <div className="flex items-center gap-3">
           <div className="bg-yellow-500/20 p-2 rounded-lg">
-            <Lightbulb className="text-yellow-400" size={24} />
+            <Lightbulb className="text-yellow-700 dark:text-yellow-400" size={24} />
           </div>
           <div>
             <h3 className="font-bold text-fg text-sm">LED Driver</h3>
@@ -74,7 +74,7 @@ export default function LEDNode({ id, data }) {
 </div>
       </div>
       <div className="mt-3 pt-2 border-t border-line text-[10px] text-fg-subtle">
-        Triggers when <code className="text-yellow-400 bg-canvas px-1 py-0.5 rounded">payload == {data?.triggerOn !== false ? "True" : "False"}</code>
+        Triggers when <code className="text-yellow-700 dark:text-yellow-400 bg-canvas px-1 py-0.5 rounded">payload == {data?.triggerOn !== false ? "True" : "False"}</code>
       </div>
     </div>
   );

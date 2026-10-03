@@ -98,7 +98,7 @@ export default function DashboardChartNode({ id, data }) {
               <button
                 type="button"
                 onClick={() => setIsCustomMode(!showCustomInput)}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors nodrag cursor-pointer"
+                className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors nodrag cursor-pointer"
                 title={showCustomInput ? "Choose from property list" : "Enter custom path manually"}
               >
                 {showCustomInput ? (
@@ -145,7 +145,7 @@ export default function DashboardChartNode({ id, data }) {
                   {prop.label}
                 </option>
               ))}
-              <option value="__custom__" className="bg-surface text-indigo-400">
+              <option value="__custom__" className="bg-surface text-indigo-600 dark:text-indigo-400">
                 ✏️ Custom Path...
               </option>
             </select>

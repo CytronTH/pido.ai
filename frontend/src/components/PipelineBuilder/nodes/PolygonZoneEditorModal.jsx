@@ -510,13 +510,13 @@ export default function PolygonZoneEditorModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-canvas/60">
           <div className="flex items-center gap-3">
-            <div className="bg-rose-600/30 border border-rose-500/50 p-2 rounded-xl text-rose-400">
+            <div className="bg-rose-600/30 border border-rose-500/50 p-2 rounded-xl text-rose-600 dark:text-rose-400">
               <ShieldAlert size={22} />
             </div>
             <div>
               <h2 className="text-lg font-bold text-fg flex items-center gap-2">
                 Intersection Danger Zone & Forklift Monitor Editor
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-rose-950/80 border border-rose-700 text-rose-300">
+                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/80 border border-rose-700 text-rose-700 dark:text-rose-300">
                   Warehouse Safety
                 </span>
               </h2>
@@ -552,7 +552,7 @@ export default function PolygonZoneEditorModal({
                   onClick={() => setShowGroundGuide(!showGroundGuide)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors ${
                     showGroundGuide
-                      ? 'bg-emerald-950/80 border-emerald-700 text-emerald-300'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-700 text-emerald-700 dark:text-emerald-300'
                       : 'bg-surface-2 border-line-strong text-fg-muted hover:text-fg'
                   }`}
                   title="แสดงไกด์จุดสัมผัสพื้นฐานล้อ (Footprint Anchor)"
@@ -596,7 +596,7 @@ export default function PolygonZoneEditorModal({
             >
               {loading && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 text-fg-secondary gap-2">
-                  <RefreshCw className="animate-spin text-rose-400" size={24} />
+                  <RefreshCw className="animate-spin text-rose-600 dark:text-rose-400" size={24} />
                   <span>Capturing camera frame...</span>
                 </div>
               )}
@@ -650,7 +650,7 @@ export default function PolygonZoneEditorModal({
             {/* Instructions Footer */}
             <div className="mt-2 flex items-center justify-between text-[11px] text-fg-muted bg-canvas/60 px-3 py-2 rounded-lg border border-line">
               <span className="flex items-center gap-1.5">
-                <Info size={13} className="text-rose-400" />
+                <Info size={13} className="text-rose-600 dark:text-rose-400" />
                 <span>คลิกและลากที่จุดมุม (Vertex Circle 1, 2, 3...) เพื่อปรับองศาให้แนบกับแนวเส้นพื้นทางแยก</span>
               </span>
               <div className="flex items-center gap-2">
@@ -676,20 +676,20 @@ export default function PolygonZoneEditorModal({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-fg-secondary flex items-center gap-1.5">
-                  <Layers size={14} className="text-rose-400" />
+                  <Layers size={14} className="text-rose-600 dark:text-rose-400" />
                   Safety Zones ({zones.length})
                 </label>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleAddZone('danger')}
-                    className="px-2 py-1 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 border border-rose-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
+                    className="px-2 py-1 bg-rose-600/30 hover:bg-rose-600/50 text-rose-700 dark:text-rose-300 border border-rose-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
                     title="เพิ่มพื้นที่อันตรายวิกฤต"
                   >
                     <Plus size={12} /> Danger
                   </button>
                   <button
                     onClick={() => handleAddZone('caution')}
-                    className="px-2 py-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
+                    className="px-2 py-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-700 dark:text-amber-300 border border-amber-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
                     title="เพิ่มพื้นที่เตือนระวังเข้าใกล้"
                   >
                     <Plus size={12} /> Caution
@@ -730,7 +730,7 @@ export default function PolygonZoneEditorModal({
                             e.stopPropagation();
                             handleDeleteZone(zone.id);
                           }}
-                          className="text-fg-subtle hover:text-rose-400 p-1 rounded hover:bg-surface-2 transition-colors"
+                          className="text-fg-subtle hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded hover:bg-surface-2 transition-colors"
                           title="ลบโซนนี้"
                         >
                           <Trash2 size={13} />
@@ -809,14 +809,14 @@ export default function PolygonZoneEditorModal({
             {/* Warehouse Safety & Model Rules */}
             <div className="bg-surface/90 border border-line rounded-xl p-3 flex flex-col gap-3">
               <span className="text-[11px] font-bold text-fg-secondary uppercase tracking-wide flex items-center gap-1.5">
-                <Sliders size={13} className="text-rose-400" />
+                <Sliders size={13} className="text-rose-600 dark:text-rose-400" />
                 AI Model & Collision Logic
               </span>
 
               {/* Forklift Configuration Section */}
               <div className="bg-canvas/60 border border-rose-950/60 rounded-lg p-2.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wide">
                     🚜 Forklift Settings
                   </span>
                 </div>
@@ -837,7 +837,7 @@ export default function PolygonZoneEditorModal({
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Forklift Min Confidence:</span>
-                    <span className="font-mono text-rose-300 font-bold">{Math.round(forkliftConfidence * 100)}% ({Number(forkliftConfidence).toFixed(2)})</span>
+                    <span className="font-mono text-rose-700 dark:text-rose-300 font-bold">{Math.round(forkliftConfidence * 100)}% ({Number(forkliftConfidence).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -853,7 +853,7 @@ export default function PolygonZoneEditorModal({
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Forklift NMS / Duplicate IoU:</span>
-                    <span className="font-mono text-amber-300 font-bold">{Math.round(forkliftIou * 100)}% ({Number(forkliftIou).toFixed(2)})</span>
+                    <span className="font-mono text-amber-700 dark:text-amber-300 font-bold">{Math.round(forkliftIou * 100)}% ({Number(forkliftIou).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -873,7 +873,7 @@ export default function PolygonZoneEditorModal({
               {/* Person Configuration Section */}
               <div className="bg-canvas/60 border border-cyan-950/60 rounded-lg p-2.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">
                     🚶 Person / Pedestrian Settings
                   </span>
                 </div>
@@ -894,7 +894,7 @@ export default function PolygonZoneEditorModal({
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Person Min Confidence:</span>
-                    <span className="font-mono text-cyan-300 font-bold">{Math.round(personConfidence * 100)}% ({Number(personConfidence).toFixed(2)})</span>
+                    <span className="font-mono text-cyan-700 dark:text-cyan-300 font-bold">{Math.round(personConfidence * 100)}% ({Number(personConfidence).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -910,7 +910,7 @@ export default function PolygonZoneEditorModal({
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Person NMS / Duplicate IoU:</span>
-                    <span className="font-mono text-amber-300 font-bold">{Math.round(personIou * 100)}% ({Number(personIou).toFixed(2)})</span>
+                    <span className="font-mono text-amber-700 dark:text-amber-300 font-bold">{Math.round(personIou * 100)}% ({Number(personIou).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -939,7 +939,7 @@ export default function PolygonZoneEditorModal({
                   </option>
                   <option value="centroid">Centroid (จุดกึ่งกลาง BBox รวมเสา)</option>
                 </select>
-                <span className="text-[9px] text-emerald-400 leading-tight">
+                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 leading-tight">
                   ✓ ป้องกันยอดเสา Forklift ลอยเข้าไปในโซนแล้วเกิด False Alarm
                 </span>
               </div>

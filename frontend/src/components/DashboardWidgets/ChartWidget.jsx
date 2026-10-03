@@ -219,14 +219,14 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl p-4">
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-line">
         <div className="flex items-center gap-2">
-          <Icon size={20} className="text-emerald-400" />
+          <Icon size={20} className="text-emerald-600 dark:text-emerald-400" />
           <h3 className="text-fg-muted font-semibold text-sm uppercase tracking-wider">{title}</h3>
         </div>
         <div className="flex items-center gap-2">
           {zoomDomain && (
             <button 
               onClick={() => setZoomDomain(null)}
-              className="text-xs text-blue-400 bg-blue-900/30 hover:bg-blue-900/50 px-2 py-1 rounded transition-colors"
+              className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 px-2 py-1 rounded transition-colors"
             >
               Reset Zoom
             </button>

@@ -17,7 +17,7 @@ export default function CollectionWriterNode({ id, data, selected }) {
     <div className={`bg-surface border-2 rounded-xl shadow-xl overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'} ${selected ? 'border-indigo-500' : 'border-indigo-500/30'}`}>
       <div className="bg-gradient-to-r from-indigo-900/50 to-indigo-800/50 p-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <HardDrive size={18} className="text-indigo-400" />
+          <HardDrive size={18} className="text-indigo-600 dark:text-indigo-400" />
           <div className="flex flex-col justify-center">
             <span className="font-semibold text-fg text-sm tracking-wide truncate max-w-[120px] leading-tight">{data?.label || 'Collection Writer'}</span>
             {data?.label && data.label !== 'Collection Writer' && (

@@ -190,13 +190,13 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-950/60 via-surface to-surface px-5 py-4 border-b border-line flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-purple-600/30 p-2.5 rounded-xl border border-purple-500/40 text-purple-300">
+            <div className="bg-purple-600/30 p-2.5 rounded-xl border border-purple-500/40 text-purple-700 dark:text-purple-300">
               <Cpu size={22} />
             </div>
             <div>
               <h2 className="text-lg font-bold text-fg flex items-center gap-2">
                 Upload & Register AI Model
-                <span className="text-[10px] bg-purple-900/60 text-purple-300 border border-purple-700/50 px-2 py-0.5 rounded-full font-mono">
+                <span className="text-[10px] bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-700/50 px-2 py-0.5 rounded-full font-mono">
                   Hailo-8L
                 </span>
               </h2>
@@ -217,8 +217,8 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
           {/* Error Message */}
           {errorMessage && (
-            <div className="bg-red-950/50 border border-red-500/50 text-red-200 text-xs p-3 rounded-xl flex items-start gap-2.5">
-              <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+            <div className="bg-red-50 dark:bg-red-950/50 border border-red-500/50 text-red-800 dark:text-red-200 text-xs p-3 rounded-xl flex items-start gap-2.5">
+              <AlertCircle size={16} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <div className="flex-1">{errorMessage}</div>
             </div>
           )}
@@ -226,7 +226,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
           {/* Section 1: HEF File Dropzone */}
           <div>
             <label className="block text-xs font-semibold text-fg-secondary mb-1.5">
-              Model Binary (.hef) <span className="text-purple-400">*</span>
+              Model Binary (.hef) <span className="text-purple-600 dark:text-purple-400">*</span>
             </label>
 
             {!hefFile ? (
@@ -241,16 +241,16 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
                 onClick={() => hefInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 ${
                   isDraggingHef 
-                    ? 'border-purple-500 bg-purple-950/30' 
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/30' 
                     : 'border-line-strong hover:border-purple-500/60 hover:bg-surface-2/50 bg-surface/50'
                 }`}
               >
-                <div className="p-3 bg-purple-600/20 text-purple-400 rounded-full">
+                <div className="p-3 bg-purple-600/20 text-purple-600 dark:text-purple-400 rounded-full">
                   <UploadCloud size={28} />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-fg">
-                    Drag & drop your <span className="text-purple-400 font-mono font-bold">.hef</span> file here, or <span className="text-purple-400 underline">browse</span>
+                    Drag & drop your <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">.hef</span> file here, or <span className="text-purple-600 dark:text-purple-400 underline">browse</span>
                   </div>
                   <div className="text-xs text-fg-subtle mt-1">
                     Compiled for Hailo-8 / Hailo-8L NPU (e.g. from Hailo DFC or IRIV Model Studio)
@@ -267,7 +267,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
             ) : (
               <div className="bg-surface-2/80 border border-purple-500/40 rounded-xl p-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-purple-900/60 text-purple-300 rounded-lg border border-purple-700/50">
+                  <div className="p-2.5 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-lg border border-purple-700/50">
                     <FileCode size={22} />
                   </div>
                   <div>
@@ -278,7 +278,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
                       </span>
                     </div>
                     <div className="text-xs text-fg-muted flex items-center gap-1.5 mt-0.5">
-                      <ShieldCheck size={12} className="text-green-400" />
+                      <ShieldCheck size={12} className="text-green-600 dark:text-green-400" />
                       Ready to store with unique collision-safe ID
                     </div>
                   </div>
@@ -286,7 +286,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
                 <button
                   type="button"
                   onClick={() => { setHefFile(null); if (hefInputRef.current) hefInputRef.current.value = ''; }}
-                  className="text-xs text-fg-muted hover:text-red-400 p-1.5 hover:bg-surface-3/50 rounded-lg transition-colors"
+                  className="text-xs text-fg-muted hover:text-red-600 dark:hover:text-red-400 p-1.5 hover:bg-surface-3/50 rounded-lg transition-colors"
                 >
                   Change File
                 </button>
@@ -298,7 +298,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-fg-secondary mb-1">
-                Model Name <span className="text-purple-400">*</span>
+                Model Name <span className="text-purple-600 dark:text-purple-400">*</span>
               </label>
               <div className="relative">
                 <input
@@ -330,7 +330,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
           {/* Section 3: Task Selector */}
           <div>
             <label className="block text-xs font-semibold text-fg-secondary mb-1.5">
-              AI Task Type <span className="text-purple-400">*</span>
+              AI Task Type <span className="text-purple-600 dark:text-purple-400">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {taskOptions.map(opt => {
@@ -343,16 +343,16 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
                     onClick={() => handleTaskChange(opt.id)}
                     className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'border-purple-500 bg-purple-950/40 shadow-sm shadow-purple-900/30'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 shadow-sm shadow-purple-900/30'
                         : 'border-line bg-canvas/60 hover:bg-surface-2/40 hover:border-line-strong'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <IconComponent size={18} className={isSelected ? 'text-purple-300' : 'text-fg-muted'} />
-                      {isSelected && <CheckCircle2 size={14} className="text-purple-400" />}
+                      <IconComponent size={18} className={isSelected ? 'text-purple-700 dark:text-purple-300' : 'text-fg-muted'} />
+                      {isSelected && <CheckCircle2 size={14} className="text-purple-600 dark:text-purple-400" />}
                     </div>
                     <div>
-                      <div className={`text-xs font-bold ${isSelected ? 'text-purple-200' : 'text-fg-secondary'}`}>
+                      <div className={`text-xs font-bold ${isSelected ? 'text-purple-800 dark:text-purple-200' : 'text-fg-secondary'}`}>
                         {opt.label}
                       </div>
                       <div className="text-[10px] text-fg-subtle mt-0.5 line-clamp-1">
@@ -369,13 +369,13 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
           <div className="bg-canvas/60 border border-line rounded-xl p-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-fg-secondary flex items-center gap-1.5">
-                <FileText size={14} className="text-purple-400" />
+                <FileText size={14} className="text-purple-600 dark:text-purple-400" />
                 Class Names & Labels
               </span>
               <button
                 type="button"
                 onClick={() => metaInputRef.current?.click()}
-                className="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 bg-purple-950/40 hover:bg-purple-900/40 px-2.5 py-1 rounded-lg border border-purple-800/40 transition-colors"
+                className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-200 dark:hover:bg-purple-900/40 px-2.5 py-1 rounded-lg border border-purple-800/40 transition-colors"
               >
                 <UploadCloud size={12} />
                 Load metadata.yaml
@@ -392,7 +392,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
             {/* Detected Classes Badges */}
             {detectedClasses.length > 0 && (
               <div className="flex flex-wrap gap-1.5 p-2 bg-surface/80 rounded-lg border border-line">
-                <div className="w-full text-[10px] text-purple-300 font-semibold mb-1 flex items-center justify-between">
+                <div className="w-full text-[10px] text-purple-700 dark:text-purple-300 font-semibold mb-1 flex items-center justify-between">
                   <span>Detected Classes ({detectedClasses.length}):</span>
                   <span className="text-fg-subtle">From {metadataFile?.name}</span>
                 </div>
@@ -472,7 +472,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
         {/* Footer Actions */}
         <div className="bg-canvas px-5 py-3.5 border-t border-line flex items-center justify-between">
           <div className="text-xs text-fg-subtle flex items-center gap-1.5">
-            <Info size={14} className="text-purple-400" />
+            <Info size={14} className="text-purple-600 dark:text-purple-400" />
             <span>Files are isolated by Unique Model ID</span>
           </div>
           <div className="flex items-center gap-2.5">

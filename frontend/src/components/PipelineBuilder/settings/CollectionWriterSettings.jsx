@@ -64,7 +64,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setIsCollectionModalOpen(true)}
-              className="flex items-center gap-1 text-[10px] bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-1.5 py-0.5 rounded border border-indigo-500/30 transition-colors"
+              className="flex items-center gap-1 text-[10px] bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/30 px-1.5 py-0.5 rounded border border-indigo-500/30 transition-colors"
             >
               <Plus size={10} /> New
             </button>
@@ -111,7 +111,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
                   />
                   <button
                     onClick={() => setActiveSelector(activeSelector === col.key ? null : col.key)}
-                    className={`px-2 py-1.5 rounded border text-xs flex items-center gap-1 transition-colors ${activeSelector === col.key ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300' : 'bg-surface-2 border-line-strong text-fg-muted hover:text-fg hover:border-fg-subtle'}`}
+                    className={`px-2 py-1.5 rounded border text-xs flex items-center gap-1 transition-colors ${activeSelector === col.key ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-500 text-indigo-700 dark:text-indigo-300' : 'bg-surface-2 border-line-strong text-fg-muted hover:text-fg hover:border-fg-subtle'}`}
                     title="Select from Payload JSON"
                   >
                     {'{...}'}
@@ -127,7 +127,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
 
                 {activeSelector === col.key && (
                   <div className="mt-2 border border-indigo-500/30 rounded-lg p-2 bg-canvas shadow-inner custom-animate-slide-in">
-                    <div className="text-[10px] text-indigo-400 mb-2 flex justify-between items-center font-semibold">
+                    <div className="text-[10px] text-indigo-600 dark:text-indigo-400 mb-2 flex justify-between items-center font-semibold">
                       <span>Select path for mapping to '{col.name}':</span>
                       <button onClick={() => setActiveSelector(null)} className="text-fg-subtle hover:text-fg-secondary font-normal">✕ Close</button>
                     </div>

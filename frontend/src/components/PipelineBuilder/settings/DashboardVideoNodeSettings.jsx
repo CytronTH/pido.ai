@@ -10,7 +10,7 @@ export default function DashboardVideoNodeSettings({ nodeId, data, onChange }) {
             type="text" 
             value={data?.dataPath || ''} 
             onChange={(e) => onChange({ dataPath: e.target.value })}
-            className="bg-canvas border border-line-strong focus:border-pink-500 text-sm font-mono text-pink-400 rounded px-2.5 py-1.5 w-full outline-none transition-colors"
+            className="bg-canvas border border-line-strong focus:border-pink-500 text-sm font-mono text-pink-600 dark:text-pink-400 rounded px-2.5 py-1.5 w-full outline-none transition-colors"
             placeholder="e.g. cam_1_video"
           />
         </div>

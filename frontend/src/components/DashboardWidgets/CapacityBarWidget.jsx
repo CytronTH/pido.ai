@@ -91,9 +91,9 @@ export default function CapacityBarWidget({ title, value, unit, config = {} }) {
   }
   
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-well transition-colors duration-300 relative ${isAlert ? 'bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line-strong/50'}`} style={{ containerType: 'size' }}>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-well transition-colors duration-300 relative ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line-strong/50'}`} style={{ containerType: 'size' }}>
       {title && config.showTitle !== false && (
-        <div className="absolute top-4 left-4 flex items-center gap-2 text-blue-400 opacity-80 z-10">
+        <div className="absolute top-4 left-4 flex items-center gap-2 text-blue-600 dark:text-blue-400 opacity-80 z-10">
           {SelectedIcon && <SelectedIcon size={14} />}
           <span className="text-xs font-semibold uppercase tracking-widest" style={{ fontSize: `calc(0.75rem * ${unitScale})` }}>{title}</span>
         </div>

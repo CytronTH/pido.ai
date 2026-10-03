@@ -19,7 +19,7 @@ export default function DetectionCounterWidget({ metadata }) {
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-surface to-surface-2 border border-line-strong rounded-xl overflow-hidden shadow-xl">
       <div className="bg-surface-2/50 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
-        <Focus size={16} className="text-blue-400" />
+        <Focus size={16} className="text-blue-600 dark:text-blue-400" />
         <span className="text-sm font-semibold text-fg">Live Detections</span>
       </div>
       <div className="flex-1 p-4 flex flex-col items-center justify-center">

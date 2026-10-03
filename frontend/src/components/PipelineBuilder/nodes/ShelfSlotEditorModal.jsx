@@ -357,13 +357,13 @@ export default function ShelfSlotEditorModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-canvas/70">
           <div className="flex items-center gap-3">
-            <div className="bg-amber-500/20 border border-amber-500/40 p-2 rounded-xl text-amber-400">
+            <div className="bg-amber-500/20 border border-amber-500/40 p-2 rounded-xl text-amber-700 dark:text-amber-400">
               <Layers size={20} />
             </div>
             <div>
               <h2 className="text-base font-bold text-fg flex items-center gap-2">
                 Shelf Slot & Zone Configuration
-                <span className="text-xs font-normal text-amber-400 bg-amber-950/80 border border-amber-800 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-normal text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/80 border border-amber-800 px-2 py-0.5 rounded-full">
                   {slots.length} Slots
                 </span>
               </h2>
@@ -381,7 +381,7 @@ export default function ShelfSlotEditorModal({
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg text-xs font-medium text-fg transition-colors"
                 title="Refresh Camera Frame"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin text-amber-400' : ''} />
+                <RefreshCw size={14} className={loading ? 'animate-spin text-amber-700 dark:text-amber-400' : ''} />
                 Snapshot
               </button>
             )}
@@ -400,18 +400,18 @@ export default function ShelfSlotEditorModal({
           <div className="lg:col-span-8 bg-black/90 p-4 flex flex-col items-center justify-center relative overflow-auto border-b lg:border-b-0 lg:border-r border-line min-h-[350px]">
             {loading && !imageSrc && (
               <div className="flex flex-col items-center gap-2 text-fg-muted">
-                <RefreshCw size={28} className="animate-spin text-amber-400" />
+                <RefreshCw size={28} className="animate-spin text-amber-700 dark:text-amber-400" />
                 <span className="text-sm">Capturing frame from camera...</span>
               </div>
             )}
 
             {error && (
-              <div className="bg-red-950/60 border border-red-800 text-red-300 p-4 rounded-xl text-center max-w-md">
+              <div className="bg-red-50 dark:bg-red-950/60 border border-red-800 text-red-700 dark:text-red-300 p-4 rounded-xl text-center max-w-md">
                 <p className="font-semibold text-sm">Failed to grab camera snapshot</p>
-                <p className="text-xs text-red-400/80 mt-1">{error}</p>
+                <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">{error}</p>
                 <button
                   onClick={fetchSnapshot}
-                  className="mt-3 px-3 py-1.5 bg-red-900/60 hover:bg-red-800/80 border border-red-700 rounded-lg text-xs font-medium text-fg"
+                  className="mt-3 px-3 py-1.5 bg-red-100 dark:bg-red-900/60 hover:bg-red-800/80 border border-red-700 rounded-lg text-xs font-medium text-fg"
                 >
                   Retry Snapshot
                 </button>
@@ -467,7 +467,7 @@ export default function ShelfSlotEditorModal({
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-fg-muted flex items-center gap-1.5">
-                  <Layers size={14} className="text-amber-400" />
+                  <Layers size={14} className="text-amber-700 dark:text-amber-400" />
                   Shelf Slots ({slots.length})
                 </span>
                 <button
@@ -512,7 +512,7 @@ export default function ShelfSlotEditorModal({
                         {slots.length > 1 && (
                           <button
                             onClick={(e) => handleDeleteSlot(slot.id, e)}
-                            className="text-fg-subtle hover:text-red-400 p-1 rounded transition-colors"
+                            className="text-fg-subtle hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors"
                             title="Delete Slot"
                           >
                             <Trash2 size={14} />
@@ -528,7 +528,7 @@ export default function ShelfSlotEditorModal({
             {/* Active Slot Settings */}
             {selectedSlot && (
               <div className="bg-canvas p-3.5 rounded-xl border border-line flex flex-col gap-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                   Edit: {selectedSlot.name}
                 </span>
 
@@ -579,7 +579,7 @@ export default function ShelfSlotEditorModal({
             <div className="bg-canvas p-3.5 rounded-xl border border-line flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-fg flex items-center gap-1.5">
-                  <ShieldAlert size={14} className="text-cyan-400" />
+                  <ShieldAlert size={14} className="text-cyan-600 dark:text-cyan-400" />
                   Person Occlusion Suppression
                 </span>
                 <input

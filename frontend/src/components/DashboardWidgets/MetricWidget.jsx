@@ -73,11 +73,11 @@ export default function MetricWidget({ title, value, unit, config = {}, icon: De
   }
 
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl p-4 transition-colors duration-300 ${isAlert ? 'bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl p-4 transition-colors duration-300 ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
       {config.showTitle !== false && (
         <div className="flex items-center gap-2 mb-2 shrink-0">
-          <SelectedIcon size={20} className={isAlert ? 'text-red-400' : 'text-blue-400'} />
-          <h3 className={`font-semibold text-sm uppercase tracking-wider ${isAlert ? 'text-red-400' : 'text-fg-muted'}`}>{title}</h3>
+          <SelectedIcon size={20} className={isAlert ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'} />
+          <h3 className={`font-semibold text-sm uppercase tracking-wider ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg-muted'}`}>{title}</h3>
         </div>
       )}
       <div className="flex-1 flex items-center justify-center overflow-hidden">
@@ -93,7 +93,7 @@ export default function MetricWidget({ title, value, unit, config = {}, icon: De
                 Object.entries(value).map(([k, v]) => (
                   <div key={k} className="flex justify-between items-center py-1 px-2.5 rounded-lg bg-surface-2/70 border border-line-strong/50 text-xs">
                     <span className="text-fg-secondary font-medium truncate max-w-[120px]" title={k}>{k}</span>
-                    <span className="text-blue-400 font-mono font-bold text-sm">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-mono font-bold text-sm">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
                   </div>
                 ))
               ) : (
@@ -103,7 +103,7 @@ export default function MetricWidget({ title, value, unit, config = {}, icon: De
           ) : (
             <div className="font-black tracking-tighter flex items-baseline" style={{ fontSize: `calc(clamp(2rem, ${displayValue.length > 5 ? '12cqw' : '16cqw'}, 6rem) * ${valScale})` }}>
               <span className={isAlert ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'text-fg'}>{displayValue}</span>
-              {unit && <span className={`ml-2 ${isAlert ? 'text-red-400' : 'text-fg-subtle'}`} style={{ fontSize: `calc(clamp(1rem, 6cqw, 2.5rem) * ${unitScale})` }}>{unit}</span>}
+              {unit && <span className={`ml-2 ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg-subtle'}`} style={{ fontSize: `calc(clamp(1rem, 6cqw, 2.5rem) * ${unitScale})` }}>{unit}</span>}
             </div>
           )
         ) : (

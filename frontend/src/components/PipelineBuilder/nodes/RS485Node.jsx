@@ -12,7 +12,7 @@ export default function RS485Node({ id, data }) {
       <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
         <div className="flex items-center gap-3">
           <div className="bg-indigo-500/20 p-2 rounded-lg">
-            <Settings2 className="text-indigo-400" size={24} />
+            <Settings2 className="text-indigo-600 dark:text-indigo-400" size={24} />
           </div>
           <div>
             <h3 className="font-bold text-fg text-sm">RS485 Modbus</h3>
@@ -47,7 +47,7 @@ export default function RS485Node({ id, data }) {
         </div>
       </div>
       <div className="mt-3 pt-2 border-t border-line text-[10px] text-fg-subtle">
-        Triggers when <code className="text-indigo-400 bg-canvas px-1 py-0.5 rounded">msg.payload == True</code>
+        Triggers when <code className="text-indigo-600 dark:text-indigo-400 bg-canvas px-1 py-0.5 rounded">msg.payload == True</code>
       </div>
     </div>
   );

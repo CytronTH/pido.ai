@@ -31,7 +31,7 @@ export default function SystemResourceWidget() {
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
       <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-orange-400" />
+          <Activity size={16} className="text-orange-700 dark:text-orange-400" />
           <span className="text-sm font-semibold text-fg">System Resources</span>
         </div>
         <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
@@ -56,7 +56,7 @@ export default function SystemResourceWidget() {
           <div className="w-1/2 bg-surface-2 rounded-full h-2 overflow-hidden">
             <div className={`h-full ${isRamHigh ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${metrics.ram_percent}%` }}></div>
           </div>
-          <span className={`text-sm font-mono w-10 text-right ${isRamHigh ? 'text-red-400 font-bold' : 'text-fg'}`}>
+          <span className={`text-sm font-mono w-10 text-right ${isRamHigh ? 'text-red-600 dark:text-red-400 font-bold' : 'text-fg'}`}>
             {metrics.ram_percent.toFixed(0)}%
           </span>
         </div>
@@ -68,7 +68,7 @@ export default function SystemResourceWidget() {
           <div className="w-1/2 bg-surface-2 rounded-full h-2 overflow-hidden">
             <div className={`h-full ${isTempHigh ? 'bg-red-500' : 'bg-orange-500'}`} style={{ width: `${Math.min(100, (metrics.temp_c / 85) * 100)}%` }}></div>
           </div>
-          <span className={`text-sm font-mono w-12 text-right ${isTempHigh ? 'text-red-400 font-bold' : 'text-fg'}`}>
+          <span className={`text-sm font-mono w-12 text-right ${isTempHigh ? 'text-red-600 dark:text-red-400 font-bold' : 'text-fg'}`}>
             {metrics.temp_c.toFixed(1)}°C
           </span>
         </div>

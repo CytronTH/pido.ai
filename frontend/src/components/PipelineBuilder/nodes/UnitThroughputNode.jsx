@@ -49,7 +49,7 @@ export default function UnitThroughputNode({ id, data }) {
             {!isCompact && (
               <div className="text-[10px] flex items-center gap-1 mt-1">
                  <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-fg-subtle'}`}></span>
-                 <span className="text-indigo-300/70">{isRunning ? 'Running' : 'Paused'}</span>
+                 <span className="text-indigo-700/70 dark:text-indigo-300/70">{isRunning ? 'Running' : 'Paused'}</span>
               </div>
             )}
           </div>
@@ -63,11 +63,11 @@ export default function UnitThroughputNode({ id, data }) {
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="bg-canvas p-2 rounded border border-line text-center">
               <div className="text-[10px] uppercase text-fg-subtle">Rate</div>
-              <div className="text-sm font-mono text-emerald-400 font-bold">{Number(liveRate).toFixed(1)} <span className="text-[9px]">/{data?.rateUnit?.substring(0,1) || 'm'}</span></div>
+              <div className="text-sm font-mono text-emerald-600 dark:text-emerald-400 font-bold">{Number(liveRate).toFixed(1)} <span className="text-[9px]">/{data?.rateUnit?.substring(0,1) || 'm'}</span></div>
             </div>
             <div className="bg-canvas p-2 rounded border border-line text-center">
               <div className="text-[10px] uppercase text-fg-subtle">Units</div>
-              <div className="text-sm font-mono text-blue-400 font-bold">{liveCount}</div>
+              <div className="text-sm font-mono text-blue-600 dark:text-blue-400 font-bold">{liveCount}</div>
             </div>
           </div>
 

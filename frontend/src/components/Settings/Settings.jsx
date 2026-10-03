@@ -238,7 +238,7 @@ export default function Settings() {
         <button 
           onClick={() => setActiveTab('cameras')}
           className={`flex items-center gap-2 px-3 sm:px-4 py-2 border-b-2 font-medium text-xs sm:text-sm transition-colors shrink-0 ${
-            activeTab === 'cameras' ? 'border-blue-500 text-blue-400' : 'border-transparent text-fg-muted hover:text-fg'
+            activeTab === 'cameras' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-fg-muted hover:text-fg'
           }`}
         >
           <Camera size={18} />
@@ -247,7 +247,7 @@ export default function Settings() {
         <button 
           onClick={() => setActiveTab('models')}
           className={`flex items-center gap-2 px-3 sm:px-4 py-2 border-b-2 font-medium text-xs sm:text-sm transition-colors shrink-0 ${
-            activeTab === 'models' ? 'border-purple-500 text-purple-400' : 'border-transparent text-fg-muted hover:text-fg'
+            activeTab === 'models' ? 'border-purple-500 text-purple-600 dark:text-purple-400' : 'border-transparent text-fg-muted hover:text-fg'
           }`}
         >
           <BrainCircuit size={18} />
@@ -256,7 +256,7 @@ export default function Settings() {
         <button 
           onClick={() => setActiveTab('integrations')}
           className={`flex items-center gap-2 px-3 sm:px-4 py-2 border-b-2 font-medium text-xs sm:text-sm transition-colors shrink-0 ${
-            activeTab === 'integrations' ? 'border-green-500 text-green-400' : 'border-transparent text-fg-muted hover:text-fg'
+            activeTab === 'integrations' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-fg-muted hover:text-fg'
           }`}
         >
           <Bell size={18} />
@@ -265,7 +265,7 @@ export default function Settings() {
         <button 
           onClick={() => setActiveTab('videos')}
           className={`flex items-center gap-2 px-3 sm:px-4 py-2 border-b-2 font-medium text-xs sm:text-sm transition-colors shrink-0 ${
-            activeTab === 'videos' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-fg-muted hover:text-fg'
+            activeTab === 'videos' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400' : 'border-transparent text-fg-muted hover:text-fg'
           }`}
         >
           <Film size={18} />
@@ -274,7 +274,7 @@ export default function Settings() {
         <button 
           onClick={() => setActiveTab('backups')}
           className={`flex items-center gap-2 px-3 sm:px-4 py-2 border-b-2 font-medium text-xs sm:text-sm transition-colors shrink-0 ${
-            activeTab === 'backups' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-fg-muted hover:text-fg'
+            activeTab === 'backups' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-fg-muted hover:text-fg'
           }`}
         >
           <Archive size={18} />
@@ -283,7 +283,7 @@ export default function Settings() {
         <button 
           onClick={() => setActiveTab('updates')}
           className={`flex items-center gap-2 px-3 sm:px-4 py-2 border-b-2 font-medium text-xs sm:text-sm transition-colors shrink-0 ${
-            activeTab === 'updates' ? 'border-amber-500 text-amber-400' : 'border-transparent text-fg-muted hover:text-fg'
+            activeTab === 'updates' ? 'border-amber-500 text-amber-700 dark:text-amber-400' : 'border-transparent text-fg-muted hover:text-fg'
           }`}
         >
           <ArrowUpCircle size={18} />
@@ -344,7 +344,7 @@ export default function Settings() {
                       onClick={() => handleToggleCamera(cam.id, isEnabled)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm ${
                         isEnabled
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
                           : 'bg-surface-2 text-fg-muted border border-line-strong hover:bg-surface-3 hover:text-fg'
                       }`}
                       title={isEnabled ? "Click to Disable Camera" : "Click to Enable Camera"}
@@ -374,13 +374,13 @@ export default function Settings() {
             {/* Top Bar with Call-to-action */}
             <div className="bg-gradient-to-r from-purple-950/40 via-surface to-surface p-4 rounded-xl border border-purple-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-purple-950/20">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-purple-600/20 text-purple-400 rounded-xl border border-purple-500/30">
+                <div className="p-2.5 bg-purple-600/20 text-purple-600 dark:text-purple-400 rounded-xl border border-purple-500/30">
                   <BrainCircuit size={22} />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-fg flex items-center gap-2">
                     AI Model Registry
-                    <span className="text-xs bg-purple-900/60 text-purple-300 px-2 py-0.5 rounded-full border border-purple-700/50">
+                    <span className="text-xs bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full border border-purple-700/50">
                       {entities.models.length} Models
                     </span>
                   </h3>
@@ -411,7 +411,7 @@ export default function Settings() {
                     {/* Card Top Row: Name, Badges, Delete */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-line-strong/50 pb-3">
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <div className="p-1.5 bg-purple-900/40 text-purple-300 rounded-lg border border-purple-700/40">
+                        <div className="p-1.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg border border-purple-700/40">
                           <Cpu size={16} />
                         </div>
                         <input 
@@ -421,22 +421,22 @@ export default function Settings() {
                           className="bg-transparent border-b border-transparent hover:border-line-stronger focus:border-purple-500 font-bold text-fg text-base focus:bg-surface px-1 py-0.5 rounded transition-colors" 
                           title="Click to rename"
                         />
-                        <span className="text-[11px] font-mono font-bold bg-purple-900/60 text-purple-300 border border-purple-700/50 px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-mono font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-700/50 px-2 py-0.5 rounded-full">
                           {model.version || 'v1.0'}
                         </span>
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
                           model.task === 'pose' 
-                            ? 'bg-amber-950/60 text-amber-300 border-amber-800/50' 
+                            ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-800/50' 
                             : model.task === 'segmentation'
-                            ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/50'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-800/50'
                             : model.task === 'classification'
-                            ? 'bg-blue-950/60 text-blue-300 border-blue-800/50'
-                            : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/50'
+                            ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-800/50'
+                            : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-800/50'
                         }`}>
                           {model.task || 'detection'}
                         </span>
                         <span className="text-[10px] text-fg-muted bg-surface px-2 py-0.5 rounded-full border border-line flex items-center gap-1">
-                          <ShieldCheck size={11} className="text-green-400" /> Hailo-8L Ready
+                          <ShieldCheck size={11} className="text-green-600 dark:text-green-400" /> Hailo-8L Ready
                         </span>
                       </div>
 
@@ -447,7 +447,7 @@ export default function Settings() {
                               handleDelete('models', model.id);
                             }
                           }} 
-                          className="p-1.5 text-fg-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" 
+                          className="p-1.5 text-fg-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" 
                           title="Delete Model"
                         >
                           <Trash2 size={16} />
@@ -460,7 +460,7 @@ export default function Settings() {
                       {/* Stored & Original Filename */}
                       <div className="bg-surface/70 p-2.5 rounded-lg border border-line/80 space-y-1">
                         <div className="text-fg-muted text-[11px] font-semibold flex items-center gap-1">
-                          <FileCode size={13} className="text-purple-400" /> File Identity
+                          <FileCode size={13} className="text-purple-600 dark:text-purple-400" /> File Identity
                         </div>
                         <div className="text-fg font-mono text-[11px] truncate" title={model.hef_path}>
                           {model.hef_path}
@@ -474,7 +474,7 @@ export default function Settings() {
                       <div className="bg-surface/70 p-2.5 rounded-lg border border-line/80 space-y-1">
                         <div className="text-fg-muted text-[11px] font-semibold flex items-center justify-between">
                           <span>SHA-256 Checksum</span>
-                          <span className="text-purple-300 font-mono text-[10px]">
+                          <span className="text-purple-700 dark:text-purple-300 font-mono text-[10px]">
                             {formatFileSize(model.file_size)}
                           </span>
                         </div>
@@ -487,7 +487,7 @@ export default function Settings() {
                           >
                             <span className="truncate">{model.file_hash.substring(0, 14)}...</span>
                             {isCopied ? (
-                              <span className="text-green-400 text-[10px] flex items-center gap-0.5">
+                              <span className="text-green-600 dark:text-green-400 text-[10px] flex items-center gap-0.5">
                                 <Check size={11} /> Copied
                               </span>
                             ) : (
@@ -524,10 +524,10 @@ export default function Settings() {
                     <div className="bg-surface/50 p-2.5 rounded-lg border border-line/60 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold text-fg-secondary flex items-center gap-1.5">
-                          <Tag size={12} className="text-purple-400" />
+                          <Tag size={12} className="text-purple-600 dark:text-purple-400" />
                           Classes ({model.classes ? model.classes.length : 0})
                         </span>
-                        <label className="cursor-pointer text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 bg-purple-950/40 hover:bg-purple-900/40 px-2 py-0.5 rounded border border-purple-800/40 transition-colors">
+                        <label className="cursor-pointer text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-200 dark:hover:bg-purple-900/40 px-2 py-0.5 rounded border border-purple-800/40 transition-colors">
                           <Upload size={11} />
                           Upload metadata.yaml
                           <input
@@ -559,7 +559,7 @@ export default function Settings() {
                       {model.classes && model.classes.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {model.classes.map((cls, idx) => (
-                            <span key={idx} className="bg-purple-950/80 text-purple-300 border border-purple-800/50 text-[11px] px-2 py-0.5 rounded-md font-mono">
+                            <span key={idx} className="bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-800/50 text-[11px] px-2 py-0.5 rounded-md font-mono">
                               {cls}
                             </span>
                           ))}
@@ -647,14 +647,14 @@ export default function Settings() {
 
             {/* Upload Area */}
             <div className="bg-surface-2 p-5 rounded-xl border border-cyan-500/40 shadow-lg shadow-cyan-900/10">
-              <h3 className="text-lg font-bold text-cyan-400 mb-1 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-cyan-600 dark:text-cyan-400 mb-1 flex items-center gap-2">
                 <Film size={18} /> Upload Video File
               </h3>
               <p className="text-xs text-fg-muted mb-4">Supported formats: .mp4, .avi, .mkv, .mov, .webm — Max 1GB</p>
-              <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${videoUploading ? 'border-line-stronger bg-surface-3/30' : 'border-cyan-600/50 bg-cyan-900/10 hover:bg-cyan-900/20 hover:border-cyan-500'}`}>
+              <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${videoUploading ? 'border-line-stronger bg-surface-3/30' : 'border-cyan-600/50 bg-cyan-100 dark:bg-cyan-900/10 hover:bg-cyan-200 dark:hover:bg-cyan-900/20 hover:border-cyan-500'}`}>
                 <div className="flex flex-col items-center justify-center gap-2">
                   {videoUploading ? (
-                    <div className="text-cyan-400 text-sm animate-pulse">Uploading... please wait</div>
+                    <div className="text-cyan-600 dark:text-cyan-400 text-sm animate-pulse">Uploading... please wait</div>
                   ) : (
                     <>
                       <Upload size={28} className="text-cyan-500" />
@@ -668,7 +668,7 @@ export default function Settings() {
 
             {/* Video List */}
             <h3 className="text-base font-bold text-fg-secondary pt-2 pb-1 border-b border-line flex items-center gap-2">
-              <Film size={16} className="text-cyan-400" /> Uploaded Videos ({videoFiles.length})
+              <Film size={16} className="text-cyan-600 dark:text-cyan-400" /> Uploaded Videos ({videoFiles.length})
             </h3>
 
             {videoFiles.length === 0 ? (
@@ -677,7 +677,7 @@ export default function Settings() {
               videoFiles.map((vf) => (
                 <div key={vf.filename} className="bg-surface-2/50 p-3 rounded-lg border border-line-strong flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <Film size={20} className="text-cyan-400 shrink-0" />
+                    <Film size={20} className="text-cyan-600 dark:text-cyan-400 shrink-0" />
                     <div className="min-w-0">
                       <div className="text-sm text-fg font-medium truncate">{vf.filename}</div>
                       <div className="text-xs text-fg-muted">{(vf.size_bytes / (1024 * 1024)).toFixed(1)} MB</div>

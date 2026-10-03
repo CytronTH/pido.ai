@@ -85,8 +85,8 @@ const LoginForm = () => {
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-200">{error}</p>
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
 
@@ -94,7 +94,7 @@ const LoginForm = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium ml-1 text-fg-secondary">Username</label>
             <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none group-focus-within:text-blue-400 transition-colors text-fg-subtle">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors text-fg-subtle">
                 <User className="w-5 h-5" />
               </div>
               <input
@@ -111,7 +111,7 @@ const LoginForm = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium ml-1 text-fg-secondary">Password</label>
             <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none group-focus-within:text-purple-400 transition-colors text-fg-subtle">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none group-focus-within:text-purple-600 dark:group-focus-within:text-purple-400 transition-colors text-fg-subtle">
                 <KeyRound className="w-5 h-5" />
               </div>
               <input

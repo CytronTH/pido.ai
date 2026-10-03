@@ -10,7 +10,7 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
   return (
     <div className="font-mono text-[11px] leading-tight">
       <div 
-        className={`group flex items-center py-1 hover:bg-surface-2/50 rounded px-1 -ml-1 transition-colors ${isSelected ? 'bg-blue-900/30 border border-blue-800/50' : 'border border-transparent'}`}
+        className={`group flex items-center py-1 hover:bg-surface-2/50 rounded px-1 -ml-1 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-800/50' : 'border border-transparent'}`}
       >
         <div className="flex items-center gap-1 flex-1 cursor-pointer select-none" onClick={() => isObject && setIsExpanded(!isExpanded)}>
           {isObject ? (
@@ -18,10 +18,10 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
           ) : (
             <span className="w-3" />
           )}
-          <span className="text-purple-400">{nodeKey}</span>
+          <span className="text-purple-600 dark:text-purple-400">{nodeKey}</span>
           <span className="text-fg-subtle">:</span>
           {!isObject && (
-            <span className={typeof value === 'number' ? 'text-orange-400' : typeof value === 'string' ? 'text-green-400' : 'text-blue-400'}>
+            <span className={typeof value === 'number' ? 'text-orange-700 dark:text-orange-400' : typeof value === 'string' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}>
               {JSON.stringify(value)}
             </span>
           )}

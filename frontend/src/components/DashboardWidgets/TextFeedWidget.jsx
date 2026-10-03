@@ -5,10 +5,10 @@ export default function TextFeedWidget({ title, feedData = [], icon: Icon = Alig
   const renderValue = (val) => {
     if (val === undefined || val === null) return <span className="text-fg-muted italic">-</span>;
     if (typeof val === 'boolean') {
-      return <span className={val ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{val ? 'TRUE' : 'FALSE'}</span>;
+      return <span className={val ? 'text-green-600 dark:text-green-400 font-bold' : 'text-red-600 dark:text-red-400 font-bold'}>{val ? 'TRUE' : 'FALSE'}</span>;
     }
     if (typeof val === 'number') {
-      return <span className="text-blue-300">{Number.isInteger(val) ? val : val.toFixed(4)}</span>;
+      return <span className="text-blue-700 dark:text-blue-300">{Number.isInteger(val) ? val : val.toFixed(4)}</span>;
     }
     if (Array.isArray(val)) {
       if (val.length > 0 && typeof val[0] === 'object') {
@@ -18,13 +18,13 @@ export default function TextFeedWidget({ title, feedData = [], icon: Icon = Alig
             return acc;
          }, {});
          const summary = Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(', ');
-         return <span className="text-yellow-300">Found: {summary || '0 items'}</span>;
+         return <span className="text-yellow-700 dark:text-yellow-300">Found: {summary || '0 items'}</span>;
       }
-      return <span className="text-indigo-300">[{val.join(', ')}]</span>;
+      return <span className="text-indigo-700 dark:text-indigo-300">[{val.join(', ')}]</span>;
     }
     if (typeof val === 'object') {
        if (val.label !== undefined) {
-           return <span className="text-yellow-300">{val.label} {val.confidence ? `(${(val.confidence*100).toFixed(0)}%)` : ''}</span>;
+           return <span className="text-yellow-700 dark:text-yellow-300">{val.label} {val.confidence ? `(${(val.confidence*100).toFixed(0)}%)` : ''}</span>;
        }
        return <span className="text-fg-muted text-xs">{JSON.stringify(val)}</span>;
     }
@@ -34,7 +34,7 @@ export default function TextFeedWidget({ title, feedData = [], icon: Icon = Alig
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl p-4">
       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-line">
-        <Icon size={20} className="text-purple-400" />
+        <Icon size={20} className="text-purple-600 dark:text-purple-400" />
         <h3 className="text-fg-muted font-semibold text-sm uppercase tracking-wider">{title}</h3>
       </div>
       <div className="flex-1 overflow-y-auto pr-2 space-y-2">

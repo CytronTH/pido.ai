@@ -48,7 +48,7 @@ export default function DatabaseWriterNodeSettings({ nodeId, data, onChange }) {
         </select>
         
         {data?.writeStrategy === 'raw' && (
-          <p className="text-[10px] text-red-400 font-semibold mb-3">⚠️ Warning: May cause high CPU and DB bloat at high FPS.</p>
+          <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold mb-3">⚠️ Warning: May cause high CPU and DB bloat at high FPS.</p>
         )}
 
         {(data?.writeStrategy === 'on_change' || !data?.writeStrategy) && (

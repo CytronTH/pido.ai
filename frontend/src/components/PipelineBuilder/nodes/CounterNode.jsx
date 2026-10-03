@@ -31,7 +31,7 @@ export default function CounterNode({ id, data }) {
           </div>
           <div>
             <div className="font-semibold text-sm">Edge Counter</div>
-            <div className="text-[10px] text-emerald-300/70">Count Events</div>
+            <div className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70">Count Events</div>
           </div>
         </div>
         {!isCompact && <NodeMenu id={id} />}

@@ -30,7 +30,7 @@ export default function FunctionNode({ id, data }) {
           </div>
           <div>
             <div className="font-semibold text-sm">Function</div>
-            <div className="text-[10px] text-emerald-300/70">Python Script</div>
+            <div className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70">Python Script</div>
           </div>
         </div>
         {!isCompact && <NodeMenu id={id} />}
@@ -42,7 +42,7 @@ export default function FunctionNode({ id, data }) {
             Code (def process)
           </label>
           <textarea
-            className="nodrag bg-canvas border border-line-strong rounded-lg p-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed"
+            className="nodrag bg-canvas border border-line-strong rounded-lg p-2 text-xs font-mono text-emerald-700 dark:text-emerald-300 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed"
             rows={6}
             value={code}
             onChange={e => setCode(e.target.value)}

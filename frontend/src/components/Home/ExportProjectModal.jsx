@@ -38,7 +38,7 @@ export default function ExportProjectModal({ project, isOpen, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-line bg-surface/90">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-400 border border-blue-500/20">
+            <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               <Download size={22} />
             </div>
             <div>
@@ -59,7 +59,7 @@ export default function ExportProjectModal({ project, isOpen, onClose }) {
           {/* Project Summary Chip */}
           <div className="bg-canvas/60 border border-line/80 rounded-xl p-3.5 flex items-center justify-between text-xs">
             <span className="text-fg-muted">Pipeline Complexity</span>
-            <span className="font-semibold text-blue-400 bg-blue-950/40 border border-blue-800/30 px-2.5 py-1 rounded-lg">
+            <span className="font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-800/30 px-2.5 py-1 rounded-lg">
               {nodeCount} Nodes Configured
             </span>
           </div>
@@ -85,7 +85,7 @@ export default function ExportProjectModal({ project, isOpen, onClose }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-fg text-sm">Full Deployment Package (.irivproj)</span>
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-medium">
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-medium">
                     Recommended
                   </span>
                 </div>
@@ -131,7 +131,7 @@ export default function ExportProjectModal({ project, isOpen, onClose }) {
                 className="w-4 h-4 rounded text-blue-600 bg-surface-2 border-line-strong focus:ring-blue-500"
               />
               <div className="flex items-center gap-2 text-xs text-fg-secondary">
-                <Video size={15} className="text-blue-400 shrink-0" />
+                <Video size={15} className="text-blue-600 dark:text-blue-400 shrink-0" />
                 <span>Bundle referenced sample video files if camera is a video file</span>
               </div>
             </label>

@@ -10,7 +10,7 @@ export default function ActionButtonsWidget() {
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
       <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
-        <ToggleRight size={16} className="text-cyan-400" />
+        <ToggleRight size={16} className="text-cyan-600 dark:text-cyan-400" />
         <span className="text-sm font-semibold text-fg">Manual Triggers</span>
       </div>
       
@@ -19,7 +19,7 @@ export default function ActionButtonsWidget() {
           onClick={() => triggerAction('Alarm')}
           className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <Siren size={24} className="text-red-400" />
+          <Siren size={24} className="text-red-600 dark:text-red-400" />
           <span className="text-xs text-fg-secondary font-medium">Trigger Alarm</span>
         </button>
 
@@ -27,7 +27,7 @@ export default function ActionButtonsWidget() {
           onClick={() => triggerAction('Door')}
           className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <DoorOpen size={24} className="text-green-400" />
+          <DoorOpen size={24} className="text-green-600 dark:text-green-400" />
           <span className="text-xs text-fg-secondary font-medium">Open Door</span>
         </button>
 
@@ -35,7 +35,7 @@ export default function ActionButtonsWidget() {
           onClick={() => triggerAction('Lights')}
           className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <Lightbulb size={24} className="text-yellow-400" />
+          <Lightbulb size={24} className="text-yellow-700 dark:text-yellow-400" />
           <span className="text-xs text-fg-secondary font-medium">Toggle Lights</span>
         </button>
 

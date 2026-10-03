@@ -108,10 +108,10 @@ export default function ShelfSlotMonitorNode({ id, data }) {
             <Layers size={16} />
           </div>
           <div>
-            <div className="font-semibold text-sm leading-tight text-amber-200">
+            <div className="font-semibold text-sm leading-tight text-amber-800 dark:text-amber-200">
               {data?.label || 'Shelf Slot Monitor'}
             </div>
-            <div className="text-[10px] text-amber-400/80 font-mono">Retail Slot Occupancy</div>
+            <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-mono">Retail Slot Occupancy</div>
           </div>
         </div>
         {!isCompact && <NodeMenu id={id} />}
@@ -120,28 +120,28 @@ export default function ShelfSlotMonitorNode({ id, data }) {
       <div className={`p-3.5 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         {/* Real-time Status Banner */}
         {isPaused ? (
-          <div className="bg-amber-950/70 border border-amber-700/70 rounded-lg p-2 flex items-center justify-between text-xs text-amber-200 animate-pulse">
+          <div className="bg-amber-50 dark:bg-amber-950/70 border border-amber-700/70 rounded-lg p-2 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200 animate-pulse">
             <div className="flex items-center gap-2">
-              <UserX size={15} className="text-amber-400" />
+              <UserX size={15} className="text-amber-700 dark:text-amber-400" />
               <span className="font-medium">Person in view (Paused)</span>
             </div>
-            <span className="text-[10px] bg-amber-900/80 px-1.5 py-0.5 rounded text-amber-300 font-mono">HOLD</span>
+            <span className="text-[10px] bg-amber-100 dark:bg-amber-900/80 px-1.5 py-0.5 rounded text-amber-700 dark:text-amber-300 font-mono">HOLD</span>
           </div>
         ) : anyEmpty ? (
-          <div className="bg-red-950/70 border border-red-700/70 rounded-lg p-2 flex items-center justify-between text-xs text-red-200">
+          <div className="bg-red-50 dark:bg-red-950/70 border border-red-700/70 rounded-lg p-2 flex items-center justify-between text-xs text-red-800 dark:text-red-200">
             <div className="flex items-center gap-2">
-              <AlertTriangle size={15} className="text-red-400" />
+              <AlertTriangle size={15} className="text-red-600 dark:text-red-400" />
               <span className="font-medium">Slot Needs Refill!</span>
             </div>
-            <span className="text-[10px] bg-red-900/80 px-1.5 py-0.5 rounded text-red-300 font-mono font-bold">EMPTY</span>
+            <span className="text-[10px] bg-red-100 dark:bg-red-900/80 px-1.5 py-0.5 rounded text-red-700 dark:text-red-300 font-mono font-bold">EMPTY</span>
           </div>
         ) : (
-          <div className="bg-emerald-950/70 border border-emerald-700/70 rounded-lg p-2 flex items-center justify-between text-xs text-emerald-200">
+          <div className="bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-700/70 rounded-lg p-2 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-200">
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={15} className="text-emerald-400" />
+              <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400" />
               <span className="font-medium">All Slots In Stock</span>
             </div>
-            <span className="text-[10px] bg-emerald-900/80 px-1.5 py-0.5 rounded text-emerald-300 font-mono">OK</span>
+            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/80 px-1.5 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono">OK</span>
           </div>
         )}
 
@@ -151,7 +151,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
             <span className={`w-2 h-2 rounded-full ${anyEmpty ? 'bg-red-500 animate-ping' : 'bg-emerald-500'}`} />
             <span className="font-semibold text-fg">Any Slot Empty (Global)</span>
           </div>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${anyEmpty ? 'bg-red-900/60 text-red-300' : 'bg-surface-2 text-fg-muted'}`}>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${anyEmpty ? 'bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300' : 'bg-surface-2 text-fg-muted'}`}>
             {anyEmpty ? 'TRUE' : 'FALSE'}
           </span>
           <Handle
@@ -181,7 +181,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
                   key={slot.id}
                   className={`relative flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
                     isSlotEmpty
-                      ? 'bg-red-950/40 border-red-800/80'
+                      ? 'bg-red-50 dark:bg-red-950/40 border-red-800/80'
                       : 'bg-canvas/70 border-line hover:border-line-strong'
                   }`}
                 >
@@ -203,8 +203,8 @@ export default function ShelfSlotMonitorNode({ id, data }) {
                   <span
                     className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ${
                       isSlotEmpty
-                        ? 'bg-red-900/80 text-red-200'
-                        : 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/50'
+                        ? 'bg-red-100 dark:bg-red-900/80 text-red-800 dark:text-red-200'
+                        : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-800/50'
                     }`}
                   >
                     {isSlotEmpty ? 'EMPTY' : 'IN STOCK'}
@@ -228,7 +228,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
         {/* Edit Button */}
         <button
           onClick={() => setShowEditor(true)}
-          className="w-full mt-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-600/50 rounded-lg py-2 px-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm active:scale-95"
+          className="w-full mt-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-700 dark:text-amber-300 border border-amber-600/50 rounded-lg py-2 px-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm active:scale-95"
         >
           <Crosshair size={14} /> Edit Slots & Zones
         </button>
@@ -237,7 +237,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
       {/* Footer Info */}
       <div className="px-3.5 py-2 bg-canvas/80 border-t border-line flex items-center justify-between text-[10px] text-fg-muted">
         <span className="flex items-center gap-1">
-          <ShieldAlert size={12} className={data?.personSuppression !== false ? 'text-cyan-400' : 'text-fg-faint'} />
+          <ShieldAlert size={12} className={data?.personSuppression !== false ? 'text-cyan-600 dark:text-cyan-400' : 'text-fg-faint'} />
           Person check: {data?.personSuppression !== false ? 'Active' : 'Disabled'}
         </span>
         <span>Debounce: {(data?.debounceMs || 3000) / 1000}s</span>

@@ -110,7 +110,7 @@ export default function FlowCounterNode({ id, data }) {
           </div>
           <div>
             <div className="font-semibold text-sm leading-tight">Flow Counter</div>
-            <div className="text-[10px] text-teal-300/80">Anti-Duplicate Class Counter</div>
+            <div className="text-[10px] text-teal-700/80 dark:text-teal-300/80">Anti-Duplicate Class Counter</div>
           </div>
         </div>
         {!isCompact && <NodeMenu id={id} />}
@@ -146,7 +146,7 @@ export default function FlowCounterNode({ id, data }) {
           <div className="flex flex-col justify-end">
             <button
               onClick={() => setShowROIEditor(true)}
-              className="bg-surface-2 hover:bg-surface-3 text-teal-300 border border-teal-600/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors nodrag"
+              className="bg-surface-2 hover:bg-surface-3 text-teal-700 dark:text-teal-300 border border-teal-600/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors nodrag"
               title="Configure Zone coordinates"
             >
               <Crosshair size={13} /> Edit Zone
@@ -169,7 +169,7 @@ export default function FlowCounterNode({ id, data }) {
         {/* Auto Log Toggle */}
         <div className="flex items-center justify-between bg-canvas/80 px-2.5 py-1.5 rounded border border-line text-xs text-fg-secondary">
           <div className="flex items-center gap-1.5">
-            <Database size={13} className="text-teal-400" />
+            <Database size={13} className="text-teal-600 dark:text-teal-400" />
             <span>Auto-Save to DB</span>
           </div>
           <input
@@ -185,10 +185,10 @@ export default function FlowCounterNode({ id, data }) {
           <div className="flex items-center justify-between text-xs text-fg-muted">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Current Total:</span>
             <div className="flex items-center gap-2">
-              <span className="text-teal-300 font-bold text-sm">{liveTotal}</span>
+              <span className="text-teal-700 dark:text-teal-300 font-bold text-sm">{liveTotal}</span>
               <button
                 onClick={handleReset}
-                className="text-fg-muted hover:text-red-400 p-0.5 rounded transition-colors nodrag"
+                className="text-fg-muted hover:text-red-600 dark:hover:text-red-400 p-0.5 rounded transition-colors nodrag"
                 title="Reset Counters"
               >
                 <RotateCcw size={12} />
@@ -199,7 +199,7 @@ export default function FlowCounterNode({ id, data }) {
           {Object.keys(liveCounts).length > 0 ? (
             <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto custom-scrollbar">
               {Object.entries(liveCounts).map(([cls, cnt]) => (
-                <span key={cls} className="text-[10px] bg-teal-950/60 border border-teal-800/60 text-teal-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                <span key={cls} className="text-[10px] bg-teal-50 dark:bg-teal-950/60 border border-teal-800/60 text-teal-800 dark:text-teal-200 px-1.5 py-0.5 rounded flex items-center gap-1">
                   <span>{cls}:</span>
                   <span className="font-bold text-fg">{cnt}</span>
                 </span>

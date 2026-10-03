@@ -93,7 +93,7 @@ const UserManagement = () => {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3 text-fg">
-            <Users className="w-8 h-8 text-blue-400" />
+            <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             User Management
           </h1>
           <p className="text-fg-muted mt-2">Manage team members, roles, and access permissions.</p>
@@ -200,7 +200,7 @@ const UserManagement = () => {
                       </select>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${user.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${user.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'}`}>
                         {user.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -208,7 +208,7 @@ const UserManagement = () => {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleDelete(user.id)} className="p-2 text-fg-subtle hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User">
+                      <button onClick={() => handleDelete(user.id)} className="p-2 text-fg-subtle hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </td>

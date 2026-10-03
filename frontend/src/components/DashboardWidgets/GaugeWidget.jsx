@@ -90,7 +90,7 @@ export default function GaugeWidget({ title, value, unit, config = {} }) {
     const needleRotation = percentage * 270 - 135;
     
     return (
-      <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] transition-colors duration-300 relative items-center justify-center ${isAlert ? 'bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+      <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] transition-colors duration-300 relative items-center justify-center ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
         {title && (
           <div className="absolute top-4 left-4 flex items-center gap-2 text-fg-muted opacity-80 z-10">
             {SelectedIcon && <SelectedIcon size={14} />}
@@ -165,7 +165,7 @@ export default function GaugeWidget({ title, value, unit, config = {} }) {
   }
   
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] transition-colors duration-300 relative items-center justify-center ${isAlert ? 'bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] transition-colors duration-300 relative items-center justify-center ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
       {title && config.showTitle !== false && (
         <div className="absolute top-4 left-4 flex items-center gap-2 text-fg-muted opacity-80 z-10">
           {SelectedIcon && <SelectedIcon size={14} />}

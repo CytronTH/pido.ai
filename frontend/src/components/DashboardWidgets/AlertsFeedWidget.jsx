@@ -21,10 +21,10 @@ export default function AlertsFeedWidget({ metadata }) {
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
       <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
         <div className="flex items-center gap-2">
-          <Bell size={16} className="text-red-400" />
+          <Bell size={16} className="text-red-600 dark:text-red-400" />
           <span className="text-sm font-semibold text-fg">Alerts Feed</span>
         </div>
-        <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">{alerts.length}</span>
+        <span className="text-xs bg-red-500/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">{alerts.length}</span>
       </div>
       
       <div className="flex-1 p-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">

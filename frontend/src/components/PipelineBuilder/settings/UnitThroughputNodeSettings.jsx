@@ -152,11 +152,11 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Timer size={16} className="text-indigo-400" />
+            <Timer size={16} className="text-indigo-600 dark:text-indigo-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Status:</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isRunning ? 'bg-indigo-500/20 text-indigo-400' : 'bg-surface-3 text-fg-muted'}`}>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isRunning ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-surface-3 text-fg-muted'}`}>
               {isRunning ? 'RUNNING' : 'PAUSED'}
             </span>
             {(data?.startTrigger === 'manual' || data?.pauseTrigger === 'manual') && (
@@ -173,11 +173,11 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity size={16} className="text-emerald-400" />
+            <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Throughput:</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-lg font-bold font-mono text-emerald-400">
+            <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
               {Number(liveRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
             </span>
           </div>
@@ -185,15 +185,15 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Settings2 size={16} className="text-blue-400" />
+            <Settings2 size={16} className="text-blue-600 dark:text-blue-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Total Units:</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-lg font-bold font-mono text-blue-400">{liveCount}</span>
+            <span className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">{liveCount}</span>
             <button
               type="button"
               onClick={handleReset}
-              className="hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
+              className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
               title="Reset Counter"
             >
               <RotateCcw size={14} />

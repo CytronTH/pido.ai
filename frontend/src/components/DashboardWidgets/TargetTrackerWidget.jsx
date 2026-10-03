@@ -81,7 +81,7 @@ export default function TargetTrackerWidget({ title, data, config, projectId }) 
       {/* Header */}
       <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
         <div className="flex items-center gap-2">
-          <Target size={16} className={isComplete ? "text-amber-400" : "text-blue-400"} />
+          <Target size={16} className={isComplete ? "text-amber-700 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"} />
           <span className="text-sm font-semibold truncate text-fg">{title || 'Target Tracker'}</span>
         </div>
         <button 
@@ -100,7 +100,7 @@ export default function TargetTrackerWidget({ title, data, config, projectId }) 
           <div className="flex flex-col">
             <span className="text-xs uppercase font-semibold tracking-wider text-fg-muted">Actual</span>
             <div className="flex items-baseline gap-1">
-              <span className={`text-4xl font-bold tracking-tighter ${isComplete ? 'text-amber-400' : 'text-fg'}`}>
+              <span className={`text-4xl font-bold tracking-tighter ${isComplete ? 'text-amber-700 dark:text-amber-400' : 'text-fg'}`}>
                 {actual.toLocaleString()}
               </span>
             </div>
@@ -137,8 +137,8 @@ export default function TargetTrackerWidget({ title, data, config, projectId }) 
           <div className="flex flex-col items-center border-l border-line-strong/50">
             <span className="text-[10px] uppercase tracking-wide text-fg-muted">ETA</span>
             <div className="flex items-center gap-1">
-              <Clock size={12} className={isComplete ? "text-amber-400" : "text-fg-muted"} />
-              <span className={`text-sm font-semibold ${isComplete ? 'text-amber-400' : 'text-fg'}`}>
+              <Clock size={12} className={isComplete ? "text-amber-700 dark:text-amber-400" : "text-fg-muted"} />
+              <span className={`text-sm font-semibold ${isComplete ? 'text-amber-700 dark:text-amber-400' : 'text-fg'}`}>
                 {formatETA(data?.eta_seconds)}
               </span>
             </div>

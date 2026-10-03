@@ -321,7 +321,7 @@ function AppContent() {
             }}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
               activeTab === 'home' && !activeProject
-                ? 'bg-blue-600/10 text-blue-400' 
+                ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                 : 'text-fg-muted hover:text-fg hover:bg-surface-2'
             }`}
             title={!isSidebarOpen ? "Projects" : ""}
@@ -336,7 +336,7 @@ function AppContent() {
             }}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
               activeTab === 'settings' && !activeProject
-                ? 'bg-blue-600/10 text-blue-400' 
+                ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                 : 'text-fg-muted hover:text-fg hover:bg-surface-2'
             }`}
             title={!isSidebarOpen ? "Global Settings" : ""}
@@ -352,7 +352,7 @@ function AppContent() {
             }}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
               activeTab === 'database' && !activeProject
-                ? 'bg-blue-600/10 text-blue-400' 
+                ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                 : 'text-fg-muted hover:text-fg hover:bg-surface-2'
             }`}
             title={!isSidebarOpen ? "Database" : ""}
@@ -369,7 +369,7 @@ function AppContent() {
             }}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
               activeTab === 'users' && !activeProject
-                ? 'bg-blue-600/10 text-blue-400' 
+                ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                 : 'text-fg-muted hover:text-fg hover:bg-surface-2'
             }`}
             title={!isSidebarOpen ? "User Management" : ""}
@@ -392,7 +392,7 @@ function AppContent() {
                       navigate('/');
                       setIsMobileDrawerOpen(false);
                     }}
-                    className="hover:text-red-400 p-1 rounded-md hover:bg-surface-2 transition-colors text-fg-subtle"
+                    className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded-md hover:bg-surface-2 transition-colors text-fg-subtle"
                     title="Close Project"
                   >
                     <ChevronLeft size={16} />
@@ -408,7 +408,7 @@ function AppContent() {
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
                   activeTab === 'dashboard' 
-                    ? 'bg-blue-600/10 text-blue-400' 
+                    ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                     : 'text-fg-muted hover:text-fg hover:bg-surface-2'
                 }`}
                 title={!isSidebarOpen ? "Live Dashboard" : ""}
@@ -423,7 +423,7 @@ function AppContent() {
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
                   activeTab === 'pipeline' 
-                    ? 'bg-blue-600/10 text-blue-400' 
+                    ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                     : 'text-fg-muted hover:text-fg hover:bg-surface-2'
                 }`}
                 title={!isSidebarOpen ? "Pipeline Builder" : ""}
@@ -438,7 +438,7 @@ function AppContent() {
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
                   activeTab === 'logs' 
-                    ? 'bg-blue-600/10 text-blue-400' 
+                    ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                     : 'text-fg-muted hover:text-fg hover:bg-surface-2'
                 }`}
                 title={!isSidebarOpen ? "Database Logs" : ""}
@@ -454,7 +454,7 @@ function AppContent() {
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
                   activeTab === 'wiki' 
-                    ? 'bg-blue-600/10 text-blue-400' 
+                    ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                     : 'text-fg-muted hover:text-fg hover:bg-surface-2'
                 }`}
                 title={!isSidebarOpen ? "Node Wiki" : ""}
@@ -501,7 +501,7 @@ function AppContent() {
                  <span className="hidden sm:inline text-fg-faint">/</span>
                  <span className="font-medium truncate max-w-[100px] sm:max-w-[200px] text-fg-secondary" title={activeProject.name}>{activeProject.name}</span>
                  <span className="text-fg-faint">/</span>
-                 <span className="text-blue-400 font-medium truncate">
+                 <span className="text-blue-600 dark:text-blue-400 font-medium truncate">
                    {activeTab === 'dashboard' ? 'Live Dashboard' : activeTab === 'pipeline' ? 'Pipeline Builder' : activeTab === 'wiki' ? 'Node Wiki' : 'Database Logs'}
                  </span>
                </>
@@ -509,11 +509,11 @@ function AppContent() {
              {!activeProject && activeTab === 'settings' && (
                 <>
                   <span className="hidden sm:inline text-fg-faint">/</span>
-                  <span className="text-blue-400 font-medium">Global Settings</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">Global Settings</span>
                 </>
              )}
              {!activeProject && activeTab === 'home' && (
-               <span className="text-blue-400 font-medium sm:hidden">Projects</span>
+               <span className="text-blue-600 dark:text-blue-400 font-medium sm:hidden">Projects</span>
              )}
           </div>
           
@@ -554,14 +554,14 @@ function AppContent() {
               </button>
               <button
                 onClick={() => handleSystemAction('restart')}
-                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-blue-400 hover:bg-blue-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
+                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
                 title="Restart System"
               >
                 <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
               </button>
               <button
                 onClick={() => handleSystemAction('shutdown')}
-                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-red-400 hover:bg-red-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
+                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-red-600 dark:hover:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
                 title="Shutdown System"
               >
                 <Power size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -649,7 +649,7 @@ function AppContent() {
         <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface/95 backdrop-blur-lg border-t border-line z-30 flex items-center justify-around px-2">
           <button 
             onClick={() => { navigate('/'); }}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'home' && !activeProject ? 'text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'home' && !activeProject ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
           >
             <Home size={18} />
             <span className="text-[10px]">Projects</span>
@@ -659,28 +659,28 @@ function AppContent() {
             <>
               <button 
                 onClick={() => navigate(`/project/${activeProject.id}/dashboard`)}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'dashboard' ? 'text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'dashboard' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
               >
                 <LayoutDashboard size={18} />
                 <span className="text-[10px]">Dashboard</span>
               </button>
               <button 
                 onClick={() => navigate(`/project/${activeProject.id}/pipeline`)}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'pipeline' ? 'text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'pipeline' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
               >
                 <GitMerge size={18} />
                 <span className="text-[10px]">Pipeline</span>
               </button>
               <button 
                 onClick={() => navigate(`/project/${activeProject.id}/logs`)}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'logs' ? 'text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'logs' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
               >
                 <Server size={18} />
                 <span className="text-[10px]">Logs</span>
               </button>
               <button 
                 onClick={() => { setWikiNode(null); navigate(`/project/${activeProject.id}/wiki`); }}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'wiki' ? 'text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'wiki' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
               >
                 <BookOpen size={18} />
                 <span className="text-[10px]">Wiki</span>
@@ -689,7 +689,7 @@ function AppContent() {
           ) : (
             <button 
               onClick={() => { navigate('/settings'); }}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'settings' && !activeProject ? 'text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'settings' && !activeProject ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
             >
               <SettingsIcon size={18} />
               <span className="text-[10px]">Settings</span>

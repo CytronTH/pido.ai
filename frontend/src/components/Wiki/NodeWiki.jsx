@@ -116,24 +116,24 @@ export default function NodeWiki({ initialNode }) {
 
   const getIcon = (type) => {
     switch (type) {
-      case 'inputNode': return <Camera size={18} className="text-blue-400" />;
-      case 'aiNode': return <BrainCircuit size={18} className="text-purple-400" />;
-      case 'logicNode': return <Filter size={18} className="text-orange-400" />;
-      case 'counterNode': return <span className="text-emerald-400 font-bold px-1">∑</span>;
-      case 'flowCounterNode': return <span className="text-teal-400 font-bold px-1">⇄</span>;
-      case 'shelfSlotMonitorNode': return <Layers size={18} className="text-amber-400" />;
-      case 'forkliftZoneNode': return <ShieldAlert size={18} className="text-rose-400" />;
-      case 'actionNode': return <Bell size={18} className="text-green-400" />;
-      case 'snapshotNode': return <Camera size={18} className="text-pink-400" />;
-      case 'digitalInputNode': return <ToggleLeft size={18} className="text-cyan-400" />;
-      case 'digitalOutputNode': return <ToggleRight size={18} className="text-orange-400" />;
-      case 'ledNode': return <Lightbulb size={18} className="text-yellow-400" />;
-      case 'buzzerNode': return <BellRing size={18} className="text-red-400" />;
-      case 'rs485Node': return <Settings2 size={18} className="text-indigo-400" />;
-      case 'dashboardVideoNode': return <span className="text-pink-400 font-bold px-1">📺</span>;
-      case 'dashboardMetricNode': return <span className="text-pink-400 font-bold px-1">🔢</span>;
-      case 'dashboardTextNode': return <span className="text-pink-400 font-bold px-1">📝</span>;
-      case 'dashboardLogNode': return <span className="text-indigo-400 font-bold px-1">📋</span>;
+      case 'inputNode': return <Camera size={18} className="text-blue-600 dark:text-blue-400" />;
+      case 'aiNode': return <BrainCircuit size={18} className="text-purple-600 dark:text-purple-400" />;
+      case 'logicNode': return <Filter size={18} className="text-orange-700 dark:text-orange-400" />;
+      case 'counterNode': return <span className="text-emerald-600 dark:text-emerald-400 font-bold px-1">∑</span>;
+      case 'flowCounterNode': return <span className="text-teal-600 dark:text-teal-400 font-bold px-1">⇄</span>;
+      case 'shelfSlotMonitorNode': return <Layers size={18} className="text-amber-700 dark:text-amber-400" />;
+      case 'forkliftZoneNode': return <ShieldAlert size={18} className="text-rose-600 dark:text-rose-400" />;
+      case 'actionNode': return <Bell size={18} className="text-green-600 dark:text-green-400" />;
+      case 'snapshotNode': return <Camera size={18} className="text-pink-600 dark:text-pink-400" />;
+      case 'digitalInputNode': return <ToggleLeft size={18} className="text-cyan-600 dark:text-cyan-400" />;
+      case 'digitalOutputNode': return <ToggleRight size={18} className="text-orange-700 dark:text-orange-400" />;
+      case 'ledNode': return <Lightbulb size={18} className="text-yellow-700 dark:text-yellow-400" />;
+      case 'buzzerNode': return <BellRing size={18} className="text-red-600 dark:text-red-400" />;
+      case 'rs485Node': return <Settings2 size={18} className="text-indigo-600 dark:text-indigo-400" />;
+      case 'dashboardVideoNode': return <span className="text-pink-600 dark:text-pink-400 font-bold px-1">📺</span>;
+      case 'dashboardMetricNode': return <span className="text-pink-600 dark:text-pink-400 font-bold px-1">🔢</span>;
+      case 'dashboardTextNode': return <span className="text-pink-600 dark:text-pink-400 font-bold px-1">📝</span>;
+      case 'dashboardLogNode': return <span className="text-indigo-600 dark:text-indigo-400 font-bold px-1">📋</span>;
       case 'debugNode': return <span className="text-fg-secondary font-bold px-1">🐛</span>;
       default: return <Info size={18} className="text-fg-muted" />;
     }
@@ -146,7 +146,7 @@ export default function NodeWiki({ initialNode }) {
       <div className="p-4 sm:p-6 border-b border-line shrink-0 sticky top-0 bg-surface/95 backdrop-blur z-10 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600/20 p-2 rounded-lg border border-blue-500/30">
-            <BookOpen className="text-blue-400" size={22} />
+            <BookOpen className="text-blue-600 dark:text-blue-400" size={22} />
           </div>
           <div>
             <h1 className="text-base sm:text-xl font-bold">Node Wiki</h1>
@@ -232,12 +232,12 @@ export default function NodeWiki({ initialNode }) {
         {/* Mobile Header Bar */}
         <div className="md:hidden flex items-center justify-between p-3 border-b border-line bg-surface/90 backdrop-blur shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2 min-w-0">
-            <BookOpen className="text-blue-400 shrink-0" size={18} />
+            <BookOpen className="text-blue-600 dark:text-blue-400 shrink-0" size={18} />
             <span className="text-xs sm:text-sm font-bold text-fg truncate">{data?.title || 'Node Wiki'}</span>
           </div>
           <button
             onClick={() => setIsMobileWikiSidebarOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600/15 border border-blue-500/30 text-xs text-blue-400 font-medium active:scale-95 shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600/15 border border-blue-500/30 text-xs text-blue-600 dark:text-blue-400 font-medium active:scale-95 shrink-0"
           >
             <span>All Nodes</span>
           </button>
@@ -268,7 +268,7 @@ export default function NodeWiki({ initialNode }) {
               {data.explanation && (
                 <section className="bg-surface/60 border border-line rounded-2xl p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-fg mb-4 flex items-center gap-2">
-                    <Info size={18} className="text-blue-400"/> หลักการทำงาน
+                    <Info size={18} className="text-blue-600 dark:text-blue-400"/> หลักการทำงาน
                   </h3>
                   <p className="text-fg-secondary leading-relaxed text-sm md:text-base">
                     {data.explanation}
@@ -280,7 +280,7 @@ export default function NodeWiki({ initialNode }) {
               {data.input && (
                 <section className="bg-surface/60 border border-line rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-line-strong transition-all duration-300">
                   <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                    <div className="bg-green-900/30 p-2 rounded-lg text-green-400">
+                    <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg text-green-600 dark:text-green-400">
                       <LogIn size={20} />
                     </div>
                     <h3 className="text-lg sm:text-xl font-semibold text-fg">1. ข้อมูลขาเข้า (Input)</h3>
@@ -298,7 +298,7 @@ export default function NodeWiki({ initialNode }) {
               {data.process && (
                 <section className="bg-surface/60 border border-line rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-line-strong transition-all duration-300">
                   <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                    <div className="bg-blue-900/30 p-2 rounded-lg text-blue-400">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
                       <Cpu size={20} />
                     </div>
                     <h3 className="text-lg sm:text-xl font-semibold text-fg">2. การประมวลผล (Process)</h3>
@@ -316,7 +316,7 @@ export default function NodeWiki({ initialNode }) {
               {data.output && (
                 <section className="bg-surface/60 border border-line rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-line-strong transition-all duration-300">
                   <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                    <div className="bg-orange-900/30 p-2 rounded-lg text-orange-400">
+                    <div className="bg-orange-100 dark:bg-orange-900/30 p-2 rounded-lg text-orange-700 dark:text-orange-400">
                       <LogOut size={20} />
                     </div>
                     <h3 className="text-lg sm:text-xl font-semibold text-fg">3. ข้อมูลขาออก (Output)</h3>
@@ -344,7 +344,7 @@ export default function NodeWiki({ initialNode }) {
                            <Activity size={16} className="animate-spin" /> Deploying...
                          </div>
                        ) : isSandboxRunning ? (
-                         <div className="px-4 py-2 bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                         <div className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-bold flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Live Simulation Running
                          </div>
                        ) : null}
@@ -379,7 +379,7 @@ export default function NodeWiki({ initialNode }) {
                                  </button>
                                ))}
                              </div>
-                             <div className="bg-blue-900/10 border border-blue-900/30 p-3.5 rounded-lg text-[11px] sm:text-xs text-blue-300/90 leading-relaxed text-justify">
+                             <div className="bg-blue-100 dark:bg-blue-900/10 border border-blue-900/30 p-3.5 rounded-lg text-[11px] sm:text-xs text-blue-700/90 dark:text-blue-300/90 leading-relaxed text-justify">
                                {data.mockSettings.note}
                              </div>
                           </div>
@@ -409,7 +409,7 @@ export default function NodeWiki({ initialNode }) {
               {nodeUseCases[selectedNode] && nodeUseCases[selectedNode].length > 0 && (
                 <section className="bg-surface/60 border border-line rounded-2xl p-6 shadow-sm mt-8">
                   <h3 className="text-lg font-semibold text-fg mb-6 flex items-center gap-2">
-                    <BookOpen size={18} className="text-blue-400"/> ตัวอย่างการใช้งานจริง (Use Cases)
+                    <BookOpen size={18} className="text-blue-600 dark:text-blue-400"/> ตัวอย่างการใช้งานจริง (Use Cases)
                   </h3>
                   
                   <div className="grid grid-cols-1 gap-6">

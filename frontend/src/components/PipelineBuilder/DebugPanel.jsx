@@ -5,16 +5,16 @@ import usePipelineStore from '../../store/usePipelineStore';
 const getNodeBadgeColors = (type) => {
   switch(type) {
     case 'inputNode': return 'bg-surface/40 text-fg-secondary border-line-strong/50';
-    case 'aiNode': return 'bg-purple-900/40 text-purple-300 border-purple-700/50';
-    case 'logicNode': return 'bg-orange-900/40 text-orange-400 border-orange-700/50';
-    case 'counterNode': return 'bg-emerald-900/40 text-emerald-400 border-emerald-700/50';
-    case 'flowCounterNode': return 'bg-teal-900/40 text-teal-400 border-teal-700/50';
-    case 'forkliftZoneNode': return 'bg-rose-900/40 text-rose-400 border-rose-700/50';
-    case 'shelfSlotMonitorNode': return 'bg-amber-900/40 text-amber-400 border-amber-700/50';
-    case 'rateLimitNode': return 'bg-yellow-900/40 text-yellow-400 border-yellow-700/50';
-    case 'functionNode': return 'bg-pink-900/40 text-pink-400 border-pink-700/50';
-    case 'actionNode': return 'bg-indigo-900/40 text-indigo-400 border-indigo-700/50';
-    case 'snapshotNode': return 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50';
+    case 'aiNode': return 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-700/50';
+    case 'logicNode': return 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-700/50';
+    case 'counterNode': return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border-emerald-700/50';
+    case 'flowCounterNode': return 'bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 border-teal-700/50';
+    case 'forkliftZoneNode': return 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 border-rose-700/50';
+    case 'shelfSlotMonitorNode': return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-700/50';
+    case 'rateLimitNode': return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400 border-yellow-700/50';
+    case 'functionNode': return 'bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 border-pink-700/50';
+    case 'actionNode': return 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border-indigo-700/50';
+    case 'snapshotNode': return 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 border-cyan-700/50';
     default: return 'bg-surface/40 text-fg-secondary border-line-strong/50';
   }
 };
@@ -158,13 +158,13 @@ export default function DebugPanel({ isOpen, onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between p-2.5 border-b border-line bg-canvas/50 shrink-0">
         <div className="flex items-center gap-2 text-fg">
-          <Terminal size={16} className="text-purple-400" />
+          <Terminal size={16} className="text-purple-600 dark:text-purple-400" />
           <span className="font-semibold text-[13px] tracking-wide">Debug Panel</span>
         </div>
         <div className="flex items-center gap-1">
           <button 
             onClick={handleClear}
-            className="p-1 rounded bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-rose-400 transition-colors"
+            className="p-1 rounded bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
             title="Clear Debug History"
           >
             <Trash2 size={14} />
@@ -217,7 +217,7 @@ export default function DebugPanel({ isOpen, onClose }) {
                       className="text-fg-subtle hover:text-fg-secondary transition-colors p-0.5 rounded flex items-center justify-center w-4 h-4"
                       title="Copy payload"
                     >
-                      {copiedId === msg.msgId ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                      {copiedId === msg.msgId ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                     </button>
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border max-w-[85px] truncate ${getNodeBadgeColors(msg.sourceName)}`} title={`src: ${msg.sourceName}`}>
                       {msg.sourceName}
@@ -225,7 +225,7 @@ export default function DebugPanel({ isOpen, onClose }) {
                   </div>
                 </div>
                 <div className={`relative px-2 py-1.5 overflow-x-auto custom-scrollbar transition-all duration-200 ${isExpanded ? 'max-h-[400px]' : 'max-h-12 overflow-hidden'}`}>
-                  <pre className="text-[9px] font-mono text-emerald-400 m-0 whitespace-pre-wrap break-all leading-tight">
+                  <pre className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 m-0 whitespace-pre-wrap break-all leading-tight">
                     {typeof msg.payload === 'object' 
                       ? JSON.stringify(msg.payload, null, 2) 
                       : String(msg.payload)}

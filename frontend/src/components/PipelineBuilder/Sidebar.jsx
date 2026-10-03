@@ -5,25 +5,25 @@ export const NODE_CATEGORIES = [
   {
     title: 'Nodes',
     items: [
-      { type: 'inputNode', label: 'Input Source', icon: Camera, bg: 'bg-blue-900/30 border-blue-700/50 text-blue-400' },
-      { type: 'aiNode', label: 'AI Model', icon: BrainCircuit, bg: 'bg-purple-900/30 border-purple-700/50 text-purple-400' },
-      { type: 'logicNode', label: 'Logic / Filter', icon: Filter, bg: 'bg-orange-900/30 border-orange-700/50 text-orange-400' },
-      { type: 'counterNode', label: 'Counter', textIcon: '∑', bg: 'bg-emerald-900/30 border-emerald-700/50 text-emerald-400' },
-      { type: 'flowCounterNode', label: 'Flow Counter', textIcon: '⇄', bg: 'bg-teal-900/30 border-teal-700/50 text-teal-400' },
-      { type: 'targetTrackerNode', label: '🎯 Target Tracker', bg: 'bg-indigo-900/30 border-indigo-700/50 text-indigo-400' },
-      { type: 'unitThroughputNode', label: '⏱️ Unit Throughput', bg: 'bg-teal-900/30 border-teal-700/50 text-teal-400' },
-      { type: 'databaseWriterNode', label: '💾 Database Writer', bg: 'bg-blue-900/30 border-blue-700/50 text-blue-400' },
-      { type: 'collectionWriterNode', label: '📚 Collection Writer', bg: 'bg-orange-900/30 border-orange-700/50 text-orange-400' },
-      { type: 'snapshotNode', label: 'Snapshot', icon: CameraIcon, bg: 'bg-pink-900/30 border-pink-700/50 text-pink-400' },
+      { type: 'inputNode', label: 'Input Source', icon: Camera, bg: 'bg-blue-100 dark:bg-blue-900/30 border-blue-700/50 text-blue-600 dark:text-blue-400' },
+      { type: 'aiNode', label: 'AI Model', icon: BrainCircuit, bg: 'bg-purple-100 dark:bg-purple-900/30 border-purple-700/50 text-purple-600 dark:text-purple-400' },
+      { type: 'logicNode', label: 'Logic / Filter', icon: Filter, bg: 'bg-orange-100 dark:bg-orange-900/30 border-orange-700/50 text-orange-700 dark:text-orange-400' },
+      { type: 'counterNode', label: 'Counter', textIcon: '∑', bg: 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-700/50 text-emerald-600 dark:text-emerald-400' },
+      { type: 'flowCounterNode', label: 'Flow Counter', textIcon: '⇄', bg: 'bg-teal-100 dark:bg-teal-900/30 border-teal-700/50 text-teal-600 dark:text-teal-400' },
+      { type: 'targetTrackerNode', label: '🎯 Target Tracker', bg: 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-700/50 text-indigo-600 dark:text-indigo-400' },
+      { type: 'unitThroughputNode', label: '⏱️ Unit Throughput', bg: 'bg-teal-100 dark:bg-teal-900/30 border-teal-700/50 text-teal-600 dark:text-teal-400' },
+      { type: 'databaseWriterNode', label: '💾 Database Writer', bg: 'bg-blue-100 dark:bg-blue-900/30 border-blue-700/50 text-blue-600 dark:text-blue-400' },
+      { type: 'collectionWriterNode', label: '📚 Collection Writer', bg: 'bg-orange-100 dark:bg-orange-900/30 border-orange-700/50 text-orange-700 dark:text-orange-400' },
+      { type: 'snapshotNode', label: 'Snapshot', icon: CameraIcon, bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
     ]
   },
   {
     title: 'Dashboard Outputs',
     items: [
-      { type: 'dashboardVideoNode', label: 'Video Stream', textIcon: '📺', bg: 'bg-pink-900/30 border-pink-700/50 text-pink-400' },
-      { type: 'dashboardMetricNode', label: 'Number / Metric', textIcon: '🔢', bg: 'bg-pink-900/30 border-pink-700/50 text-pink-400' },
-      { type: 'dashboardTextNode', label: 'Text Value', textIcon: '📝', bg: 'bg-pink-900/30 border-pink-700/50 text-pink-400' },
-      { type: 'dashboardChartNode', label: 'Chart', textIcon: '📊', bg: 'bg-indigo-900/30 border-indigo-700/50 text-indigo-400' },
+      { type: 'dashboardVideoNode', label: 'Video Stream', textIcon: '📺', bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
+      { type: 'dashboardMetricNode', label: 'Number / Metric', textIcon: '🔢', bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
+      { type: 'dashboardTextNode', label: 'Text Value', textIcon: '📝', bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
+      { type: 'dashboardChartNode', label: 'Chart', textIcon: '📊', bg: 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-700/50 text-indigo-600 dark:text-indigo-400' },
     ]
   },
   {
@@ -69,9 +69,9 @@ export default function Sidebar({ onOpenWiki, onAddNode, onCloseMobile }) {
 
       <button 
         onClick={() => onOpenWiki && onOpenWiki(null)}
-        className="flex items-center gap-2 mb-1 p-2.5 sm:p-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-100 font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95 shrink-0"
+        className="flex items-center gap-2 mb-1 p-2.5 sm:p-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-800 dark:text-blue-100 font-medium text-xs sm:text-sm transition-all shadow-sm active:scale-95 shrink-0"
       >
-        <BookOpen size={16} className="text-blue-400 shrink-0" />
+        <BookOpen size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
         <span className="truncate">📖 เปิดดู Node Wiki (หน้าหลัก)</span>
       </button>
 

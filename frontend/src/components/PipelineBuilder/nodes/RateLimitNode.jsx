@@ -24,7 +24,7 @@ export default function RateLimitNode({ id, data, isConnectable }) {
           <div className="bg-teal-600 p-1 rounded-lg">
             <Timer size={14} className="text-fg" />
           </div>
-          <div className="font-semibold text-xs uppercase tracking-wider text-teal-100">Rate Limit</div>
+          <div className="font-semibold text-xs uppercase tracking-wider text-teal-800 dark:text-teal-100">Rate Limit</div>
         </div>
         {!isCompact && <NodeMenu id={id} />}
       </div>

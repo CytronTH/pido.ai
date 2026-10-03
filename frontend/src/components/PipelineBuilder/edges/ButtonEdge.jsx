@@ -156,7 +156,7 @@ export default function ButtonEdge({
               >
                 <GripHorizontal size={14} className="text-fg-muted" />
               </div>
-              <div className="p-2 text-green-400 font-mono text-[10px] leading-tight max-h-[300px] overflow-y-auto custom-scrollbar shadow-inner">
+              <div className="p-2 text-green-600 dark:text-green-400 font-mono text-[10px] leading-tight max-h-[300px] overflow-y-auto custom-scrollbar shadow-inner">
                 <pre className="whitespace-pre-wrap word-break m-0">
                   {JSON.stringify(displayPayload, null, 2)}
                 </pre>

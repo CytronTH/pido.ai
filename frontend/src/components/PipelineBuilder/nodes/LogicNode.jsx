@@ -116,7 +116,7 @@ export default function LogicNode({ id, data }) {
   const insertSnippet = (snippet) => setExpr(snippet);
 
   // ── Palette Block Component ───────────────────────────────────────────────
-  const DraggableBlock = ({ label, code, colorClass = "bg-purple-900/40 text-purple-300 border-purple-500/50" }) => {
+  const DraggableBlock = ({ label, code, colorClass = "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-500/50" }) => {
     const html = `<span contenteditable="false" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 my-0.5 rounded text-[11px] font-mono border shadow-sm align-middle select-none ${colorClass}" data-code='${code}'>${label}</span>`;
     
     return (
@@ -154,7 +154,7 @@ export default function LogicNode({ id, data }) {
           </div>
           <div>
             <div className="font-semibold text-sm">Logic Filter</div>
-            <div className="text-[10px] text-orange-300/70">Equation Builder</div>
+            <div className="text-[10px] text-orange-700/70 dark:text-orange-300/70">Equation Builder</div>
           </div>
         </div>
         {!isCompact && <NodeMenu id={id} />}
@@ -165,13 +165,13 @@ export default function LogicNode({ id, data }) {
         {/* Mode Toggle */}
         <div className="flex bg-canvas rounded-lg p-1 border border-line shrink-0">
           <button 
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${!isAdvancedMode ? 'bg-surface-2 text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${!isAdvancedMode ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
             onClick={() => setMode(false)}
           >
             <LayoutList size={12} /> Equation Builder
           </button>
           <button 
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${isAdvancedMode ? 'bg-surface-2 text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${isAdvancedMode ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
             onClick={() => setMode(true)}
           >
             <Code size={12} /> Code Editor
@@ -186,7 +186,7 @@ export default function LogicNode({ id, data }) {
             
             {/* The Equation Box */}
             <div className="flex flex-col gap-1 relative">
-              <label className="text-[10px] text-orange-300 font-bold uppercase tracking-wider flex justify-between">
+              <label className="text-[10px] text-orange-700 dark:text-orange-300 font-bold uppercase tracking-wider flex justify-between">
                 <span>Equation Box</span>
                 <span className="text-[9px] text-orange-500/70 font-normal">Drag & Drop blocks here</span>
               </label>
@@ -238,16 +238,16 @@ export default function LogicNode({ id, data }) {
               <div className="flex flex-col gap-1">
                 <span className="text-[9px] text-fg-subtle">Operators & Logic</span>
                 <div className="flex flex-wrap gap-1">
-                  <DraggableBlock label="==" code=" == " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
-                  <DraggableBlock label="!=" code=" != " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
-                  <DraggableBlock label=">" code=" > " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
-                  <DraggableBlock label="<" code=" < " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
-                  <DraggableBlock label=">=" code=" >= " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
-                  <DraggableBlock label="<=" code=" <= " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
+                  <DraggableBlock label="==" code=" == " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
+                  <DraggableBlock label="!=" code=" != " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
+                  <DraggableBlock label=">" code=" > " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
+                  <DraggableBlock label="<" code=" < " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
+                  <DraggableBlock label=">=" code=" >= " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
+                  <DraggableBlock label="<=" code=" <= " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
                   
-                  <DraggableBlock label="AND" code=" and " colorClass="bg-indigo-900/40 text-indigo-300 border-indigo-500/50" />
-                  <DraggableBlock label="OR" code=" or " colorClass="bg-indigo-900/40 text-indigo-300 border-indigo-500/50" />
-                  <DraggableBlock label="NOT" code=" not " colorClass="bg-indigo-900/40 text-indigo-300 border-indigo-500/50" />
+                  <DraggableBlock label="AND" code=" and " colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
+                  <DraggableBlock label="OR" code=" or " colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
+                  <DraggableBlock label="NOT" code=" not " colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
                 </div>
               </div>
 
@@ -255,8 +255,8 @@ export default function LogicNode({ id, data }) {
               <div className="flex flex-col gap-1 mt-1">
                 <span className="text-[9px] text-fg-subtle">General Properties</span>
                 <div className="flex flex-wrap gap-1">
-                  <DraggableBlock label="Total Count" code="len(msg['payload'])" colorClass="bg-emerald-900/40 text-emerald-300 border-emerald-500/50" />
-                  <DraggableBlock label="Max Confidence" code="confidence" colorClass="bg-emerald-900/40 text-emerald-300 border-emerald-500/50" />
+                  <DraggableBlock label="Total Count" code="len(msg['payload'])" colorClass="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-500/50" />
+                  <DraggableBlock label="Max Confidence" code="confidence" colorClass="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-500/50" />
                 </div>
               </div>
 
@@ -268,9 +268,9 @@ export default function LogicNode({ id, data }) {
                     <div key={cls} className="flex flex-col gap-1 p-1.5 rounded border border-line-strong/60 bg-surface/40">
                       <span className="text-[9px] font-bold text-fg-muted capitalize px-0.5">{cls}</span>
                       <div className="flex flex-wrap gap-1">
-                        <DraggableBlock label={`Has ${cls}`} code={`has("${cls}")`} colorClass="bg-blue-900/40 text-blue-300 border-blue-500/50" />
-                        <DraggableBlock label={`Count ${cls}`} code={`label_count("${cls}")`} colorClass="bg-green-900/40 text-green-300 border-green-500/50" />
-                        <DraggableBlock label={`Conf. ${cls}`} code={`label_confidence("${cls}")`} colorClass="bg-pink-900/40 text-pink-300 border-pink-500/50" />
+                        <DraggableBlock label={`Has ${cls}`} code={`has("${cls}")`} colorClass="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-500/50" />
+                        <DraggableBlock label={`Count ${cls}`} code={`label_count("${cls}")`} colorClass="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-500/50" />
+                        <DraggableBlock label={`Conf. ${cls}`} code={`label_confidence("${cls}")`} colorClass="bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border-pink-500/50" />
                       </div>
                     </div>
                   ))}
@@ -292,10 +292,10 @@ export default function LogicNode({ id, data }) {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-fg-muted font-bold uppercase tracking-wider flex justify-between">
                 <span>Expression</span>
-                <span className="text-orange-400 font-normal">Python</span>
+                <span className="text-orange-700 dark:text-orange-400 font-normal">Python</span>
               </label>
               <textarea
-                className="nodrag bg-canvas border border-line-strong rounded-lg p-2 text-xs font-mono text-green-300 focus:outline-none focus:border-orange-500 resize-none leading-relaxed"
+                className="nodrag bg-canvas border border-line-strong rounded-lg p-2 text-xs font-mono text-green-700 dark:text-green-300 focus:outline-none focus:border-orange-500 resize-none leading-relaxed"
                 rows={3}
                 value={expr}
                 onChange={e => setExpr(e.target.value)}
@@ -312,7 +312,7 @@ export default function LogicNode({ id, data }) {
                   <button
                     key={s.label}
                     onClick={() => insertSnippet(s.expr)}
-                    className="text-[9px] bg-surface-2 hover:bg-orange-900/40 border border-line-strong hover:border-orange-600 text-fg-muted hover:text-orange-300 px-1.5 py-0.5 rounded transition-colors nodrag"
+                    className="text-[9px] bg-surface-2 hover:bg-orange-200 dark:hover:bg-orange-900/40 border border-line-strong hover:border-orange-600 text-fg-muted hover:text-orange-700 dark:hover:text-orange-300 px-1.5 py-0.5 rounded transition-colors nodrag"
                     title={s.expr}
                   >
                     {s.label}
@@ -328,7 +328,7 @@ export default function LogicNode({ id, data }) {
                 onClick={() => setShowRef(r => !r)}
               >
                 <span className="flex items-center gap-1.5">
-                  <Zap size={11} className="text-orange-400" />
+                  <Zap size={11} className="text-orange-700 dark:text-orange-400" />
                   Available variables
                 </span>
                 {showRef ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -338,7 +338,7 @@ export default function LogicNode({ id, data }) {
                   {VARS_REF.map(([v, desc]) => (
                     <div key={v} className="flex gap-2 items-start">
                       <code
-                        className="text-[9px] font-mono text-amber-300 bg-surface-2 px-1 py-0.5 rounded cursor-pointer hover:bg-orange-900/30 transition-colors shrink-0 nodrag"
+                        className="text-[9px] font-mono text-amber-700 dark:text-amber-300 bg-surface-2 px-1 py-0.5 rounded cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-colors shrink-0 nodrag"
                         onClick={() => setExpr(v)}
                         title="Click to insert"
                       >

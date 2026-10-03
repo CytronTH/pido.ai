@@ -107,7 +107,7 @@ export default function AINode({ id, data }) {
         {/* Advanced Settings Button */}
         <button 
           onClick={() => setShowSettingsModal(true)}
-          className="bg-surface-2 hover:bg-surface-3 text-purple-300 border border-purple-500/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-2 transition-colors nodrag mt-1"
+          className="bg-surface-2 hover:bg-surface-3 text-purple-700 dark:text-purple-300 border border-purple-500/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-2 transition-colors nodrag mt-1"
         >
           <Settings size={14} /> Advanced Settings
         </button>
@@ -115,9 +115,9 @@ export default function AINode({ id, data }) {
         {/* Preview of the selected entity's config */}
         {selectedModel && (
           <div className="text-[11px] text-fg-muted bg-canvas/80 border border-line p-2.5 rounded-xl space-y-1 mt-1 shadow-inner">
-            <div className="flex items-center justify-between text-purple-300 font-bold">
+            <div className="flex items-center justify-between text-purple-700 dark:text-purple-300 font-bold">
               <span className="truncate max-w-[130px]" title={selectedModel.name}>{selectedModel.name}</span>
-              <span className="bg-purple-900/60 text-purple-300 text-[9px] px-1.5 py-0.5 rounded font-mono border border-purple-700/50">
+              <span className="bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[9px] px-1.5 py-0.5 rounded font-mono border border-purple-700/50">
                 {selectedModel.version || 'v1.0'}
               </span>
             </div>
@@ -134,7 +134,7 @@ export default function AINode({ id, data }) {
             {selectedModel.file_hash && (
               <div className="flex items-center justify-between text-fg-muted text-[10px]">
                 <span>SHA-256:</span>
-                <span className="text-purple-400 font-mono text-[9px]" title={selectedModel.file_hash}>
+                <span className="text-purple-600 dark:text-purple-400 font-mono text-[9px]" title={selectedModel.file_hash}>
                   #{selectedModel.file_hash.substring(0, 8)}
                 </span>
               </div>
@@ -142,7 +142,7 @@ export default function AINode({ id, data }) {
             {selectedModel.classes && selectedModel.classes.length > 0 && (
               <div className="text-[10px] text-fg-muted pt-0.5 flex items-center justify-between border-t border-line/80 mt-1">
                 <span>Classes ({selectedModel.classes.length}):</span>
-                <span className="text-purple-300 font-mono truncate max-w-[100px]">
+                <span className="text-purple-700 dark:text-purple-300 font-mono truncate max-w-[100px]">
                   {selectedModel.classes.slice(0, 2).join(', ')}{selectedModel.classes.length > 2 ? '...' : ''}
                 </span>
               </div>

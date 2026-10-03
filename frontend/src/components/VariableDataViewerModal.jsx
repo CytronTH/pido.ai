@@ -92,7 +92,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-line">
           <div>
             <h3 className="text-lg font-bold flex items-center gap-2 text-fg">
-              <Activity size={20} className="text-indigo-400" />
+              <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
               {variable.variable_name}
             </h3>
             <p className="text-xs text-fg-muted flex items-center gap-2 mt-1">
@@ -110,7 +110,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-fg-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+              className="p-2 text-fg-muted hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
             >
               <X size={20} />
             </button>
@@ -123,7 +123,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
           <div className="bg-surface border border-line rounded-xl p-4 shadow-sm h-72 flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-bold text-fg-muted uppercase tracking-wider">Trend (Last 100 points)</h4>
-              <div className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full">
+              <div className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
                 Data Span: {spanText}
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
             </div>
             <button 
               onClick={handleDeleteVariable}
-              className="text-xs px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition-colors font-medium flex items-center gap-2 w-full sm:w-auto justify-center"
+              className="text-xs px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg transition-colors font-medium flex items-center gap-2 w-full sm:w-auto justify-center"
             >
               Delete Variable Entirely
             </button>
@@ -203,7 +203,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
                   {[...history].reverse().map((row) => (
                     <tr key={row.id} className="hover:bg-surface-2/30 transition-colors">
                       <td className="px-4 py-2 font-mono text-xs">{new Date(row.timestamp + 'Z').toLocaleString()}</td>
-                      <td className="px-4 py-2 font-mono text-indigo-400 font-semibold">{row.value}</td>
+                      <td className="px-4 py-2 font-mono text-indigo-600 dark:text-indigo-400 font-semibold">{row.value}</td>
                       <td className="px-4 py-2 text-fg-muted text-xs">{row.node_id}</td>
                       <td className="px-4 py-2 text-fg-subtle text-xs text-right">{row.id}</td>
                     </tr>

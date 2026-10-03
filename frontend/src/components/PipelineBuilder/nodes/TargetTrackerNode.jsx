@@ -61,7 +61,7 @@ export default function TargetTrackerNode({ id, data }) {
             {!isCompact && (
               <div className="text-[10px] flex items-center gap-1 mt-1">
                  <span className={`w-2 h-2 rounded-full ${isComplete ? 'bg-amber-400 shadow-[0_0_5px_#fbbf24]' : 'bg-fg-subtle'}`}></span>
-                 <span className="text-amber-300/70">{isComplete ? 'Target Reached' : 'Tracking'}</span>
+                 <span className="text-amber-700/70 dark:text-amber-300/70">{isComplete ? 'Target Reached' : 'Tracking'}</span>
               </div>
             )}
           </div>
@@ -75,7 +75,7 @@ export default function TargetTrackerNode({ id, data }) {
           <div className="flex flex-col gap-1 mb-2">
             <div className="flex justify-between text-xs text-fg-muted">
               <span>{liveCount} / {targetCount} {data?.unitName || 'items'}</span>
-              <span className="text-amber-400 font-mono">{progressPercent.toFixed(1)}%</span>
+              <span className="text-amber-700 dark:text-amber-400 font-mono">{progressPercent.toFixed(1)}%</span>
             </div>
             <div className="w-full bg-surface-2 rounded-full h-2.5">
               <div 
@@ -89,11 +89,11 @@ export default function TargetTrackerNode({ id, data }) {
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="bg-canvas p-2 rounded border border-line text-center">
               <div className="text-[10px] uppercase text-fg-subtle">Rate</div>
-              <div className="text-sm font-mono text-emerald-400 font-bold">{Number(debugState?.current_rate_per_minute || 0).toFixed(1)} <span className="text-[9px]">/m</span></div>
+              <div className="text-sm font-mono text-emerald-600 dark:text-emerald-400 font-bold">{Number(debugState?.current_rate_per_minute || 0).toFixed(1)} <span className="text-[9px]">/m</span></div>
             </div>
             <div className="bg-canvas p-2 rounded border border-line text-center">
               <div className="text-[10px] uppercase text-fg-subtle">ETA</div>
-              <div className="text-sm font-mono text-blue-400 font-bold">{formatETA(etaSeconds)}</div>
+              <div className="text-sm font-mono text-blue-600 dark:text-blue-400 font-bold">{formatETA(etaSeconds)}</div>
             </div>
           </div>
 

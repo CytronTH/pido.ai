@@ -165,7 +165,7 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
         <button 
           onClick={handleSave}
           disabled={!isDirty}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-blue-900/50 text-blue-400/50 cursor-not-allowed'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600/50 dark:text-blue-400/50 cursor-not-allowed'}`}
         >
           <Save size={16} /> Save
         </button>

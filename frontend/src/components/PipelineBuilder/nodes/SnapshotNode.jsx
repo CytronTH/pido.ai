@@ -10,7 +10,7 @@ export default function SnapshotNode({ id, data, selected }) {
     <div className={`bg-surface border-2 rounded-xl shadow-xl w-64 overflow-hidden transition-colors ${selected ? 'border-pink-500' : 'border-pink-500/30'}`}>
       <div className="bg-gradient-to-r from-pink-900/50 to-pink-800/50 p-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Camera size={18} className="text-pink-400" />
+          <Camera size={18} className="text-pink-600 dark:text-pink-400" />
           <span className="font-semibold text-fg text-sm tracking-wide">Snapshot Node</span>
         </div>
         {!isCompact && <NodeMenu id={id} />}
@@ -29,7 +29,7 @@ export default function SnapshotNode({ id, data, selected }) {
         </div>
         
         <div className="text-xs text-fg-subtle leading-relaxed bg-surface-2/50 p-2 rounded-lg border border-line-strong/50">
-          Saves a high-res frame to disk and logs it to the database when triggered by a <span className="text-blue-400 font-medium">True</span> payload.
+          Saves a high-res frame to disk and logs it to the database when triggered by a <span className="text-blue-600 dark:text-blue-400 font-medium">True</span> payload.
         </div>
       </div>
 

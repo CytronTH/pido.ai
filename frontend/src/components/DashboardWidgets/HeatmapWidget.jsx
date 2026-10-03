@@ -5,7 +5,7 @@ export default function HeatmapWidget() {
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl relative group">
       <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
-        <Map size={16} className="text-yellow-400" />
+        <Map size={16} className="text-yellow-700 dark:text-yellow-400" />
         <span className="text-sm font-semibold text-fg">Zone Heatmap</span>
       </div>
       

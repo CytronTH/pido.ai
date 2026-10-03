@@ -57,7 +57,7 @@ export default function ProjectVariableMonitor({ projectId }) {
       <div className="flex items-center justify-between p-5 border-b border-line bg-surface/50">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2 text-fg">
-            <Activity size={20} className="text-indigo-400" />
+            <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
             Project Variables
           </h2>
           <p className="text-xs text-fg-muted mt-1">
@@ -67,7 +67,7 @@ export default function ProjectVariableMonitor({ projectId }) {
         <button
           onClick={fetchVariables}
           disabled={loading}
-          className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-2 rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 text-sm font-medium"
+          className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-3 py-2 rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 text-sm font-medium"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Refresh
@@ -97,13 +97,13 @@ export default function ProjectVariableMonitor({ projectId }) {
                 className="bg-canvas/80 border border-line hover:border-indigo-500/50 cursor-pointer group transition-all rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden mt-2"
               >
                 <div className="absolute top-2 left-4 px-2 py-0.5 bg-surface-2/80 text-[10px] text-fg-secondary rounded-full font-medium border border-line-strong/50 flex items-center gap-1">
-                  <Database size={10} className="text-indigo-400" /> {v.record_count?.toLocaleString() || 0} records
+                  <Database size={10} className="text-indigo-600 dark:text-indigo-400" /> {v.record_count?.toLocaleString() || 0} records
                 </div>
-                <div className="absolute top-4 right-4 text-fg-faint group-hover:text-indigo-400 transition-colors">
+                <div className="absolute top-4 right-4 text-fg-faint group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                   <ChevronRight size={18} />
                 </div>
                 <div className="flex items-center gap-2 mb-3 pr-6 mt-4">
-                  <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-md">
+                  <div className="p-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-md">
                     <Hash size={16} />
                   </div>
                   <h3 className="font-semibold text-fg truncate" title={v.variable_name}>

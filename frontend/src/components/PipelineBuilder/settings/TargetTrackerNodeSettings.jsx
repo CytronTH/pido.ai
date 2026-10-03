@@ -60,15 +60,15 @@ export default function TargetTrackerNodeSettings({ nodeId, data, onChange, isSi
       {/* Reset Controls */}
       <div className="bg-canvas p-3 rounded-lg border border-line flex items-center justify-between mt-2">
         <div className="flex items-center gap-2">
-          <Target size={16} className="text-amber-400" />
+          <Target size={16} className="text-amber-700 dark:text-amber-400" />
           <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current:</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold font-mono text-amber-400">{liveCount}</span>
+          <span className="text-lg font-bold font-mono text-amber-700 dark:text-amber-400">{liveCount}</span>
           <button
             type="button"
             onClick={handleReset}
-            className="hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
+            className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
             title="Reset Tracker to 0"
           >
             <RotateCcw size={14} />

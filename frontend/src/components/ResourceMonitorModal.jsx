@@ -53,19 +53,19 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
   const getNodeTypeBadge = (type) => {
     switch (type) {
       case 'aiNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/60 rounded">AI Inference</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-800/60 rounded">AI Inference</span>;
       case 'inputNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-950/80 text-blue-300 border border-blue-800/60 rounded">Input Stream</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-800/60 rounded">Input Stream</span>;
       case 'logicNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 rounded">Logic Check</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-800/60 rounded">Logic Check</span>;
       case 'dashboardVideoNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-800/60 rounded">Video Out</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-800/60 rounded">Video Out</span>;
       case 'functionNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 rounded">Function</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-cyan-50 dark:bg-cyan-950/80 text-cyan-700 dark:text-cyan-300 border border-cyan-800/60 rounded">Function</span>;
       case 'counterNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 rounded">Counter</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-800/60 rounded">Counter</span>;
       case 'snapshotNode':
-        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-800/60 rounded">Snapshot</span>;
+        return <span className="px-2 py-0.5 text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-800/60 rounded">Snapshot</span>;
       default:
         return <span className="px-2 py-0.5 text-[10px] font-semibold bg-surface-2 border border-line-strong rounded text-fg-secondary">{type}</span>;
     }
@@ -79,12 +79,12 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
         <div className="flex items-center justify-between px-6 py-4 border-b border-line/80 bg-surface/50">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30 text-blue-400">
-              <Activity size={22} className="animate-pulse text-blue-400" />
+              <Activity size={22} className="animate-pulse text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold tracking-tight text-fg">System & AI Hardware Telemetry</h2>
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/80 border border-emerald-800/60 text-emerald-400">
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-800/60 text-emerald-600 dark:text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   Live (1 Hz)
                 </span>
@@ -110,9 +110,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
           <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-sm">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                <Cpu size={15} className="text-blue-400" /> CPU Load
+                <Cpu size={15} className="text-blue-600 dark:text-blue-400" /> CPU Load
               </span>
-              <span className="text-base font-bold font-mono text-blue-400">
+              <span className="text-base font-bold font-mono text-blue-600 dark:text-blue-400">
                 {system.cpu_percent?.toFixed(1)}%
               </span>
             </div>
@@ -139,9 +139,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
             <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/5 rounded-full blur-2xl pointer-events-none" />
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-secondary">
-                <Zap size={15} className="text-purple-400" /> NPU Hailo-8L
+                <Zap size={15} className="text-purple-600 dark:text-purple-400" /> NPU Hailo-8L
               </span>
-              <span className="text-base font-bold font-mono text-purple-400">
+              <span className="text-base font-bold font-mono text-purple-600 dark:text-purple-400">
                 {system.npu_percent?.toFixed(1)}%
               </span>
             </div>
@@ -155,7 +155,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
             </div>
             <div className="flex justify-between items-center text-[10px] mt-1 font-mono text-fg-muted">
               <span className="truncate max-w-[130px]" title={system.npu_device}>{system.npu_device}</span>
-              <span className={system.npu_percent > 0 ? 'text-purple-300 font-medium' : 'text-fg-subtle'}>
+              <span className={system.npu_percent > 0 ? 'text-purple-700 dark:text-purple-300 font-medium' : 'text-fg-subtle'}>
                 {system.npu_percent > 0 ? 'Active' : 'Standby'}
               </span>
             </div>
@@ -165,9 +165,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
           <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-sm">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                <HardDrive size={15} className="text-emerald-400" /> Memory (RAM)
+                <HardDrive size={15} className="text-emerald-600 dark:text-emerald-400" /> Memory (RAM)
               </span>
-              <span className={`text-base font-bold font-mono ${system.ram_percent > 80 ? 'text-red-400' : 'text-emerald-400'}`}>
+              <span className={`text-base font-bold font-mono ${system.ram_percent > 80 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 {system.ram_percent?.toFixed(1)}%
               </span>
             </div>
@@ -189,9 +189,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
           <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-sm">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                <Thermometer size={15} className="text-orange-400" /> Thermal
+                <Thermometer size={15} className="text-orange-700 dark:text-orange-400" /> Thermal
               </span>
-              <span className={`text-base font-bold font-mono ${system.temp_c > 75 ? 'text-red-400' : 'text-orange-400'}`}>
+              <span className={`text-base font-bold font-mono ${system.temp_c > 75 ? 'text-red-600 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
                 {system.temp_c ? `${system.temp_c.toFixed(1)}°C` : 'N/A'}
               </span>
             </div>
@@ -205,7 +205,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
             </div>
             <div className="flex justify-between text-[10px] mt-1 text-fg-subtle">
               <span>Pi 5 SoC</span>
-              <span className={system.temp_c > 75 ? 'text-red-400 font-bold' : 'text-green-400'}>
+              <span className={system.temp_c > 75 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-green-600 dark:text-green-400'}>
                 {system.temp_c > 75 ? 'High Temp' : 'Normal'}
               </span>
             </div>
@@ -301,7 +301,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                               <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-950 text-blue-300 border border-blue-800/50">
                                 ID: {pipeline.pipeline_id}
                               </span>
-                              <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+                              <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                                 <CheckCircle size={12} /> {pipeline.status}
                               </span>
                             </div>
@@ -314,14 +314,14 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                         {/* Pipeline Resource Rollup */}
                         <div className="flex items-center gap-4 text-xs font-mono">
                           <div className="flex items-center gap-1.5 bg-surface/80 border border-line px-3 py-1.5 rounded-lg">
-                            <Cpu size={14} className="text-blue-400" />
+                            <Cpu size={14} className="text-blue-600 dark:text-blue-400" />
                             <span className="text-[11px] text-fg-muted">Pipe CPU:</span>
-                            <span className="text-blue-300 font-bold">{pipeline.cpu_percent?.toFixed(1)}%</span>
+                            <span className="text-blue-700 dark:text-blue-300 font-bold">{pipeline.cpu_percent?.toFixed(1)}%</span>
                           </div>
-                          <div className="flex items-center gap-1.5 bg-purple-950/40 border border-purple-900/50 px-3 py-1.5 rounded-lg">
-                            <Zap size={14} className="text-purple-400" />
-                            <span className="text-purple-300 text-[11px]">NPU:</span>
-                            <span className="text-purple-300 font-bold">{pipeline.npu_percent?.toFixed(1)}%</span>
+                          <div className="flex items-center gap-1.5 bg-purple-50 dark:bg-purple-950/40 border border-purple-900/50 px-3 py-1.5 rounded-lg">
+                            <Zap size={14} className="text-purple-600 dark:text-purple-400" />
+                            <span className="text-purple-700 dark:text-purple-300 text-[11px]">NPU:</span>
+                            <span className="text-purple-700 dark:text-purple-300 font-bold">{pipeline.npu_percent?.toFixed(1)}%</span>
                           </div>
                         </div>
                       </div>
@@ -391,7 +391,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                                                 style={{ width: `${Math.min(100, node.npu_percent || 0)}%` }}
                                               />
                                             </div>
-                                            <span className="font-mono text-purple-300 font-bold text-[11px]">
+                                            <span className="font-mono text-purple-700 dark:text-purple-300 font-bold text-[11px]">
                                               {node.npu_percent?.toFixed(1)}%
                                             </span>
                                           </div>
@@ -404,7 +404,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                                       <td className="py-2.5 px-3 font-mono text-[11px]">
                                         {isAi ? (
                                           <div className="flex flex-col gap-0.5">
-                                            <span className="text-purple-300">
+                                            <span className="text-purple-700 dark:text-purple-300">
                                               NPU Infer: <strong className="text-fg">{node.npu_latency_ms?.toFixed(1) || 0} ms</strong>
                                             </span>
                                             {node.python_probe_ms > 0 && (
@@ -423,9 +423,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                                       {/* Throughput */}
                                       <td className="py-2.5 px-3 font-mono text-[11px]">
                                         {node.fps > 0 ? (
-                                          <span className="text-blue-300 font-medium">{node.fps?.toFixed(1)} FPS</span>
+                                          <span className="text-blue-700 dark:text-blue-300 font-medium">{node.fps?.toFixed(1)} FPS</span>
                                         ) : node.freq_hz > 0 ? (
-                                          <span className="text-emerald-300 font-medium">{node.freq_hz?.toFixed(1)} Hz</span>
+                                          <span className="text-emerald-700 dark:text-emerald-300 font-medium">{node.freq_hz?.toFixed(1)} Hz</span>
                                         ) : (
                                           <span className="text-fg-subtle">Idle</span>
                                         )}
@@ -452,7 +452,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-sm font-semibold flex items-center gap-2 text-fg">
-                      <BarChart2 size={16} className="text-blue-400" /> CPU vs NPU Utilization Over Time
+                      <BarChart2 size={16} className="text-blue-600 dark:text-blue-400" /> CPU vs NPU Utilization Over Time
                     </h3>
                     <p className="text-xs text-fg-muted">Rolling real-time performance telemetry history</p>
                   </div>
@@ -552,12 +552,12 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                         </td>
                         <td className="py-2.5 px-3 text-fg-secondary">
                           {proc.pipeline_id ? (
-                            <span className="text-blue-400 font-semibold">{proc.pipeline_id}</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-semibold">{proc.pipeline_id}</span>
                           ) : (
                             <span className="text-fg-subtle">Global / System</span>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-blue-400">
+                        <td className="py-2.5 px-3 font-semibold text-blue-600 dark:text-blue-400">
                           {proc.cpu_percent?.toFixed(1)}%
                         </td>
                         <td className="py-2.5 px-3 text-fg-secondary">

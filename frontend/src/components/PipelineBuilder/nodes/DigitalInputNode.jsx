@@ -10,7 +10,7 @@ export default function DigitalInputNode({ id, data }) {
       <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
         <div className="flex items-center gap-3">
           <div className="bg-cyan-500/20 p-2 rounded-lg">
-            <ToggleLeft className="text-cyan-400" size={24} />
+            <ToggleLeft className="text-cyan-600 dark:text-cyan-400" size={24} />
           </div>
           <div>
             <h3 className="font-bold text-fg text-sm">Digital Input</h3>

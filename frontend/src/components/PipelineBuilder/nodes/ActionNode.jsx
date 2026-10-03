@@ -84,7 +84,7 @@ export default function ActionNode({ id, data }) {
 {/* Preview of the selected entity's target */}
         {selectedIntegration && (
           <div className="text-[10px] text-fg-subtle bg-surface-2 p-2 rounded-md break-all">
-            <span className="text-green-400 uppercase font-semibold mr-1">{selectedIntegration.type}:</span>
+            <span className="text-green-600 dark:text-green-400 uppercase font-semibold mr-1">{selectedIntegration.type}:</span>
             {selectedIntegration.target || "N/A"}
           </div>
         )}
@@ -96,7 +96,7 @@ export default function ActionNode({ id, data }) {
         className="w-3 h-3 bg-green-500 border-2 border-line-subtle"
       />
       <div className="px-4 pb-4 mt-1 border-t border-line text-[10px] text-fg-subtle">
-        Triggers when <code className="text-indigo-400 bg-canvas px-1 py-0.5 rounded">payload == {data?.triggerOn !== false ? "True" : "False"}</code>
+        Triggers when <code className="text-indigo-600 dark:text-indigo-400 bg-canvas px-1 py-0.5 rounded">payload == {data?.triggerOn !== false ? "True" : "False"}</code>
       </div>
     </div>
   );

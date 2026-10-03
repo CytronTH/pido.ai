@@ -139,10 +139,10 @@ export default function ProjectList({ onOpenProject }) {
       <div className="bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-800/50 rounded-2xl p-4 sm:p-6 md:p-8 mb-6 md:mb-10 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 sm:gap-6 shadow-2xl">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-2 flex items-center gap-2 sm:gap-3 text-fg">
-            <Video className="text-blue-400 shrink-0" size={28} />
+            <Video className="text-blue-600 dark:text-blue-400 shrink-0" size={28} />
             My Projects
           </h2>
-          <p className="text-blue-200/70 text-xs sm:text-sm max-w-xl">
+          <p className="text-blue-800/70 dark:text-blue-200/70 text-xs sm:text-sm max-w-xl">
             Create and manage multiple AI vision pipelines. Each project runs isolated on its own GStreamer thread and RTSP output, allowing you to run multiple cameras simultaneously.
           </p>
         </div>
@@ -151,7 +151,7 @@ export default function ProjectList({ onOpenProject }) {
             onClick={() => setIsImportModalOpen(true)}
             className="bg-surface-2 hover:bg-surface-3 text-fg hover:text-fg border border-line-strong hover:border-line-stronger px-4 sm:px-5 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 whitespace-nowrap text-sm sm:text-base"
           >
-            <Upload size={18} className="text-blue-400" />
+            <Upload size={18} className="text-blue-600 dark:text-blue-400" />
             Import Project
           </button>
           <button 
@@ -180,7 +180,7 @@ export default function ProjectList({ onOpenProject }) {
                 {/* Status Badge */}
                 {projectStatuses[project.id]?.status === 'running' ? (
                   <div className="flex flex-col">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-1 rounded-md border border-green-400/20">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-400/10 px-2 py-1 rounded-md border border-green-400/20">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
                       Running
                     </span>
@@ -200,7 +200,7 @@ export default function ProjectList({ onOpenProject }) {
               <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => setExportTargetProject(project)}
-                  className="text-fg-muted hover:text-blue-400 transition-colors p-2 bg-surface-2 hover:bg-surface-3 rounded-lg active:scale-95"
+                  className="text-fg-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2 bg-surface-2 hover:bg-surface-3 rounded-lg active:scale-95"
                   title="Export / Backup Project"
                 >
                   <Download size={16} />
@@ -208,7 +208,7 @@ export default function ProjectList({ onOpenProject }) {
                 {editingId !== project.id && (
                   <button 
                     onClick={() => startEditing(project)}
-                    className="text-fg-muted hover:text-blue-400 transition-colors p-2 bg-surface-2 rounded-lg active:scale-95"
+                    className="text-fg-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2 bg-surface-2 rounded-lg active:scale-95"
                     title="Edit Details"
                   >
                     <Edit2 size={16} />
@@ -252,7 +252,7 @@ export default function ProjectList({ onOpenProject }) {
                 </div>
               ) : (
                 <>
-                  <h3 className="text-lg sm:text-xl font-bold mb-1.5 sm:mb-2 text-fg group-hover:text-blue-400 transition-colors cursor-pointer" onClick={() => onOpenProject(project)}>
+                  <h3 className="text-lg sm:text-xl font-bold mb-1.5 sm:mb-2 text-fg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer" onClick={() => onOpenProject(project)}>
                     {project.name}
                   </h3>
                   <p className="text-fg-muted text-xs sm:text-sm mb-4 sm:mb-6 line-clamp-2">{project.description}</p>

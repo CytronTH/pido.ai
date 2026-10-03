@@ -140,7 +140,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-line bg-surface/90 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-400 border border-blue-500/20">
+            <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               <Upload size={22} />
             </div>
             <div>
@@ -161,13 +161,13 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
           {/* STEP 1: Success Banner */}
           {importResult ? (
             <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-950/40">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-950/40">
                 <CheckCircle2 size={36} />
               </div>
               <div>
                 <h4 className="text-xl font-bold text-fg">Import Successful!</h4>
                 <p className="text-sm text-fg-muted mt-1 max-w-md">
-                  Project <span className="text-emerald-400 font-semibold font-mono">"{importResult.project_name}"</span> has been deployed onto this board and is ready.
+                  Project <span className="text-emerald-600 dark:text-emerald-400 font-semibold font-mono">"{importResult.project_name}"</span> has been deployed onto this board and is ready.
                 </p>
               </div>
 
@@ -214,19 +214,19 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
                   className="hidden"
                 />
 
-                <div className="w-16 h-16 rounded-2xl bg-surface-2/80 border border-line-strong flex items-center justify-center text-blue-400 mb-1">
+                <div className="w-16 h-16 rounded-2xl bg-surface-2/80 border border-line-strong flex items-center justify-center text-blue-600 dark:text-blue-400 mb-1">
                   <FileUp size={32} />
                 </div>
 
                 {isInspecting ? (
                   <div className="flex flex-col items-center gap-2 text-fg-secondary">
-                    <Loader2 size={24} className="animate-spin text-blue-400" />
+                    <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400" />
                     <span className="text-sm font-medium">Analyzing package & dependencies...</span>
                   </div>
                 ) : (
                   <>
                     <h4 className="text-base font-semibold text-fg">
-                      Drop your project package here, or <span className="text-blue-400 hover:underline">browse</span>
+                      Drop your project package here, or <span className="text-blue-600 dark:text-blue-400 hover:underline">browse</span>
                     </h4>
                     <p className="text-xs text-fg-subtle max-w-sm">
                       Supports <span className="text-fg-secondary font-mono">.irivproj</span> (Full Deployment Bundle with AI models) or <span className="text-fg-secondary font-mono">.json</span> configuration files.
@@ -236,8 +236,8 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
               </div>
 
               {error && (
-                <div className="p-3.5 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-xs flex items-center gap-2.5">
-                  <ShieldAlert size={16} className="text-red-400 shrink-0" />
+                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-800/60 text-red-700 dark:text-red-300 text-xs flex items-center gap-2.5">
+                  <ShieldAlert size={16} className="text-red-600 dark:text-red-400 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
@@ -249,7 +249,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
               <div className="bg-canvas border border-line rounded-xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-400 border border-blue-500/20 shrink-0">
+                    <div className="p-2.5 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
                       <Package size={22} />
                     </div>
                     <div>
@@ -264,7 +264,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-950/60 text-blue-300 border border-blue-800/40">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-800/40">
                     {preview.project.nodes_count} Nodes
                   </span>
                   {preview.project.node_types?.map(t => (
@@ -278,7 +278,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
               {/* AI Models Included */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-fg-muted flex items-center gap-1.5">
-                  <BrainCircuit size={14} className="text-purple-400" />
+                  <BrainCircuit size={14} className="text-purple-600 dark:text-purple-400" />
                   <span>AI Models Required ({preview.models?.length || 0})</span>
                 </label>
                 
@@ -299,17 +299,17 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
                         </div>
 
                         {m.exists_on_device ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-2 py-1 rounded-md shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-800/40 px-2 py-1 rounded-md shrink-0">
                             <CheckCircle2 size={12} />
                             Already Installed
                           </span>
                         ) : m.is_bundled ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-blue-400 bg-blue-950/40 border border-blue-800/40 px-2 py-1 rounded-md shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-800/40 px-2 py-1 rounded-md shrink-0">
                             <HardDrive size={12} />
                             Will Install (.hef)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 bg-amber-950/40 border border-amber-800/40 px-2 py-1 rounded-md shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-800/40 px-2 py-1 rounded-md shrink-0">
                             <AlertTriangle size={12} />
                             Missing Binary
                           </span>
@@ -326,9 +326,9 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
 
               {/* Conflict Resolution */}
               {(preview.conflicts?.id_exists || preview.conflicts?.name_exists) && (
-                <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/50 space-y-3">
-                  <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
-                    <AlertTriangle size={16} className="shrink-0 text-amber-400" />
+                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-800/50 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+                    <AlertTriangle size={16} className="shrink-0 text-amber-700 dark:text-amber-400" />
                     <span>Project name or ID already exists on this device</span>
                   </div>
 
@@ -366,7 +366,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
                         onChange={() => setImportMode('overwrite')}
                         className="text-red-500 bg-surface-2 border-line-strong"
                       />
-                      <span className="text-red-300">Overwrite existing project on this board</span>
+                      <span className="text-red-700 dark:text-red-300">Overwrite existing project on this board</span>
                     </label>
                   </div>
                 </div>
@@ -386,8 +386,8 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
               </div>
 
               {error && (
-                <div className="p-3.5 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-xs flex items-center gap-2.5">
-                  <ShieldAlert size={16} className="text-red-400 shrink-0" />
+                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-800/60 text-red-700 dark:text-red-300 text-xs flex items-center gap-2.5">
+                  <ShieldAlert size={16} className="text-red-600 dark:text-red-400 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}

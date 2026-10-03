@@ -18,14 +18,14 @@ export default function SnapshotNodeSettings({ data, onChange }) {
         <div className="flex bg-canvas p-1 rounded-lg border border-line">
           <button
             type="button"
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'rising' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30 shadow-sm' : 'hover:bg-surface-2 border border-transparent text-fg-muted hover:text-fg-secondary'}`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'rising' ? 'bg-pink-600/20 text-pink-600 dark:text-pink-400 border border-pink-500/30 shadow-sm' : 'hover:bg-surface-2 border border-transparent text-fg-muted hover:text-fg-secondary'}`}
             onClick={() => onChange({ triggerEdge: 'rising' })}
           >
             Rising Edge (False → True)
           </button>
           <button
             type="button"
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'falling' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30 shadow-sm' : 'hover:bg-surface-2 border border-transparent text-fg-muted hover:text-fg-secondary'}`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'falling' ? 'bg-pink-600/20 text-pink-600 dark:text-pink-400 border border-pink-500/30 shadow-sm' : 'hover:bg-surface-2 border border-transparent text-fg-muted hover:text-fg-secondary'}`}
             onClick={() => onChange({ triggerEdge: 'falling' })}
           >
             Falling Edge (True → False)
@@ -70,7 +70,7 @@ export default function SnapshotNodeSettings({ data, onChange }) {
               onChange={(e) => onChange({ syncDelay: parseInt(e.target.value, 10) })}
               className="flex-1 accent-pink-600 h-1.5 bg-surface-3 rounded-lg appearance-none cursor-pointer"
             />
-            <span className="text-xs font-mono font-bold text-pink-400 w-14 text-right">{syncDelay > 0 ? `+${syncDelay}` : syncDelay}ms</span>
+            <span className="text-xs font-mono font-bold text-pink-600 dark:text-pink-400 w-14 text-right">{syncDelay > 0 ? `+${syncDelay}` : syncDelay}ms</span>
           </div>
         </div>
       )}

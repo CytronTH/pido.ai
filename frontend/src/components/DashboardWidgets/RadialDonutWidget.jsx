@@ -15,7 +15,7 @@ export default function RadialDonutWidget({ title, value, unit, config = {} }) {
 
   return (
     <div className="flex flex-col h-full w-full rounded-xl overflow-hidden p-4 bg-surface border border-line-strong/50 shadow-well transition-colors duration-300 relative items-center justify-center" style={{ containerType: 'inline-size' }}>
-      {title && <div className="absolute top-4 left-4 text-xs font-semibold text-purple-400 uppercase tracking-widest opacity-80">{title}</div>}
+      {title && <div className="absolute top-4 left-4 text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-widest opacity-80">{title}</div>}
       
       <div className="relative w-[65cqw] h-[65cqw] max-w-[200px] max-h-[200px] flex items-center justify-center mt-4">
         {/* Outer segmented ring (fake it with a dashed border) */}
@@ -51,7 +51,7 @@ export default function RadialDonutWidget({ title, value, unit, config = {} }) {
             className="font-black text-fg drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] tracking-tighter" 
             style={{ fontSize: `clamp(1rem, ${percentage.length > 3 ? '12cqw' : '16cqw'}, 3rem)` }}
           >
-             {percentage}<span className="text-[0.6em] text-purple-400 ml-0.5">%</span>
+             {percentage}<span className="text-[0.6em] text-purple-600 dark:text-purple-400 ml-0.5">%</span>
           </span>
           {unit && <span className="text-fg-subtle tracking-widest mt-1 uppercase" style={{ fontSize: 'clamp(0.5rem, 5cqw, 0.75rem)' }}>{unit}</span>}
         </div>

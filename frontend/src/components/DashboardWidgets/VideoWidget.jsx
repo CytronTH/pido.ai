@@ -327,7 +327,7 @@ export default function VideoWidget({ metadata, projectId, config }) {
       {/* Header */}
       <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Camera size={16} className="text-blue-400 shrink-0" />
+          <Camera size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
           <span className="text-xs sm:text-sm font-semibold text-fg truncate">
             {config?.title || 'Live Video Stream'}
           </span>
@@ -348,7 +348,7 @@ export default function VideoWidget({ metadata, projectId, config }) {
           )}
           {/* Quality tier badge */}
           {qualityLabel && (
-            <span className="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-mono bg-indigo-900/60 text-indigo-300 border border-indigo-700">
+            <span className="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-mono bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-700">
               {qualityLabel}
             </span>
           )}
@@ -399,7 +399,7 @@ export default function VideoWidget({ metadata, projectId, config }) {
                   <><span className="animate-spin text-xl">⟳</span><span>Connecting...</span></>
                 )}
                 {status === 'error' && (
-                  <><span className="text-red-400 text-2xl">⚠</span><span>Stream unavailable</span></>
+                  <><span className="text-red-600 dark:text-red-400 text-2xl">⚠</span><span>Stream unavailable</span></>
                 )}
                 {status === 'idle' && (
                   <><Camera size={24} /><span>Waiting for stream...</span></>
@@ -425,7 +425,7 @@ export default function VideoWidget({ metadata, projectId, config }) {
             {/* Modal Header */}
             <div className="bg-surface/95 px-4 py-3 flex items-center justify-between border-b border-line shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                   <Camera size={16} />
                 </div>
                 <span className="text-sm sm:text-base font-semibold text-fg truncate">
@@ -441,7 +441,7 @@ export default function VideoWidget({ metadata, projectId, config }) {
                   </span>
                 </div>
                 {qualityLabel && (
-                  <span className="px-2 py-0.5 rounded text-xs font-mono bg-indigo-950/80 text-indigo-300 border border-indigo-700/60">
+                  <span className="px-2 py-0.5 rounded text-xs font-mono bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-700/60">
                     {qualityLabel}
                   </span>
                 )}
@@ -515,7 +515,7 @@ export default function VideoWidget({ metadata, projectId, config }) {
                           <><span className="animate-spin text-2xl">⟳</span><span>Connecting...</span></>
                         )}
                         {status === 'error' && (
-                          <><span className="text-red-400 text-3xl">⚠</span><span>Stream unavailable</span></>
+                          <><span className="text-red-600 dark:text-red-400 text-3xl">⚠</span><span>Stream unavailable</span></>
                         )}
                         {status === 'idle' && (
                           <><Camera size={32} /><span>Waiting for stream...</span></>

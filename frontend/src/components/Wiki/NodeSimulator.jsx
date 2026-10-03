@@ -124,7 +124,7 @@ const NodeSimulator = ({ config, nodeType }) => {
   return (
     <div className="mt-8 bg-gradient-to-b from-surface to-canvas border border-line rounded-2xl overflow-hidden shadow-xl">
       <div className="p-4 bg-surface-2/50 border-b border-line flex items-center gap-2">
-        <Play size={18} className="text-blue-400" />
+        <Play size={18} className="text-blue-600 dark:text-blue-400" />
         <h3 className="font-semibold text-fg">Interactive Simulator (Playground)</h3>
       </div>
       
@@ -145,9 +145,9 @@ const NodeSimulator = ({ config, nodeType }) => {
 
         {/* Output Display */}
         <div className="flex-1 w-full bg-black/40 border border-line p-6 rounded-xl relative flex items-center justify-center min-h-[120px] shadow-inner">
-          <div className="absolute -top-3 left-4 bg-surface-2 px-2 text-xs font-bold text-green-400 uppercase tracking-wider rounded border border-line-strong">Output Result</div>
+          <div className="absolute -top-3 left-4 bg-surface-2 px-2 text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider rounded border border-line-strong">Output Result</div>
           
-          <div className={`text-xl md:text-2xl font-mono font-bold text-center break-all ${outputVal && outputVal.toString().includes('TRUE') ? 'text-green-400' : 'text-fg-secondary'}`}>
+          <div className={`text-xl md:text-2xl font-mono font-bold text-center break-all ${outputVal && outputVal.toString().includes('TRUE') ? 'text-green-600 dark:text-green-400' : 'text-fg-secondary'}`}>
             {outputVal}
           </div>
         </div>

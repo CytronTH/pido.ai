@@ -7,7 +7,7 @@ export default function TextWidget({ title, value, unit, icon: Icon = AlignLeft 
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <Icon size={20} className="text-pink-400" />
+        <Icon size={20} className="text-pink-600 dark:text-pink-400" />
         <h3 className="text-fg-muted font-semibold text-sm uppercase tracking-wider">{title}</h3>
       </div>
       <div className="flex-1 flex items-center justify-center p-2 text-center">

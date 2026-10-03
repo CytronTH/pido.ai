@@ -110,10 +110,10 @@ export default function BackupManager() {
       {statusMessage && (
         <div className={`p-4 rounded-xl text-xs flex items-center gap-3 animate-in fade-in duration-200 border ${
           statusMessage.type === 'success' 
-            ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-300' 
-            : 'bg-rose-950/60 border-rose-500/30 text-rose-300'
+            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' 
+            : 'bg-rose-50 dark:bg-rose-950/60 border-rose-500/30 text-rose-700 dark:text-rose-300'
         }`}>
-          {statusMessage.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-400 shrink-0" /> : <AlertTriangle size={18} className="text-rose-400 shrink-0" />}
+          {statusMessage.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" /> : <AlertTriangle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />}
           <span>{statusMessage.text}</span>
         </div>
       )}
@@ -124,7 +124,7 @@ export default function BackupManager() {
         <div className="bg-surface border border-line hover:border-blue-900/50 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-blue-600/10 text-blue-400 border border-blue-500/20">
+              <div className="p-3 rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                 <Archive size={24} />
               </div>
               <div>
@@ -173,7 +173,7 @@ export default function BackupManager() {
         <div className="bg-surface border border-line hover:border-indigo-900/50 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20">
+              <div className="p-3 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                 <HardDrive size={24} />
               </div>
               <div>
@@ -223,7 +223,7 @@ export default function BackupManager() {
       <div className="bg-surface border border-line rounded-2xl p-4 sm:p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock size={18} className="text-blue-400" />
+            <Clock size={18} className="text-blue-600 dark:text-blue-400" />
             <h3 className="text-base font-bold text-fg">Local Restore Points</h3>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-surface-2 text-fg-muted">
               {snapshots.length}
@@ -241,7 +241,7 @@ export default function BackupManager() {
 
         {loadingSnapshots ? (
           <div className="py-12 flex justify-center text-fg-subtle">
-            <Loader2 size={24} className="animate-spin text-blue-400" />
+            <Loader2 size={24} className="animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : snapshots.length === 0 ? (
           <div className="py-10 text-center text-fg-subtle text-xs border border-dashed border-line rounded-xl bg-canvas/40">
@@ -265,7 +265,7 @@ export default function BackupManager() {
                     <td className="py-3 px-3 font-mono text-fg font-semibold">{s.filename}</td>
                     <td className="py-3 px-3 text-fg-muted">{formatDate(s.created_at)}</td>
                     <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 bg-blue-950/60 border border-blue-800/40 text-blue-300 rounded font-semibold">
+                      <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-800/40 text-blue-700 dark:text-blue-300 rounded font-semibold">
                         {s.projects_count} Projects
                       </span>
                     </td>

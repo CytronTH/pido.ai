@@ -33,14 +33,14 @@ export default function NodeTelemetryBadge({ nodeId }) {
   return (
     <div className="mt-2 pt-2 border-t border-line/80 flex items-center justify-between text-[10px] font-mono select-none">
       <div className="flex items-center gap-1.5 text-fg-secondary">
-        <span className="flex items-center gap-0.5 text-blue-400">
+        <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
           <Cpu size={11} />
           <span>{cpuVal.toFixed(1)}%</span>
         </span>
 
         {isAi && (
-          <span className="flex items-center gap-0.5 text-purple-400 font-semibold pl-1 border-l border-line">
-            <Zap size={11} className={npuVal > 0 ? 'text-purple-400 animate-pulse' : ''} />
+          <span className="flex items-center gap-0.5 text-purple-600 dark:text-purple-400 font-semibold pl-1 border-l border-line">
+            <Zap size={11} className={npuVal > 0 ? 'text-purple-600 dark:text-purple-400 animate-pulse' : ''} />
             <span>{npuVal.toFixed(0)}%</span>
           </span>
         )}
@@ -48,7 +48,7 @@ export default function NodeTelemetryBadge({ nodeId }) {
 
       <div className="flex items-center gap-1 text-[10px]">
         {latency > 0 && (
-          <span className={latency > 35 ? 'text-amber-400 font-bold' : 'text-fg-muted'}>
+          <span className={latency > 35 ? 'text-amber-700 dark:text-amber-400 font-bold' : 'text-fg-muted'}>
             {latency.toFixed(1)}ms
           </span>
         )}

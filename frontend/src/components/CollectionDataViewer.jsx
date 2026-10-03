@@ -82,7 +82,7 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
     <div className="flex flex-col h-full overflow-hidden bg-surface border border-line rounded-2xl shadow-lg">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-line/80 bg-surface/50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
             <FileSpreadsheet size={20} />
           </div>
           <div>
@@ -90,7 +90,7 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
               {collection.name}
             </h2>
             <p className="text-xs font-medium text-fg-muted mt-0.5">
-              <span className="text-emerald-400 font-mono">{total.toLocaleString()}</span> records in database
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono">{total.toLocaleString()}</span> records in database
             </p>
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 hover:bg-surface-3 border border-line-strong text-fg-secondary rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin text-emerald-400" : ""} />
+            <RefreshCw size={14} className={loading ? "animate-spin text-emerald-600 dark:text-emerald-400" : ""} />
             <span>Refresh</span>
           </button>
           
@@ -110,7 +110,7 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
           <button 
             onClick={handleClear}
             disabled={loading || records.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-700 dark:text-orange-400 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
             title="Clear all records inside this collection"
           >
             <Trash2 size={14} />
@@ -120,7 +120,7 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
           <button 
             onClick={handleDeleteCollection}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
             title="Delete the collection structure and all its data"
           >
             <XCircle size={14} />
@@ -178,12 +178,12 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
                           )
                         ) : col.type === 'boolean' ? (
                           <div className="flex">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${val ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${val ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'}`}>
                               {val ? 'True' : 'False'}
                             </span>
                           </div>
                         ) : col.type === 'number' ? (
-                           <span className="font-mono text-blue-300">{val !== undefined ? Number(val).toLocaleString() : '-'}</span>
+                           <span className="font-mono text-blue-700 dark:text-blue-300">{val !== undefined ? Number(val).toLocaleString() : '-'}</span>
                         ) : (
                           <span className="truncate max-w-[300px] block" title={String(val)}>{val !== undefined ? String(val) : '-'}</span>
                         )}

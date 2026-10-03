@@ -59,7 +59,7 @@ export default function ClassFilterSelector({
         <label className="text-xs flex items-center gap-1.5 text-fg-muted">
           <span>Target Classes</span>
           {modelName && (
-            <span className="text-[10px] text-purple-300 bg-purple-950/70 border border-purple-800/60 px-1.5 py-0.5 rounded font-mono truncate max-w-[110px]" title={modelName}>
+            <span className="text-[10px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/70 border border-purple-800/60 px-1.5 py-0.5 rounded font-mono truncate max-w-[110px]" title={modelName}>
               {modelName}
             </span>
           )}
@@ -69,8 +69,8 @@ export default function ClassFilterSelector({
           <div className="flex items-center gap-1.5">
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
               isAllCounted 
-                ? 'bg-teal-950/80 border border-teal-800 text-teal-300' 
-                : 'bg-teal-600/20 border border-teal-600 text-teal-200'
+                ? 'bg-teal-50 dark:bg-teal-950/80 border border-teal-800 text-teal-700 dark:text-teal-300' 
+                : 'bg-teal-600/20 border border-teal-600 text-teal-800 dark:text-teal-200'
             }`}>
               {isAllCounted ? `All Classes (${availableClasses.length})` : `${selectedClasses.length}/${availableClasses.length}`}
             </span>
@@ -89,7 +89,7 @@ export default function ClassFilterSelector({
       {/* Case 1: No Upstream AI Model connected */}
       {!hasUpstreamAi && (
         <div className="bg-canvas/80 p-2.5 rounded-lg border border-dashed border-line flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-amber-400/90 text-[11px] font-medium">
+          <div className="flex items-center gap-1.5 text-amber-700/90 dark:text-amber-400/90 text-[11px] font-medium">
             <AlertCircle size={13} className="shrink-0" />
             <span>Connect to AI Model</span>
           </div>
@@ -138,7 +138,7 @@ export default function ClassFilterSelector({
               <button 
                 type="button" 
                 onClick={() => setIsManualMode(false)}
-                className="text-teal-400 hover:underline nodrag"
+                className="text-teal-600 dark:text-teal-400 hover:underline nodrag"
               >
                 Back to Selector
               </button>
@@ -177,7 +177,7 @@ export default function ClassFilterSelector({
                   <button
                     type="button"
                     onClick={handleClear}
-                    className="text-[10px] hover:text-red-400 bg-surface-2 hover:bg-surface-3 border border-line-strong px-1.5 py-0.5 rounded transition-colors nodrag text-fg-muted"
+                    className="text-[10px] hover:text-red-600 dark:hover:text-red-400 bg-surface-2 hover:bg-surface-3 border border-line-strong px-1.5 py-0.5 rounded transition-colors nodrag text-fg-muted"
                     title="Reset to All"
                   >
                     Reset
@@ -198,13 +198,13 @@ export default function ClassFilterSelector({
                       onClick={() => handleToggleClass(cls)}
                       className={`text-[11px] px-2 py-0.5 rounded-md font-medium transition-all flex items-center gap-1 border nodrag cursor-pointer select-none active:scale-95 ${
                         isChecked
-                          ? 'bg-teal-600/30 text-teal-200 border-teal-500/80 shadow-sm'
+                          ? 'bg-teal-600/30 text-teal-800 dark:text-teal-200 border-teal-500/80 shadow-sm'
                           : isAllCounted
-                            ? 'bg-surface-2/80 text-fg-faint border-line-strong/80 hover:border-teal-500/60 hover:text-teal-200'
+                            ? 'bg-surface-2/80 text-fg-faint border-line-strong/80 hover:border-teal-500/60 hover:text-teal-800 dark:hover:text-teal-200'
                             : 'bg-surface/60 hover:border-fg-secondary border-line-strong text-fg-subtle hover:text-fg-secondary'
 }`}
                     >
-                      {isChecked && <Check size={11} className="text-teal-400 shrink-0" />}
+                      {isChecked && <Check size={11} className="text-teal-600 dark:text-teal-400 shrink-0" />}
                       <span className="truncate max-w-[120px]">{cls}</span>
                     </button>
                   );

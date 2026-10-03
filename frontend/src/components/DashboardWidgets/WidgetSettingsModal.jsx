@@ -244,7 +244,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         {/* Header */}
         <div className="flex justify-between items-center bg-surface px-6 py-4 border-b border-line shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+            <div className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg">
               <Settings size={20} />
             </div>
             <div>
@@ -271,7 +271,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                       isActive 
-                        ? 'border-blue-500 text-blue-400' 
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
                         : 'border-transparent text-fg-muted hover:text-fg hover:border-line-stronger'
                     }`}
                   >
@@ -344,7 +344,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                           const val = getNestedValue(metadata, ds.id);
                           const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
                           return (
-                          <label key={ds.id} className={`flex items-center gap-3 p-2 rounded-md hover:bg-surface-2 cursor-pointer transition-colors ${ds.isDangling ? 'text-red-400/80' : ''}`}>
+                          <label key={ds.id} className={`flex items-center gap-3 p-2 rounded-md hover:bg-surface-2 cursor-pointer transition-colors ${ds.isDangling ? 'text-red-600/80 dark:text-red-400/80' : ''}`}>
                             <input 
                               type="checkbox" 
                               checked={formData.dataPaths?.includes(ds.id)}
@@ -464,7 +464,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     <div>
                       <label className="block text-sm font-medium text-fg-secondary mb-1.5 flex justify-between">
                         <span>Tube Thickness</span>
-                        <span className="text-blue-400">{formData.thickness || 16}%</span>
+                        <span className="text-blue-600 dark:text-blue-400">{formData.thickness || 16}%</span>
                       </label>
                       <input 
                         type="range" 
@@ -527,7 +527,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1.5 flex justify-between">
                         <span>Value Font Scale</span>
-                        <span className="text-blue-400">{formData.valueFontSize || 1}x</span>
+                        <span className="text-blue-600 dark:text-blue-400">{formData.valueFontSize || 1}x</span>
                       </label>
                       <input 
                         type="range" 
@@ -543,7 +543,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1.5 flex justify-between">
                         <span>Unit / Label Scale</span>
-                        <span className="text-blue-400">{formData.unitFontSize || 1}x</span>
+                        <span className="text-blue-600 dark:text-blue-400">{formData.unitFontSize || 1}x</span>
                       </label>
                       <input 
                         type="range" 
@@ -606,7 +606,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         />
                         <button
                           onClick={() => handleRemoveColorStop(index)}
-                          className="p-1.5 text-fg-subtle hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                          className="p-1.5 text-fg-subtle hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                           title="Remove Stop"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -621,7 +621,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     </button>
                     <p className="text-xs text-fg-subtle mt-2 leading-relaxed">
                       Define the upper percentage limits (0-100) and their colors.<br/>
-                      E.g., <span className="text-green-400">25% Green</span>, <span className="text-yellow-400">50% Yellow</span>, <span className="text-red-400">100% Red</span>.
+                      E.g., <span className="text-green-600 dark:text-green-400">25% Green</span>, <span className="text-yellow-700 dark:text-yellow-400">50% Yellow</span>, <span className="text-red-600 dark:text-red-400">100% Red</span>.
                     </p>
                   </div>
                     </div>
@@ -763,11 +763,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
           <div className={activeTab === 'limits' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
             <div className="space-y-4">
               
-              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableUpperLimit ? 'bg-red-950/20 border-red-900/30' : 'bg-transparent border-transparent'}`}>
+              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableUpperLimit ? 'bg-red-50 dark:bg-red-950/20 border-red-900/30' : 'bg-transparent border-transparent'}`}>
                 {formData.enableUpperLimit && <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50"></div>}
                 <div className="mb-2">
                   <ToggleSwitch 
-                    label={<span className="text-red-400 flex items-center gap-2">Upper Limit (Max)</span>}
+                    label={<span className="text-red-600 dark:text-red-400 flex items-center gap-2">Upper Limit (Max)</span>}
                     checked={formData.enableUpperLimit} 
                     onChange={(e) => setFormData({ ...formData, enableUpperLimit: e.target.checked })} 
                   />
@@ -834,11 +834,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 )}
               </div>
 
-              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableLowerLimit ? 'bg-blue-950/20 border-blue-900/30' : 'bg-transparent border-transparent'}`}>
+              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableLowerLimit ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-900/30' : 'bg-transparent border-transparent'}`}>
                 {formData.enableLowerLimit && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50"></div>}
                 <div className="mb-2">
                   <ToggleSwitch 
-                    label={<span className="text-blue-400 flex items-center gap-2">Lower Limit (Min)</span>}
+                    label={<span className="text-blue-600 dark:text-blue-400 flex items-center gap-2">Lower Limit (Min)</span>}
                     checked={formData.enableLowerLimit} 
                     onChange={(e) => setFormData({ ...formData, enableLowerLimit: e.target.checked })} 
                   />

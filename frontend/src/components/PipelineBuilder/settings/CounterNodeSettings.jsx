@@ -43,15 +43,15 @@ export default function CounterNodeSettings({ nodeId, data, onChange, isSidebar 
       {/* Live Counter Display */}
       <div className="bg-canvas p-3 rounded-lg border border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-emerald-400" />
+          <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
           <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current Count:</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold font-mono text-emerald-400">{liveCount}</span>
+          <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">{liveCount}</span>
           <button
             type="button"
             onClick={handleReset}
-            className="hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
+            className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
             title="Reset Counter to 0"
           >
             <RotateCcw size={14} />

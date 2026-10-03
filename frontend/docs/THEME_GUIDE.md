@@ -44,9 +44,12 @@ All tokens accept opacity modifiers: `bg-surface-2/50`, `border-line/60`, `hover
 
 1. **Neutrals = tokens only.** Don't use `gray-*`, `slate-*`, `zinc-*`, `white`, `black` for UI chrome.
 2. **No `dark:` pairs for neutrals.** `bg-white dark:bg-gray-900` → `bg-surface`.
-3. **Accent colors are fine as-is** (`bg-blue-600 text-white`, `text-emerald-400`, `bg-red-500/10`).
-   Text on a solid accent background stays literal `text-white`.
-   If an accent tint needs to differ per theme, `dark:` is allowed for that accent.
+3. **Accent colors** (`blue`, `emerald`, `purple`, ...) are not tokenised. Conventions:
+   - Solid accent fill: `bg-blue-600 text-white` — same in both themes.
+   - Accent text on a surface: `text-blue-600 dark:text-blue-400` (light shades like
+     -300/-400 are unreadable on white; use -600, or -700 for yellow/amber/lime/orange).
+   - Accent tint / badge: `bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300`,
+     or the opacity form `bg-blue-500/10` which works in both themes without `dark:`.
 4. **Literal white/black only when the color is physical**, not themed: video letterbox
    (`bg-black`), overlays drawn on top of camera frames, switch knobs (`bg-white`),
    the traffic-light housing.

@@ -88,7 +88,7 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-line bg-surface/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <Database size={20} />
             </div>
             <div>
@@ -104,7 +104,7 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
         {/* Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm">
               <AlertCircle size={16} />
               <span>{error}</span>
             </div>
@@ -114,7 +114,7 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
             <label className="flex items-center text-sm font-medium text-fg-secondary mb-1.5">
               Collection Name
               <div className="group relative inline-flex ml-1.5">
-                <Info size={14} className="text-fg-subtle hover:text-indigo-400 cursor-help transition-colors" />
+                <Info size={14} className="text-fg-subtle hover:text-indigo-600 dark:hover:text-indigo-400 cursor-help transition-colors" />
                 <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 bg-surface-2 text-fg text-xs rounded-lg shadow-xl border border-line-strong z-50 text-center pointer-events-none">
                   Enter a unique name for this dataset, e.g., 'Defect Logs' or 'Quality Inspection'.
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-line"></div>
@@ -135,7 +135,7 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
               <label className="flex items-center text-sm font-medium text-fg-secondary">
                 Columns (Schema)
                 <div className="group relative inline-flex ml-1.5">
-                  <Info size={14} className="text-fg-subtle hover:text-indigo-400 cursor-help transition-colors" />
+                  <Info size={14} className="text-fg-subtle hover:text-indigo-600 dark:hover:text-indigo-400 cursor-help transition-colors" />
                   <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-surface-2 text-fg text-xs rounded-lg shadow-xl border border-line-strong z-50 text-center pointer-events-none">
                     Define the fields to store for each record.
                     <ul className="text-left mt-1 text-[10px] space-y-0.5 text-fg-muted list-disc list-inside">
@@ -149,7 +149,7 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
               </label>
               <button 
                 onClick={handleAddField}
-                className="flex items-center gap-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
               >
                 <Plus size={14} />
                 <span>Add Column</span>
@@ -190,7 +190,7 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
                   </div>
                   <button 
                     onClick={() => handleRemoveField(idx)}
-                    className="p-1.5 text-fg-subtle hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                    className="p-1.5 text-fg-subtle hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                   >
                     <Trash2 size={16} />
                   </button>

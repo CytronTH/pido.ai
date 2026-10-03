@@ -15,7 +15,7 @@ export default function DigitalOutputNode({ id, data }) {
       <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
         <div className="flex items-center gap-3">
           <div className="bg-orange-500/20 p-2 rounded-lg">
-            <ToggleRight className="text-orange-400" size={24} />
+            <ToggleRight className="text-orange-700 dark:text-orange-400" size={24} />
           </div>
           <div>
             <h3 className="font-bold text-fg text-sm">Digital Output</h3>
@@ -63,7 +63,7 @@ export default function DigitalOutputNode({ id, data }) {
 </div>
       </div>
       <div className="mt-3 pt-2 border-t border-line text-[10px] text-fg-subtle">
-        Triggers when <code className="text-orange-400 bg-canvas px-1 py-0.5 rounded">payload == {data?.triggerOn !== false ? "True" : "False"}</code>
+        Triggers when <code className="text-orange-700 dark:text-orange-400 bg-canvas px-1 py-0.5 rounded">payload == {data?.triggerOn !== false ? "True" : "False"}</code>
       </div>
     </div>
   );

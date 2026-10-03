@@ -5,15 +5,15 @@ import { getValueByPath } from '../../../utils/payloadSchema';
 const TypeIcon = ({ type }) => {
   switch (type) {
     case 'string':
-      return <Type size={12} className="text-blue-400" />;
+      return <Type size={12} className="text-blue-600 dark:text-blue-400" />;
     case 'number':
-      return <Hash size={12} className="text-yellow-400" />;
+      return <Hash size={12} className="text-yellow-700 dark:text-yellow-400" />;
     case 'boolean':
-      return <div className="w-3 h-3 rounded-full border-2 border-green-400 flex items-center justify-center text-[8px] font-bold text-green-400">b</div>;
+      return <div className="w-3 h-3 rounded-full border-2 border-green-400 flex items-center justify-center text-[8px] font-bold text-green-600 dark:text-green-400">b</div>;
     case 'array':
-      return <ListIcon size={12} className="text-purple-400" />;
+      return <ListIcon size={12} className="text-purple-600 dark:text-purple-400" />;
     case 'object':
-      return <Box size={12} className="text-orange-400" />;
+      return <Box size={12} className="text-orange-700 dark:text-orange-400" />;
     default:
       return <Type size={12} className="text-fg-muted" />;
   }
@@ -23,25 +23,25 @@ const formatValue = (val, type) => {
   if (val === undefined || val === null) return <span className="text-fg-subtle italic">null</span>;
   
   if (type === 'boolean') {
-    return <span className={val ? "text-green-400" : "text-red-400"}>{val ? 'true' : 'false'}</span>;
+    return <span className={val ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{val ? 'true' : 'false'}</span>;
   }
   
   if (type === 'number') {
-    return <span className="text-yellow-300">{Number(val).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>;
+    return <span className="text-yellow-700 dark:text-yellow-300">{Number(val).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>;
   }
   
   if (type === 'string') {
     // Truncate long strings
     const str = String(val);
-    return <span className="text-blue-300">"{str.length > 20 ? str.substring(0, 20) + '...' : str}"</span>;
+    return <span className="text-blue-700 dark:text-blue-300">"{str.length > 20 ? str.substring(0, 20) + '...' : str}"</span>;
   }
   
   if (type === 'array') {
-    return <span className="text-purple-300">Array({val.length || 0})</span>;
+    return <span className="text-purple-700 dark:text-purple-300">Array({val.length || 0})</span>;
   }
   
   if (type === 'object') {
-    return <span className="text-orange-300">{'{...}'}</span>;
+    return <span className="text-orange-700 dark:text-orange-300">{'{...}'}</span>;
   }
   
   return <span className="text-fg-secondary">{String(val)}</span>;
@@ -104,7 +104,7 @@ export default function RealtimePropertySelector({
               <div className="flex items-center justify-between pl-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <TypeIcon type={opt.type} />
-                  <span className={`text-[11px] font-mono truncate max-w-[120px] ${isSelected ? 'text-indigo-300 font-bold' : 'text-fg-secondary'}`} title={opt.value}>
+                  <span className={`text-[11px] font-mono truncate max-w-[120px] ${isSelected ? 'text-indigo-700 dark:text-indigo-300 font-bold' : 'text-fg-secondary'}`} title={opt.value}>
                     {opt.value}
                   </span>
                 </div>
@@ -114,7 +114,7 @@ export default function RealtimePropertySelector({
                     {formatValue(liveValue, opt.type)}
                   </div>
                   {isSelected ? (
-                    <Check size={12} className="text-indigo-400" />
+                    <Check size={12} className="text-indigo-600 dark:text-indigo-400" />
                   ) : (
                     <div className="w-3" /> /* Placeholder to keep alignment */
                   )}

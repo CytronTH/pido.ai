@@ -89,7 +89,7 @@ export default function ProjectRevisionsModal({ isOpen, onClose, projectId, onRe
       <div className="bg-surface border border-line-strong rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
         <div className="flex justify-between items-center bg-surface-2 p-4 border-b border-line-strong shrink-0">
           <div className="flex items-center gap-2 font-bold text-fg">
-            <History size={18} className="text-blue-400" />
+            <History size={18} className="text-blue-600 dark:text-blue-400" />
             <span>Version History</span>
           </div>
           <button onClick={onClose} className="hover:text-fg transition-colors text-fg-muted">
@@ -118,7 +118,7 @@ export default function ProjectRevisionsModal({ isOpen, onClose, projectId, onRe
             </button>
           </div>
           {error && (
-            <div className="mt-2 text-xs text-red-400 flex items-center gap-1">
+            <div className="mt-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
               <AlertTriangle size={14} /> {error}
             </div>
           )}

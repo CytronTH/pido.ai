@@ -71,10 +71,10 @@ export default memo(({ data, selected, isConnectable, id }) => {
       if (typeof state === 'boolean' || typeof state?.value === 'boolean') {
         const val = typeof state === 'boolean' ? state : state.value;
         displayValue = val ? "TRUE" : "FALSE";
-        color = val ? "text-green-400" : "text-red-400";
+        color = val ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
       } else {
         displayValue = String(state?.value || state);
-        color = "text-blue-400";
+        color = "text-blue-600 dark:text-blue-400";
       }
       return (
         <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
           <div className="text-fg-muted mb-1">🎯 Detected Objects:</div>
           {items.map((det, i) => (
             <div key={i} className="flex items-center gap-2 ml-2">
-              <span className="text-purple-400 font-bold">{det.label || 'object'}</span>
+              <span className="text-purple-600 dark:text-purple-400 font-bold">{det.label || 'object'}</span>
               <span className="text-fg-muted">({Math.round((det.confidence || 0) * 100)}%)</span>
               {det.bbox && det.bbox.length === 4 && (
                 <span className="text-fg-faint text-[0.85em]">
@@ -116,7 +116,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
 
       return (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 text-teal-400 font-semibold">
+          <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 font-semibold">
             <span>⇄ Flow Counter:</span>
             <span className="text-white font-bold bg-teal-950 px-2 py-0.5 rounded border border-teal-800 text-xs">
               Total: {total}
@@ -126,7 +126,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
             <div className="flex flex-wrap gap-2 ml-2">
               {entries.map(([cls, cnt]) => (
                 <div key={cls} className="flex items-center gap-1.5 bg-canvas px-2 py-0.5 rounded border border-line text-xs">
-                  <span className="text-teal-300 font-medium">{cls}:</span>
+                  <span className="text-teal-700 dark:text-teal-300 font-medium">{cls}:</span>
                   <span className="text-fg font-bold font-mono">{cnt}</span>
                 </div>
               ))}
@@ -148,7 +148,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
       return (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <span className="text-rose-400 font-semibold flex items-center gap-1">
+            <span className="text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
               🛡️ Forklift Safety:
             </span>
             <span
@@ -173,7 +173,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
                   key={z.id}
                   className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${
                     z.occupied
-                      ? 'bg-rose-950/70 border-rose-800 text-rose-200 font-bold'
+                      ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-800 text-rose-800 dark:text-rose-200 font-bold'
                       : 'bg-canvas border-line text-fg-muted'
                   }`}
                 >
@@ -217,10 +217,10 @@ export default memo(({ data, selected, isConnectable, id }) => {
         <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500 border-2 border-line-subtle" />
         
         {/* Header */}
-        <div className="bg-purple-900/30 px-3 py-2 border-b border-purple-800/50 flex items-center justify-between shrink-0">
+        <div className="bg-purple-100 dark:bg-purple-900/30 px-3 py-2 border-b border-purple-800/50 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <Terminal size={14} className="text-purple-400" />
-            <span className="text-xs font-bold text-purple-100 uppercase tracking-wider">Debug Output</span>
+            <Terminal size={14} className="text-purple-600 dark:text-purple-400" />
+            <span className="text-xs font-bold text-purple-800 dark:text-purple-100 uppercase tracking-wider">Debug Output</span>
           </div>
           
           <div className="flex items-center gap-1">
@@ -229,7 +229,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
               className={`p-1 rounded text-fg-secondary shadow-sm transition-colors ${isPretty ? 'bg-purple-800/60 hover:bg-purple-700' : 'bg-surface-2/80 hover:bg-surface-3'}`} 
               title={isPretty ? "Switch to Raw JSON" : "Switch to Pretty Format"}
             >
-              {isPretty ? <AlignLeft size={12} className="text-purple-200" /> : <Code size={12} className="text-fg-muted" />}
+              {isPretty ? <AlignLeft size={12} className="text-purple-800 dark:text-purple-200" /> : <Code size={12} className="text-fg-muted" />}
             </button>
             
             <div className="w-px h-4 bg-purple-800/50 mx-1"></div>
@@ -245,14 +245,14 @@ export default memo(({ data, selected, isConnectable, id }) => {
 
             <button 
               onClick={handleTogglePause} 
-              className={`p-1 rounded text-fg-secondary shadow-sm transition-colors ${isPaused ? 'bg-amber-900/40 hover:bg-amber-800/60' : 'bg-surface-2/80 hover:bg-surface-3'}`} 
+              className={`p-1 rounded text-fg-secondary shadow-sm transition-colors ${isPaused ? 'bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-800/60' : 'bg-surface-2/80 hover:bg-surface-3'}`} 
               title={isPaused ? "Resume Scrolling" : "Pause Scrolling"}
             >
-              {isPaused ? <Play size={12} className="text-amber-400" /> : <Pause size={12} className="text-fg-muted" />}
+              {isPaused ? <Play size={12} className="text-amber-700 dark:text-amber-400" /> : <Pause size={12} className="text-fg-muted" />}
             </button>
             <button 
               onClick={() => { clearDebugMessages(); setFrozenMessages([]); }} 
-              className="p-1 rounded bg-surface-2/80 hover:bg-red-900/50 text-fg-muted hover:text-red-400 shadow-sm transition-colors" 
+              className="p-1 rounded bg-surface-2/80 hover:bg-red-200 dark:hover:bg-red-900/50 text-fg-muted hover:text-red-600 dark:hover:text-red-400 shadow-sm transition-colors" 
               title="Clear Logs"
             >
               <Trash2 size={12} />
@@ -279,7 +279,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
                 return (
                   <div key={msg.id} className="border-b border-line/50 pb-2 break-words">
                     <div className="flex items-center justify-between mb-1 opacity-60">
-                      <span className="text-purple-400">[{msg.timestamp}]</span>
+                      <span className="text-purple-600 dark:text-purple-400">[{msg.timestamp}]</span>
                     </div>
                     {isPretty ? (
                       renderPrettyPayload(metadata)

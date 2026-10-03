@@ -56,7 +56,7 @@ export default function AINodeAdvancedSettingsContent({
           {isInputNode ? (
             <button
               onClick={onOpenROI}
-              className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-800/60 hover:border-purple-600 px-2.5 py-1 rounded-md transition-all"
+              className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-200 dark:hover:bg-purple-900/50 border border-purple-800/60 hover:border-purple-600 px-2.5 py-1 rounded-md transition-all"
               title="Open visual ROI editor"
             >
               <Crosshair size={12} />
@@ -88,7 +88,7 @@ export default function AINodeAdvancedSettingsContent({
 
         <div className="flex flex-col gap-2 pt-2 border-t border-line-strong/50">
           <label className="flex items-center justify-between cursor-pointer group">
-            <span className="text-xs group-hover:text-purple-300 transition-colors text-fg-secondary">Enable Mask Filter</span>
+            <span className="text-xs group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors text-fg-secondary">Enable Mask Filter</span>
             <div className="relative">
               <input type="checkbox" className="sr-only" 
                 checked={data?.roiEnabled ?? false} 
@@ -100,7 +100,7 @@ export default function AINodeAdvancedSettingsContent({
           </label>
           
           <label className={`flex items-center justify-between cursor-pointer group ${!data?.roiEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-            <span className="text-xs group-hover:text-purple-300 transition-colors text-fg-secondary">Show Mask Box on Stream</span>
+            <span className="text-xs group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors text-fg-secondary">Show Mask Box on Stream</span>
             <div className="relative">
               <input type="checkbox" className="sr-only" 
                 disabled={!data?.roiEnabled}
@@ -114,7 +114,7 @@ export default function AINodeAdvancedSettingsContent({
         </div>
         
         {data?.roiEnabled && data?.roi && (data.roi.x !== 0 || data.roi.y !== 0 || data.roi.w !== 1 || data.roi.h !== 1) && (
-          <div className="text-xs text-purple-400/80 bg-purple-950/20 rounded px-2 py-1.5 border border-purple-900/40 text-center">
+          <div className="text-xs text-purple-600/80 dark:text-purple-400/80 bg-purple-50 dark:bg-purple-950/20 rounded px-2 py-1.5 border border-purple-900/40 text-center">
             Zone active: ({(data.roi.x*100).toFixed(0)}%, {(data.roi.y*100).toFixed(0)}%) &nbsp;
             {(data.roi.w*100).toFixed(0)}% × {(data.roi.h*100).toFixed(0)}%
           </div>
@@ -186,7 +186,7 @@ export default function AINodeAdvancedSettingsContent({
             onChange={handleConfidenceChange}
             className="flex-1 accent-purple-500"
           />
-          <span className="text-sm font-mono text-purple-300 w-10 text-right">{confidenceThreshold.toFixed(2)}</span>
+          <span className="text-sm font-mono text-purple-700 dark:text-purple-300 w-10 text-right">{confidenceThreshold.toFixed(2)}</span>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export default function AINodeAdvancedSettingsContent({
             <div className="text-xs uppercase font-bold tracking-wider flex items-center gap-1.5 text-fg-subtle">
               <Filter size={12} /> Class Filter
             </div>
-            <span className="text-xs font-semibold text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded">{activeClassCount}/{modelClasses.length} Selected</span>
+            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded">{activeClassCount}/{modelClasses.length} Selected</span>
           </div>
           
           <label className="flex items-center gap-3 cursor-pointer py-1 border-b border-line-strong/50 pb-2">
@@ -229,7 +229,7 @@ export default function AINodeAdvancedSettingsContent({
                       type="number" min="0" max="1" step="0.05"
                       value={data?.classConfidences?.[cls] ?? confidenceThreshold}
                       onChange={e => handleClassConfidenceChange(cls, parseFloat(e.target.value))}
-                      className="bg-surface border border-line-strong rounded px-1.5 py-0.5 text-xs w-14 text-center text-purple-300 outline-none focus:border-purple-500 font-mono"
+                      className="bg-surface border border-line-strong rounded px-1.5 py-0.5 text-xs w-14 text-center text-purple-700 dark:text-purple-300 outline-none focus:border-purple-500 font-mono"
                     />
                   </div>
                 )}

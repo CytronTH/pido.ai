@@ -539,10 +539,10 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           {toastMessage && (
             <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl text-xs font-semibold shadow-2xl flex items-center gap-2 backdrop-blur-md animate-in fade-in slide-in-from-top-3 duration-200 border ${
               toastMessage.type === 'success'
-                ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200 shadow-emerald-950/50'
-                : 'bg-rose-950/90 border-rose-500 text-rose-200 shadow-rose-950/50'
+                ? 'bg-emerald-50 dark:bg-emerald-950/90 border-emerald-500 text-emerald-800 dark:text-emerald-200 shadow-emerald-950/50'
+                : 'bg-rose-50 dark:bg-rose-950/90 border-rose-500 text-rose-800 dark:text-rose-200 shadow-rose-950/50'
             }`}>
-              {toastMessage.type === 'success' ? <Check size={16} className="text-emerald-400" /> : <AlertTriangle size={16} className="text-rose-400" />}
+              {toastMessage.type === 'success' ? <Check size={16} className="text-emerald-600 dark:text-emerald-400" /> : <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400" />}
               <span>{toastMessage.text}</span>
             </div>
           )}
@@ -603,13 +603,13 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               >
                 {autoSaveStatus === 'saving' ? (
                   <>
-                    <Loader2 size={13} className="animate-spin text-blue-400" />
+                    <Loader2 size={13} className="animate-spin text-blue-600 dark:text-blue-400" />
                     <span className="hidden xl:inline font-medium text-fg-muted">Saving...</span>
                   </>
                 ) : (
                   <>
-                    <Check size={13} className="text-emerald-400" />
-                    <span className="hidden xl:inline text-emerald-400 font-medium">Saved</span>
+                    <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="hidden xl:inline text-emerald-600 dark:text-emerald-400 font-medium">Saved</span>
                   </>
                 )}
               </div>
@@ -622,12 +622,12 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               onClick={toggleMetricsOverlay}
               className={`p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all ${
                 showMetricsOverlay 
-                  ? 'bg-purple-950/80 border border-purple-600 text-purple-300 shadow-md shadow-purple-950/40' 
+                  ? 'bg-purple-50 dark:bg-purple-950/80 border border-purple-600 text-purple-700 dark:text-purple-300 shadow-md shadow-purple-950/40' 
                   : 'bg-surface-2 border border-line-strong text-fg-muted hover:text-fg'
               }`}
               title="Toggle Live CPU & NPU Performance Overlay on Nodes"
             >
-              <Activity size={16} className={showMetricsOverlay ? 'text-purple-400 animate-pulse' : ''} />
+              <Activity size={16} className={showMetricsOverlay ? 'text-purple-600 dark:text-purple-400 animate-pulse' : ''} />
               <span className="hidden md:inline">Telemetry</span>
             </button>
 
@@ -636,12 +636,12 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               onClick={toggleAdvancedDebugMode}
               className={`p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all ${
                 advancedDebugMode 
-                  ? 'bg-blue-950/80 border border-blue-600 text-blue-300 shadow-md shadow-blue-950/40' 
+                  ? 'bg-blue-50 dark:bg-blue-950/80 border border-blue-600 text-blue-700 dark:text-blue-300 shadow-md shadow-blue-950/40' 
                   : 'bg-surface-2 border border-line-strong text-fg-muted hover:text-fg'
               }`}
               title="Toggle Advanced Debug Mode (Show payloads on edges)"
             >
-              <Terminal size={16} className={advancedDebugMode ? 'text-blue-400' : ''} />
+              <Terminal size={16} className={advancedDebugMode ? 'text-blue-600 dark:text-blue-400' : ''} />
               <span className="hidden md:inline">Debug Flow</span>
             </button>
 
@@ -651,7 +651,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
               title="Auto-Layout Nodes (Beautify)"
             >
-              <Wand2 size={16} className="text-fuchsia-400" />
+              <Wand2 size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
               <span className="hidden md:inline">Beautify</span>
             </button>
 
@@ -661,7 +661,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
               title="Export / Backup this Project"
             >
-              <Download size={16} className="text-blue-400" />
+              <Download size={16} className="text-blue-600 dark:text-blue-400" />
               <span className="hidden md:inline">Export</span>
             </button>
 
@@ -671,7 +671,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
               title="Version History / Restore"
             >
-              <History size={16} className="text-amber-400" />
+              <History size={16} className="text-amber-700 dark:text-amber-400" />
               <span className="hidden md:inline">History</span>
             </button>
 
@@ -698,7 +698,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                 ) : deployMode === 'modified_nodes' ? (
                   <Zap size={16} className={dirtyNodeIds.length > 0 ? "fill-current text-fg" : "text-fg-subtle"} />
                 ) : deployMode === 'modified_flows' ? (
-                  <RefreshCw size={16} className={dirtyNodeIds.length > 0 ? "text-amber-400" : "text-fg-subtle"} />
+                  <RefreshCw size={16} className={dirtyNodeIds.length > 0 ? "text-amber-700 dark:text-amber-400" : "text-fg-subtle"} />
                 ) : (
                   <Play size={16} fill="currentColor" className={dirtyNodeIds.length > 0 ? "" : "text-fg-subtle"} />
                 )}
@@ -738,15 +738,15 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2.5 transition-all ${
                       deployMode === 'modified_nodes' 
-                        ? 'bg-emerald-950/70 border border-emerald-600/50 text-fg' 
+                        ? 'bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-600/50 text-fg' 
                         : 'hover:bg-surface-2 text-fg-secondary'
                     }`}
                   >
-                    <Zap size={16} className="text-emerald-400 mt-0.5 shrink-0" />
+                    <Zap size={16} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                     <div className="flex-grow min-w-0">
                       <div className="text-xs font-semibold flex items-center justify-between">
                         <span>Modified Nodes</span>
-                        {deployMode === 'modified_nodes' && <Check size={14} className="text-emerald-400" />}
+                        {deployMode === 'modified_nodes' && <Check size={14} className="text-emerald-600 dark:text-emerald-400" />}
                       </div>
                       <div className="text-[11px] leading-tight mt-0.5 text-fg-muted">
                         Hot-reload changed logic & AI params (Zero video downtime)
@@ -762,15 +762,15 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2.5 transition-all mt-1 ${
                       deployMode === 'modified_flows' 
-                        ? 'bg-amber-950/70 border border-amber-600/50 text-fg' 
+                        ? 'bg-amber-50 dark:bg-amber-950/70 border border-amber-600/50 text-fg' 
                         : 'hover:bg-surface-2 text-fg-secondary'
                     }`}
                   >
-                    <RefreshCw size={16} className="text-amber-400 mt-0.5 shrink-0" />
+                    <RefreshCw size={16} className="text-amber-700 dark:text-amber-400 mt-0.5 shrink-0" />
                     <div className="flex-grow min-w-0">
                       <div className="text-xs font-semibold flex items-center justify-between">
                         <span>Modified Flows</span>
-                        {deployMode === 'modified_flows' && <Check size={14} className="text-amber-400" />}
+                        {deployMode === 'modified_flows' && <Check size={14} className="text-amber-700 dark:text-amber-400" />}
                       </div>
                       <div className="text-[11px] leading-tight mt-0.5 text-fg-muted">
                         Restart only changed camera stream flows
@@ -786,15 +786,15 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2.5 transition-all mt-1 ${
                       deployMode === 'full' 
-                        ? 'bg-rose-950/70 border border-rose-600/50 text-fg' 
+                        ? 'bg-rose-50 dark:bg-rose-950/70 border border-rose-600/50 text-fg' 
                         : 'hover:bg-surface-2 text-fg-secondary'
                     }`}
                   >
-                    <Play size={16} className="text-rose-400 mt-0.5 shrink-0" />
+                    <Play size={16} className="text-rose-600 dark:text-rose-400 mt-0.5 shrink-0" />
                     <div className="flex-grow min-w-0">
                       <div className="text-xs font-semibold flex items-center justify-between">
                         <span>Full Deploy</span>
-                        {deployMode === 'full' && <Check size={14} className="text-rose-400" />}
+                        {deployMode === 'full' && <Check size={14} className="text-rose-600 dark:text-rose-400" />}
                       </div>
                       <div className="text-[11px] leading-tight mt-0.5 text-fg-muted">
                         Full restart of GStreamer & NPU engines
@@ -808,7 +808,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
           {/* Floating multi-node selection pill with quick delete */}
           {selectedNodesCount > 1 && (
-            <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-surface/95 border border-blue-500/70 text-blue-200 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-surface/95 border border-blue-500/70 text-blue-800 dark:text-blue-200 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
               <span><strong>{selectedNodesCount}</strong> nodes selected</span>
               <span className="text-fg-faint">•</span>
@@ -817,7 +817,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                   const selectedIds = nodes.filter(n => n.selected && !n.data?.isTutorialMock).map(n => n.id);
                   deleteNodes(selectedIds);
                 }}
-                className="flex items-center gap-1 text-rose-400 hover:text-rose-300 font-semibold cursor-pointer transition-colors hover:underline"
+                className="flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-semibold cursor-pointer transition-colors hover:underline"
                 title="Delete selected nodes (Delete / Backspace)"
               >
                 <Trash2 size={13} />
@@ -902,7 +902,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             className="hidden md:flex absolute top-4 right-4 z-20 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-colors text-fg"
             title="Toggle Debug Panel"
           >
-            {isDebugPanelOpen ? <ChevronRight size={20} /> : <Terminal size={20} className={nodes.some(n => n.type === 'debugNode' && n.data?.outputType === 'text') ? 'text-purple-400' : ''} />}
+            {isDebugPanelOpen ? <ChevronRight size={20} /> : <Terminal size={20} className={nodes.some(n => n.type === 'debugNode' && n.data?.outputType === 'text') ? 'text-purple-600 dark:text-purple-400' : ''} />}
           </button>
         </div>
         

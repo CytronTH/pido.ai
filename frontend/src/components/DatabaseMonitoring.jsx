@@ -107,7 +107,7 @@ export default function DatabaseMonitoring({ projectId }) {
           </button>
           <button
             onClick={() => setActiveTab('explorer')}
-            className={`px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2 transition-colors ${activeTab === 'explorer' ? 'bg-surface-2 text-blue-400' : 'text-fg-muted hover:text-fg'}`}
+            className={`px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2 transition-colors ${activeTab === 'explorer' ? 'bg-surface-2 text-blue-600 dark:text-blue-400' : 'text-fg-muted hover:text-fg'}`}
           >
             <Code2 size={16} />
             SQL Explorer
@@ -145,7 +145,7 @@ export default function DatabaseMonitoring({ projectId }) {
               </h3>
               <p className="text-xs text-fg-subtle mt-1">Free of {dbStats?.disk_total_gb || 0} GB</p>
             </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${dbStats?.disk_usage_percent > 85 ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${dbStats?.disk_usage_percent > 85 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
               <HardDrive size={20} />
             </div>
           </div>
@@ -166,9 +166,9 @@ export default function DatabaseMonitoring({ projectId }) {
             <h3 className="text-2xl font-extrabold mt-1 tracking-tight text-fg">
               {dbStats?.db_file_size_mb ? `${dbStats.db_file_size_mb} MB` : (loading ? '...' : '-')}
             </h3>
-            <p className="text-xs text-indigo-400 mt-1">Projects, Models, Cameras</p>
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">Projects, Models, Cameras</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
             <Database size={20} />
           </div>
         </div>
@@ -180,9 +180,9 @@ export default function DatabaseMonitoring({ projectId }) {
             <h3 className="text-2xl font-extrabold mt-1 tracking-tight text-fg">
               {dbStats?.telemetry_file_size_mb ? `${dbStats.telemetry_file_size_mb} MB` : (loading ? '...' : '-')}
             </h3>
-            <p className="text-xs text-blue-400 mt-1">High-freq Event Logs</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">High-freq Event Logs</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
             <DatabaseZap size={20} />
           </div>
         </div>
@@ -212,11 +212,11 @@ export default function DatabaseMonitoring({ projectId }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-canvas p-3 rounded-xl border border-line/60">
               <div className="text-xs mb-1 text-fg-subtle">Raw Event Logs</div>
-              <div className="text-xl font-bold text-blue-400">{dbStats?.total_event_logs?.toLocaleString() || 0}</div>
+              <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{dbStats?.total_event_logs?.toLocaleString() || 0}</div>
             </div>
             <div className="bg-canvas p-3 rounded-xl border border-line/60">
               <div className="text-xs mb-1 text-fg-subtle">System Metrics</div>
-              <div className="text-xl font-bold text-amber-400">{dbStats?.total_metrics?.toLocaleString() || 0}</div>
+              <div className="text-xl font-bold text-amber-700 dark:text-amber-400">{dbStats?.total_metrics?.toLocaleString() || 0}</div>
             </div>
             <div className="bg-canvas p-3 rounded-xl border border-line/60">
               <div className="text-xs mb-1 text-fg-subtle">Raw Class Counts</div>
@@ -224,7 +224,7 @@ export default function DatabaseMonitoring({ projectId }) {
             </div>
             <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
               <div className="text-xs text-emerald-500 mb-1">Hourly Rollups</div>
-              <div className="text-xl font-bold text-emerald-400">{dbStats?.total_hourly_rollups?.toLocaleString() || 0}</div>
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{dbStats?.total_hourly_rollups?.toLocaleString() || 0}</div>
             </div>
           </div>
         </div>
@@ -253,9 +253,9 @@ export default function DatabaseMonitoring({ projectId }) {
             <div className="flex-1 bg-canvas p-4 rounded-xl border border-line flex flex-col justify-center">
               <div className="text-sm text-fg-muted mb-1">Status</div>
               {dbStats?.log_queue_size > 5000 ? (
-                <div className="text-rose-400 font-medium flex items-center gap-1.5"><ShieldAlert size={16}/> High Load</div>
+                <div className="text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1.5"><ShieldAlert size={16}/> High Load</div>
               ) : (
-                <div className="text-emerald-400 font-medium flex items-center gap-1.5"><Check size={16}/> Healthy</div>
+                <div className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5"><Check size={16}/> Healthy</div>
               )}
               <div className="text-xs text-fg-subtle mt-2">Background batch writer is active.</div>
             </div>
@@ -273,7 +273,7 @@ export default function DatabaseMonitoring({ projectId }) {
           <button 
             onClick={() => handleRollup()}
             disabled={actionLoading}
-            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-3 rounded-xl flex items-center gap-3 transition-colors text-left flex-1 min-w-[250px]"
+            className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-4 py-3 rounded-xl flex items-center gap-3 transition-colors text-left flex-1 min-w-[250px]"
           >
             <div className="p-2 bg-emerald-500/20 rounded-lg"><Zap size={18} /></div>
             <div>
@@ -285,7 +285,7 @@ export default function DatabaseMonitoring({ projectId }) {
           <button 
             onClick={() => handleVacuum()}
             disabled={actionLoading}
-            className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-4 py-3 rounded-xl flex items-center gap-3 transition-colors text-left flex-1 min-w-[250px]"
+            className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-4 py-3 rounded-xl flex items-center gap-3 transition-colors text-left flex-1 min-w-[250px]"
           >
             <div className="p-2 bg-indigo-500/20 rounded-lg"><Archive size={18} /></div>
             <div>
@@ -297,7 +297,7 @@ export default function DatabaseMonitoring({ projectId }) {
           <button 
             onClick={() => setShowCleanupModal(true)}
             disabled={actionLoading}
-            className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-4 py-3 rounded-xl flex items-center gap-3 transition-colors text-left flex-1 min-w-[250px]"
+            className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 px-4 py-3 rounded-xl flex items-center gap-3 transition-colors text-left flex-1 min-w-[250px]"
           >
             <div className="p-2 bg-rose-500/20 rounded-lg"><Trash2 size={18} /></div>
             <div>
@@ -313,7 +313,7 @@ export default function DatabaseMonitoring({ projectId }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-surface border border-line rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
             <div className="p-5 border-b border-line flex items-center gap-3">
-              <div className="p-2 bg-rose-500/10 text-rose-400 rounded-lg">
+              <div className="p-2 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-lg">
                 <Trash2 size={20} />
               </div>
               <div>
@@ -323,7 +323,7 @@ export default function DatabaseMonitoring({ projectId }) {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-3 rounded-lg text-xs">
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 p-3 rounded-lg text-xs">
                 <strong>Warning:</strong> This action permanently deletes historical event logs and associated snapshot images. It cannot be undone.
               </div>
 
@@ -356,7 +356,7 @@ export default function DatabaseMonitoring({ projectId }) {
               </div>
 
               {cleanupResult && (
-                <div className={`mt-4 p-3 rounded-lg border text-sm ${cleanupResult.error ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'}`}>
+                <div className={`mt-4 p-3 rounded-lg border text-sm ${cleanupResult.error ? 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'}`}>
                   {cleanupResult.error ? (
                     <div>Error: {cleanupResult.error}</div>
                   ) : (

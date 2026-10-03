@@ -73,7 +73,7 @@ export default function HistoricalChartWidget({ projectId = 'default', config = 
       {/* Header Toolbar */}
       <div className="bg-surface-2/80 px-3.5 py-2.5 flex items-center justify-between border-b border-line-strong/80 shrink-0">
         <div className="flex items-center gap-2">
-          <BarChart3 size={16} className="text-teal-400" />
+          <BarChart3 size={16} className="text-teal-600 dark:text-teal-400" />
           <span className="text-xs sm:text-sm font-semibold text-fg">{title}</span>
         </div>
 
@@ -117,7 +117,7 @@ export default function HistoricalChartWidget({ projectId = 'default', config = 
             className="text-fg-muted hover:text-fg p-1 rounded hover:bg-surface-2 transition-colors"
             title="Refresh Data"
           >
-            <RefreshCw size={13} className={loading ? 'animate-spin text-teal-400' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin text-teal-600 dark:text-teal-400' : ''} />
           </button>
         </div>
       </div>

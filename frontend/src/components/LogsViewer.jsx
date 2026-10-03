@@ -179,19 +179,19 @@ export default function LogsViewer({ projectId }) {
   const getBadgeInfo = (log) => {
     const label = log.payload?.label?.toUpperCase();
     if (label === 'OK') {
-      return { text: 'OK', bg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: CheckCircle2 };
+      return { text: 'OK', bg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', icon: CheckCircle2 };
     }
     if (label === 'NG') {
-      return { text: 'NG', bg: 'bg-rose-500/15 text-rose-400 border-rose-500/30 animate-pulse', icon: AlertTriangle };
+      return { text: 'NG', bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse', icon: AlertTriangle };
     }
     const lowerType = (log.event_type || '').toLowerCase();
     if (lowerType.includes('snapshot')) {
-      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30', icon: ImageIcon };
+      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', icon: ImageIcon };
     }
     if (lowerType.includes('alert') || lowerType.includes('error')) {
-      return { text: log.event_type, bg: 'bg-rose-500/15 text-rose-400 border-rose-500/30', icon: AlertTriangle };
+      return { text: log.event_type, bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', icon: AlertTriangle };
     }
-    return { text: log.event_type, bg: 'bg-blue-500/15 text-blue-400 border-blue-500/30', icon: Sparkles };
+    return { text: log.event_type, bg: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30', icon: Sparkles };
   };
 
   const totalPages = Math.ceil(total / perPage);
@@ -261,7 +261,7 @@ export default function LogsViewer({ projectId }) {
               <div className="flex items-center gap-2 sm:gap-2.5">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Database & Event Logs</h1>
                 {autoRefresh && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     LIVE
                   </span>
@@ -286,11 +286,11 @@ export default function LogsViewer({ projectId }) {
               onClick={() => setAutoRefresh(!autoRefresh)}
               className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
                 autoRefresh 
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
                   : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
               }`}
             >
-              {autoRefresh ? <Pause size={14} className="text-emerald-400" /> : <Play size={14} />}
+              {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
               <span>{autoRefresh ? 'Live' : 'Auto'}</span>
             </button>
 
@@ -316,7 +316,7 @@ export default function LogsViewer({ projectId }) {
               </h3>
               <p className="text-[11px] text-fg-subtle mt-0.5">Inference triggers & alerts</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
               <Database size={20} />
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function LogsViewer({ projectId }) {
                 {dbStats?.snapshot_size_mb ? `${(dbStats.snapshot_size_mb / 1024).toFixed(2)} GB on disk` : 'Calculating...'}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <ImageIcon size={20} />
             </div>
           </div>
@@ -389,7 +389,7 @@ export default function LogsViewer({ projectId }) {
               onClick={() => handleQuickFilter(pill.key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 active:scale-95 ${
                 filters.quick === pill.key
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                  ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/40 shadow-sm'
                   : 'bg-canvas/60 hover:bg-surface-2 text-fg-muted border border-line/80'
               }`}
             >
@@ -668,11 +668,11 @@ export default function LogsViewer({ projectId }) {
                                     }}
                                     className="flex items-center gap-1.5 text-[11px] text-fg-muted hover:text-fg px-2.5 py-1 rounded-lg bg-surface border border-line transition-colors"
                                   >
-                                    {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                                    {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={12} />}
                                     <span>{copied ? 'Copied' : 'Copy JSON'}</span>
                                   </button>
                                 </div>
-                                <pre className="text-xs text-blue-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
+                                <pre className="text-xs text-blue-700 dark:text-blue-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
                                   {JSON.stringify(log.payload, null, 2)}
                                 </pre>
                               </div>
@@ -740,7 +740,7 @@ export default function LogsViewer({ projectId }) {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-line bg-surface/90 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
                   <ImageIcon size={18} />
                 </div>
                 <div>
@@ -857,13 +857,13 @@ export default function LogsViewer({ projectId }) {
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
                         >
-                          {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                          {copied ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                           {copied ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-blue-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-blue-800 dark:text-blue-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
                         {JSON.stringify(selectedLog.payload, null, 2)}
                       </pre>
                     </div>
