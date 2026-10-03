@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Settings, Palette, Bell, Sliders, Activity } from 'lucide-react';
+import { X, Save, Settings, Palette, Bell, Sliders, Activity, Plus, Sparkles, Trash2, ArrowUpDown } from 'lucide-react';
 import GaugeWidget from './GaugeWidget';
 import CapacityBarWidget from './CapacityBarWidget';
 import RadialDonutWidget from './RadialDonutWidget';
@@ -8,6 +8,42 @@ import MetricWidget from './MetricWidget';
 import ChartWidget from './ChartWidget';
 import TextWidget from './TextWidget';
 import HistoricalChartWidget from './HistoricalChartWidget';
+
+const PRESET_COLOR_STOPS = [
+  {
+    name: 'Traffic Light (60 / 85 / 100%)',
+    stops: [
+      { limit: 60, color: '#10b981' },
+      { limit: 85, color: '#eab308' },
+      { limit: 100, color: '#ef4444' }
+    ]
+  },
+  {
+    name: 'Cool to Hot (40 / 75 / 100%)',
+    stops: [
+      { limit: 40, color: '#3b82f6' },
+      { limit: 75, color: '#f59e0b' },
+      { limit: 100, color: '#ef4444' }
+    ]
+  },
+  {
+    name: 'Battery / Capacity (20 / 50 / 100%)',
+    stops: [
+      { limit: 20, color: '#ef4444' },
+      { limit: 50, color: '#eab308' },
+      { limit: 100, color: '#10b981' }
+    ]
+  },
+  {
+    name: 'Pass / Alert (50 / 100%)',
+    stops: [
+      { limit: 50, color: '#10b981' },
+      { limit: 100, color: '#ef4444' }
+    ]
+  }
+];
+
+const QUICK_COLORS = ['#10b981', '#eab308', '#f97316', '#ef4444', '#3b82f6', '#8b5cf6', '#06b6d4'];
 
 const ToggleSwitch = ({ label, checked, onChange, className = "mb-3" }) => (
   <div className={`flex items-center justify-between gap-4 ${className}`}>
@@ -141,9 +177,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
   };
 
   const handleAddColorStop = () => {
-    const newStops = [...(formData.colorStops || [])];
-    newStops.push({ limit: 100, color: '#10b981' });
-    setFormData({ ...formData, colorStops: newStops });
+    const currentStops = [...(formData.colorStops || [])];
+    let nextLimit = 100;
+    if (currentStops.length > 0) {
+      const maxLimit = Math.max(...currentStops.map(s => parseFloat(s.limit) || 0));
+      if (maxLimit < 100) {
+        nextLimit = 100;
+      } else {
+        nextLimit = Math.min(100, Math.round(maxLimit * 0.75));
+      }
+    }
+    const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#06b6d4'];
+    const nextColor = colors[currentStops.length % colors.length];
+    currentStops.push({ limit: nextLimit, color: nextColor });
+    setFormData({ ...formData, colorStops: currentStops });
   };
 
   const handleRemoveColorStop = (index) => {
@@ -156,6 +203,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     const newStops = [...(formData.colorStops || [])];
     newStops[index] = { ...newStops[index], [field]: value };
     setFormData({ ...formData, colorStops: newStops });
+  };
+
+  const handleSortColorStops = () => {
+    const sorted = [...(formData.colorStops || [])].sort((a, b) => (parseFloat(a.limit) || 0) - (parseFloat(b.limit) || 0));
+    setFormData({ ...formData, colorStops: sorted });
   };
 
   const handleSave = () => {
@@ -712,49 +764,203 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       </select>
                     </div>
 
-                  <div className="space-y-2 pt-2">
-                    <label className="block text-xs font-medium text-fg-muted">Color Stops (Up to %)</label>
-                    {(formData.colorStops || []).map((stop, index) => (
-                      <div key={index} className="flex gap-2 items-center">
-                        <input
-                          type="number"
-                          value={stop.limit}
-                          onChange={(e) => handleUpdateColorStop(index, 'limit', e.target.value)}
-                          className="w-20 bg-surface border border-line-strong rounded px-2 py-1.5 text-fg text-sm text-center"
-                          placeholder="%"
-                        />
-                        <input
-                          type="color"
-                          value={stop.color}
-                          onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
-                          className="w-8 h-8 rounded cursor-pointer border border-line-strong"
-                        />
-                        <input
-                          type="text"
-                          value={stop.color}
-                          onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
-                          className="flex-1 bg-surface border border-line-strong rounded px-2 py-1.5 text-fg text-sm uppercase font-mono"
-                        />
-                        <button
-                          onClick={() => handleRemoveColorStop(index)}
-                          className="p-1.5 text-fg-subtle hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          title="Remove Stop"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                    {/* Interactive Visual Range Bar Preview */}
+                    {(() => {
+                      const stops = formData.colorStops || [];
+                      const sorted = [...stops].map((s, idx) => ({ ...s, origIndex: idx })).sort((a, b) => (parseFloat(a.limit) || 0) - (parseFloat(b.limit) || 0));
+                      let lastLimit = 0;
+                      const segments = sorted.map((s) => {
+                        const limit = Math.min(100, Math.max(0, parseFloat(s.limit) || 0));
+                        const width = Math.max(0, limit - lastLimit);
+                        const from = lastLimit;
+                        lastLimit = limit;
+                        return { ...s, from, to: limit, width };
+                      });
+                      const remainderWidth = Math.max(0, 100 - lastLimit);
+
+                      return (
+                        <div className="space-y-2 p-3 bg-surface rounded-xl border border-line-strong/80">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
+                              <Sparkles size={13} className="text-amber-500" />
+                              <span>Live Range Visualizer (0% – 100%)</span>
+                            </label>
+                            {stops.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={handleSortColorStops}
+                                className="text-[11px] text-blue-500 hover:text-blue-600 flex items-center gap-1 hover:underline"
+                                title="เรียงลำดับ % จากน้อยไปมาก"
+                              >
+                                <ArrowUpDown size={11} /> Auto-sort
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Visual Progress Bar */}
+                          <div className="h-8 w-full bg-surface-3 rounded-lg overflow-hidden flex border border-line-strong shadow-inner relative select-none">
+                            {segments.map((seg, i) => (
+                              <div
+                                key={i}
+                                style={{ width: `${seg.width}%`, backgroundColor: seg.color }}
+                                className="h-full flex items-center justify-center relative transition-all duration-150 border-r border-black/20 last:border-r-0 group cursor-default"
+                                title={`Zone ${i + 1}: ${seg.from}% – ${seg.to}% (${seg.color})`}
+                              >
+                                {seg.width >= 12 && (
+                                  <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] truncate px-1">
+                                    {seg.from}-{seg.to}%
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {remainderWidth > 0 && (
+                              <div
+                                style={{ width: `${remainderWidth}%` }}
+                                className="h-full bg-surface-2 flex items-center justify-center text-fg-subtle text-[10px] italic border-dashed border-line-strong px-1"
+                                title={`Remaining: ${lastLimit}% – 100% (Default Color)`}
+                              >
+                                {remainderWidth >= 15 && `+${remainderWidth}%`}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Bar scale ticks */}
+                          <div className="flex justify-between text-[10px] text-fg-subtle font-mono px-0.5 select-none">
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Quick Presets */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-medium text-fg-muted">Quick Presets (ชุดสีสำเร็จรูป)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PRESET_COLOR_STOPS.map((preset, pIdx) => (
+                          <button
+                            key={pIdx}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, colorStops: preset.stops.map(s => ({ ...s })) })}
+                            className="p-2 rounded-lg border border-line-strong hover:border-blue-500/80 bg-surface hover:bg-surface-2/70 text-left transition-all group flex flex-col gap-1.5"
+                          >
+                            <span className="text-xs font-semibold text-fg group-hover:text-blue-500 transition-colors">
+                              {preset.name}
+                            </span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {preset.stops.map((st, sIdx) => (
+                                <div key={sIdx} className="flex items-center gap-1">
+                                  <span className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: st.color }} />
+                                  <span className="text-[10px] text-fg-subtle font-mono">{st.limit}%</span>
+                                  {sIdx < preset.stops.length - 1 && <span className="text-fg-subtle text-[10px]">·</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                    <button
-                      onClick={handleAddColorStop}
-                      className="w-full mt-2 py-2 border border-dashed border-line-strong rounded-lg text-sm text-fg-muted hover:text-fg hover:border-fg-subtle hover:bg-surface-2/50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <span className="text-lg leading-none mb-0.5">+</span> Add Color Stop
-                    </button>
-                    <p className="text-xs text-fg-subtle mt-2 leading-relaxed">
-                      Define the upper percentage limits (0-100) and their colors.<br/>
-                      E.g., <span className="text-green-600 dark:text-green-400">25% Green</span>, <span className="text-yellow-700 dark:text-yellow-400">50% Yellow</span>, <span className="text-red-600 dark:text-red-400">100% Red</span>.
-                    </p>
-                  </div>
+                    </div>
+
+                    {/* Zone Cards with Sliders and Swatches */}
+                    <div className="space-y-2.5 pt-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-fg">Threshold Zones (กำหนดช่วงและสี)</label>
+                        <span className="text-xs text-fg-subtle font-mono">{(formData.colorStops || []).length} zones</span>
+                      </div>
+
+                      {(formData.colorStops || []).map((stop, index) => {
+                        const prevLimit = index === 0 ? 0 : ((formData.colorStops || [])[index - 1]?.limit || 0);
+                        return (
+                          <div key={index} className="p-3 rounded-xl bg-surface border border-line-strong/80 space-y-2.5 transition-all hover:border-line-strong">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: stop.color }} />
+                                <span className="text-xs font-semibold text-fg">
+                                  Zone {index + 1}: <span className="text-blue-500 font-mono">{prevLimit}% → {stop.limit}%</span>
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveColorStop(index)}
+                                className="p-1 text-fg-subtle hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                                title="ลบช่วงนี้"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            {/* Range slider and direct input */}
+                            <div className="flex items-center gap-3">
+                              <span className="text-[11px] text-fg-subtle font-mono shrink-0">Upper:</span>
+                              <input
+                                type="range"
+                                min="1"
+                                max="100"
+                                value={stop.limit || 0}
+                                onChange={(e) => handleUpdateColorStop(index, 'limit', Number(e.target.value))}
+                                className="flex-1 accent-blue-500 h-2 bg-surface-3 rounded-lg cursor-pointer"
+                              />
+                              <div className="flex items-center gap-1 shrink-0">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="100"
+                                  value={stop.limit}
+                                  onChange={(e) => {
+                                    const val = e.target.value === '' ? '' : Math.min(100, Math.max(1, Number(e.target.value)));
+                                    handleUpdateColorStop(index, 'limit', val);
+                                  }}
+                                  className="w-14 bg-canvas border border-line-strong rounded px-2 py-1 text-xs text-center font-mono text-fg focus:border-blue-500 outline-none"
+                                />
+                                <span className="text-xs text-fg-subtle font-mono">%</span>
+                              </div>
+                            </div>
+
+                            {/* Color Picker & Quick Swatches */}
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-line-strong/30">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {QUICK_COLORS.map((qc) => (
+                                  <button
+                                    key={qc}
+                                    type="button"
+                                    onClick={() => handleUpdateColorStop(index, 'color', qc)}
+                                    style={{ backgroundColor: qc }}
+                                    className={`w-5 h-5 rounded-full border transition-transform ${stop.color?.toLowerCase() === qc.toLowerCase() ? 'scale-125 ring-2 ring-blue-500 ring-offset-1 ring-offset-surface border-white' : 'border-black/20 hover:scale-110'}`}
+                                    title={qc}
+                                  />
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <input
+                                  type="color"
+                                  value={stop.color}
+                                  onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
+                                  className="w-6 h-6 rounded cursor-pointer border border-line-strong bg-transparent"
+                                  title="Custom Color"
+                                />
+                                <input
+                                  type="text"
+                                  value={stop.color}
+                                  onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
+                                  className="w-20 bg-canvas border border-line-strong rounded px-1.5 py-0.5 text-[11px] text-fg font-mono uppercase text-center outline-none focus:border-blue-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={handleAddColorStop}
+                        className="w-full mt-2 py-2.5 border border-dashed border-line-strong rounded-xl text-xs font-medium text-fg-muted hover:text-blue-500 hover:border-blue-500/60 hover:bg-blue-500/5 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Plus size={14} /> Add Color Range Zone
+                      </button>
+                    </div>
                     </div>
                   )}
                   </div>

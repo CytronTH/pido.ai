@@ -23,25 +23,62 @@ import ChartWidget from './DashboardWidgets/ChartWidget';
 import HistoricalChartWidget from './DashboardWidgets/HistoricalChartWidget';
 import WidgetSettingsModal from './DashboardWidgets/WidgetSettingsModal';
 
-import { Lock, Unlock, Save, Plus } from 'lucide-react';
+import { 
+  Lock, Unlock, Save, Plus, 
+  Video, Gauge, CircleDot, Target, Hash, 
+  Type, ListOrdered, LineChart, BarChart2, 
+  Play, Image, Flame, Zap, LayoutGrid 
+} from 'lucide-react';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const WIDGET_TYPES = [
-  { type: 'video', label: '�� Video Stream', minW: 2, minH: 2 },
-  { type: 'gauge', label: '⏱️ Gauge', minW: 2, minH: 2 },
-  { type: 'trafficLight', label: '🚦 Traffic Light', minW: 2, minH: 3 },
-  { type: 'targetTracker', label: '🎯 Target Tracker', minW: 3, minH: 3 },
-  { type: 'metric', label: '🔢 Number', minW: 2, minH: 2 },
-  { type: 'text', label: '📝 Text Value', minW: 2, minH: 2 },
-  { type: 'textFeed', label: '📋 Log Feed', minW: 2, minH: 2 },
-  { type: 'chart', label: '📈 Line Chart', minW: 2, minH: 2 },
-  { type: 'historicalChart', label: '📊 Historical Activity', minW: 3, minH: 3 },
-  { type: 'actionButtons', label: '🎮 Action Buttons', minW: 2, minH: 2 },
-  { type: 'imageGallery', label: '🖼️ Snapshots', minW: 2, minH: 2 },
-  { type: 'heatmap', label: '🔥 Heatmap', minW: 2, minH: 2 },
-  { type: 'pipelineStatus', label: '⚡ Pipeline Status', minW: 2, minH: 2 }
+const WIDGET_CATEGORIES = [
+  {
+    id: 'vision',
+    name: 'Media & AI Vision',
+    widgets: [
+      { type: 'video', label: 'Video Stream', desc: 'Realtime WHEP stream & AI detection overlay', icon: Video, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20', minW: 2, minH: 2 },
+      { type: 'imageGallery', label: 'Snapshots', desc: 'Capture gallery & image detections', icon: Image, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20', minW: 2, minH: 2 },
+      { type: 'heatmap', label: 'Heatmap', desc: 'Spatial density & movement distribution', icon: Flame, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20', minW: 2, minH: 2 }
+    ]
+  },
+  {
+    id: 'metrics',
+    name: 'Metrics & Gauges',
+    widgets: [
+      { type: 'metric', label: 'Number / Metric', desc: 'Numeric values, trend delta & alert glow', icon: Hash, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', minW: 2, minH: 2 },
+      { type: 'gauge', label: 'Gauge', desc: 'Circular, horseshoe, donut & linear tube', icon: Gauge, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20', minW: 2, minH: 2 },
+      { type: 'trafficLight', label: 'Traffic Light', desc: 'Status lamp indicator (Red/Yellow/Green)', icon: CircleDot, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20', minW: 2, minH: 3 },
+      { type: 'targetTracker', label: 'Target Tracker', desc: 'Target vs actual progress tracker', icon: Target, color: 'text-violet-500 bg-violet-500/10 border-violet-500/20', minW: 3, minH: 3 }
+    ]
+  },
+  {
+    id: 'analytics',
+    name: 'Charts & Analytics',
+    widgets: [
+      { type: 'chart', label: 'Line Chart', desc: 'Realtime telemetry streaming trends', icon: LineChart, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20', minW: 2, minH: 2 },
+      { type: 'historicalChart', label: 'Historical Activity', desc: 'Time-aggregated detection statistics', icon: BarChart2, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20', minW: 3, minH: 3 }
+    ]
+  },
+  {
+    id: 'data',
+    name: 'Data & Telemetry',
+    widgets: [
+      { type: 'text', label: 'Text Value', desc: 'Single string or boolean status display', icon: Type, color: 'text-sky-500 bg-sky-500/10 border-sky-500/20', minW: 2, minH: 2 },
+      { type: 'textFeed', label: 'Log Feed', desc: 'Streaming alert log feed and events', icon: ListOrdered, color: 'text-slate-400 bg-slate-500/10 border-slate-500/20', minW: 2, minH: 2 },
+      { type: 'pipelineStatus', label: 'Pipeline Status', desc: 'Hardware & node health monitor', icon: Zap, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20', minW: 2, minH: 2 }
+    ]
+  },
+  {
+    id: 'controls',
+    name: 'Controls & Actions',
+    widgets: [
+      { type: 'actionButtons', label: 'Action Buttons', desc: 'Trigger MQTT, GPIO & Webhooks', icon: Play, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20', minW: 2, minH: 2 }
+    ]
+  }
 ];
+
+const WIDGET_TYPES = WIDGET_CATEGORIES.flatMap(c => c.widgets);
 
 const defaultLayout = [
   { i: 'video', x: 0, y: 0, w: 6, h: 5, minW: 2, minH: 2, type: 'video' },
@@ -409,30 +446,60 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
 
         {/* Edit Mode Slide-over Panel */}
         <div 
-          className={`absolute top-0 right-0 h-full w-72 bg-surface/95 backdrop-blur-md border-l border-line p-4 shrink-0 flex flex-col gap-3 overflow-y-auto transition-transform duration-300 z-30 shadow-2xl ${isEditMode ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`absolute top-0 right-0 h-full w-80 bg-surface/95 backdrop-blur-md border-l border-line p-4 shrink-0 flex flex-col gap-4 overflow-y-auto custom-scrollbar transition-transform duration-300 z-30 shadow-2xl ${isEditMode ? 'translate-x-0' : 'translate-x-full'}`}
         >
-          <div className="text-fg-secondary font-semibold text-sm uppercase tracking-wider mb-2 mt-14">
-            Available Widgets
-          </div>
-          <div className="text-xs text-fg-subtle mb-4 leading-relaxed">
-            Click the + button to add a widget to the dashboard canvas.
-          </div>
-          
-          {WIDGET_TYPES.map(widget => (
-            <div 
-              key={widget.type}
-              className="bg-surface-2 border border-line-strong p-3 rounded-lg cursor-pointer hover:bg-surface-3 transition-colors shadow-sm flex items-center justify-between group"
-              onClick={() => handleAddWidgetClick(widget.type)}
-            >
-              <span className="text-fg text-sm font-medium select-none">{widget.label}</span>
-              <button 
-                className="p-1 rounded-md bg-surface text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm"
-                title="Add to Dashboard"
-              >
-                <Plus size={16} />
-              </button>
+          <div className="mt-14 shrink-0">
+            <div className="flex items-center gap-2 text-fg font-bold text-sm tracking-wide">
+              <LayoutGrid size={17} className="text-blue-500" />
+              <span>Available Widgets</span>
             </div>
-          ))}
+            <p className="text-xs text-fg-subtle mt-1 leading-relaxed">
+              คลิกปุ่ม <span className="font-semibold text-fg">+</span> เพื่อเพิ่ม Widget ลงบน Dashboard
+            </p>
+          </div>
+
+          <div className="space-y-4 pb-8">
+            {WIDGET_CATEGORIES.map(category => (
+              <div key={category.id} className="space-y-2">
+                <div className="text-[11px] font-bold text-fg-muted uppercase tracking-wider px-1 flex items-center justify-between border-b border-line pb-1">
+                  <span>{category.name}</span>
+                  <span className="text-[10px] text-fg-subtle font-normal">({category.widgets.length})</span>
+                </div>
+                <div className="space-y-1.5">
+                  {category.widgets.map(widget => {
+                    const WidgetIcon = widget.icon;
+                    return (
+                      <div 
+                        key={widget.type}
+                        className="bg-surface-2 border border-line-strong/60 p-2.5 rounded-xl cursor-pointer hover:bg-surface-3 hover:border-line-strong transition-all shadow-sm flex items-center justify-between group gap-2.5"
+                        onClick={() => handleAddWidgetClick(widget.type)}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`p-2 rounded-lg border shrink-0 ${widget.color}`}>
+                            <WidgetIcon size={16} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-fg text-xs font-semibold truncate group-hover:text-blue-500 transition-colors">
+                              {widget.label}
+                            </div>
+                            <div className="text-[11px] text-fg-subtle truncate">
+                              {widget.desc}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          className="p-1.5 rounded-lg bg-surface border border-line text-blue-500 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all shadow-sm shrink-0"
+                          title="Add to Dashboard"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
