@@ -13,8 +13,6 @@ import SystemResourceWidget from './DashboardWidgets/SystemResourceWidget';
 // Generic Widgets
 import GaugeWidget from './DashboardWidgets/GaugeWidget';
 import TrafficLightWidget from './DashboardWidgets/TrafficLightWidget';
-import RadialDonutWidget from './DashboardWidgets/RadialDonutWidget';
-import CapacityBarWidget from './DashboardWidgets/CapacityBarWidget';
 import TargetTrackerWidget from './DashboardWidgets/TargetTrackerWidget';
 import MetricWidget from './DashboardWidgets/MetricWidget';
 import TextWidget from './DashboardWidgets/TextWidget';

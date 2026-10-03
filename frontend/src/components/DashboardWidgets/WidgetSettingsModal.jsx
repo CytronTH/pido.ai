@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Settings, Palette, Bell, Sliders, Activity, Plus, Sparkles, Trash2, ArrowUpDown } from 'lucide-react';
 import GaugeWidget from './GaugeWidget';
-import CapacityBarWidget from './CapacityBarWidget';
-import RadialDonutWidget from './RadialDonutWidget';
 import TrafficLightWidget from './TrafficLightWidget';
 import MetricWidget from './MetricWidget';
 import ChartWidget from './ChartWidget';

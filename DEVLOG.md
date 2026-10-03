@@ -25,6 +25,35 @@
 - 
 -->
 
+## [2026-10-04] - จัดหมวดหมู่ Available Widgets, แก้ไอคอน Video Stream และเพิ่ม Visual Range Editor สำหรับ Dynamic Colors
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ไอคอน Video Stream ในเมนู Available Widgets ที่แสดงผิด
+- [x] แบ่ง widget ในเมนู Available Widgets เป็นหมวดหมู่
+- [x] เปลี่ยนการตั้งค่า Dynamic Colors & Ranges จากช่องกรอกตัวเลข เป็นแบบ visualize
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **ไอคอน Video Stream:** label เดิมมี byte เสีย (`\xef\xbf\xbd` = U+FFFD) แทนที่ด้วย Lucide `<Video />`
+- **หมวดหมู่ widget (`LiveDashboard.jsx`):** เพิ่ม `WIDGET_CATEGORIES` 5 หมวด (Media & AI Vision / Metrics & Gauges / Charts & Analytics / Data & Telemetry / Controls & Actions) และสร้าง `WIDGET_TYPES` จาก `flatMap` เพื่อให้โค้ดเดิมยังใช้ได้
+- **Visual Range Editor (`WidgetSettingsModal.jsx`):**
+  - แถบพรีวิวช่วงสี 0–100% แบบ live
+  - Quick Presets (`PRESET_COLOR_STOPS`): Traffic Light, Cool to Hot, Battery, Pass/Alert
+  - การ์ดแต่ละโซน: slider + ช่องตัวเลข + swatch สีด่วน (`QUICK_COLORS`) + color picker
+  - ปุ่ม Auto-sort (`handleSortColorStops`) และ `handleAddColorStop` ที่เดาค่า limit/สีเริ่มต้นให้
+- ลบ import `RadialDonutWidget` / `CapacityBarWidget` ที่ไม่ได้ใช้แล้วหลังรวมเข้า Gauge
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** คงรูปแบบ `colorStops: { limit, color }[]` เดิม
+- **เหตุผล:** `GaugeWidget` / `CapacityBarWidget` sort ตาม `limit` อยู่แล้ว จึงเข้ากันได้ย้อนหลังโดยไม่ต้อง migrate config
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- warning เดิมจาก `dev`: duplicate key `unit` / `thresholdMin` ใน initial `formData` ของ `WidgetSettingsModal.jsx` (ยังไม่แก้ เพราะอยู่นอก scope)
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบ UI ในเบราว์เซอร์ และส่ง Code Review ก่อน merge เข้า `dev`
+
+---
+
 ## [2026-10-04] - รวม Gauge/Radial Donut/Capacity Bar เป็น Widget เดียว และจัดระเบียบการ์ด Widget Settings ให้เป็นมาตรฐานเดียวกัน
 
 ### 🎯 เป้าหมาย (Goals)
