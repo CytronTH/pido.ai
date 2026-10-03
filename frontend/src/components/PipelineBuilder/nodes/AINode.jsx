@@ -65,11 +65,11 @@ export default function AINode({ id, data }) {
   const activeClassCount = classFilter === null ? modelClasses.length : classFilter.length;
 
   return (
-    <div className={`bg-gray-900 border-2 border-purple-600 rounded-xl shadow-lg shadow-purple-900/20 ${isCompact ? 'w-48' : 'w-64'} text-white overflow-hidden`}>
+    <div className={`bg-surface border-2 border-purple-600 rounded-xl shadow-lg shadow-purple-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
       <div className="bg-purple-600/20 p-3 flex items-center justify-between border-b border-purple-900/50">
         <div className="flex items-center gap-3">
           <div className="bg-purple-600 p-1.5 rounded-lg">
-            <BrainCircuit size={16} className="text-white" />
+            <BrainCircuit size={16} className="text-fg" />
           </div>
           <div className="font-semibold text-sm">AI Model</div>
         </div>
@@ -77,13 +77,13 @@ export default function AINode({ id, data }) {
       </div>
       
       <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Model Entity
           {loading ? (
-            <div className="text-sm text-gray-500 py-1">Loading...</div>
+            <div className="text-sm text-fg-subtle py-1">Loading...</div>
           ) : (
             <select 
-              className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-purple-500 nodrag"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-purple-500 nodrag"
               value={data?.entityId || ''}
               onChange={handleEntityChange}
             >
@@ -97,9 +97,9 @@ export default function AINode({ id, data }) {
           )}
         </label>
         
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Hardware
-          <select className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-purple-500 nodrag" disabled>
+          <select className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-purple-500 nodrag" disabled>
             <option>Hailo-8L NPU</option>
           </select>
         </label>
@@ -107,32 +107,32 @@ export default function AINode({ id, data }) {
         {/* Advanced Settings Button */}
         <button 
           onClick={() => setShowSettingsModal(true)}
-          className="bg-gray-800 hover:bg-gray-700 text-purple-300 border border-purple-500/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-2 transition-colors nodrag mt-1"
+          className="bg-surface-2 hover:bg-surface-3 text-purple-300 border border-purple-500/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-2 transition-colors nodrag mt-1"
         >
           <Settings size={14} /> Advanced Settings
         </button>
 
         {/* Preview of the selected entity's config */}
         {selectedModel && (
-          <div className="text-[11px] text-gray-400 bg-gray-950/80 border border-gray-800 p-2.5 rounded-xl space-y-1 mt-1 shadow-inner">
+          <div className="text-[11px] text-fg-muted bg-canvas/80 border border-line p-2.5 rounded-xl space-y-1 mt-1 shadow-inner">
             <div className="flex items-center justify-between text-purple-300 font-bold">
               <span className="truncate max-w-[130px]" title={selectedModel.name}>{selectedModel.name}</span>
               <span className="bg-purple-900/60 text-purple-300 text-[9px] px-1.5 py-0.5 rounded font-mono border border-purple-700/50">
                 {selectedModel.version || 'v1.0'}
               </span>
             </div>
-            <div className="flex items-center justify-between text-gray-400 text-[10px]">
+            <div className="flex items-center justify-between text-fg-muted text-[10px]">
               <span>Task:</span>
-              <span className="text-gray-200 capitalize font-medium">{selectedModel.task || 'detection'}</span>
+              <span className="text-fg capitalize font-medium">{selectedModel.task || 'detection'}</span>
             </div>
-            <div className="flex items-center justify-between text-gray-400 text-[10px]">
+            <div className="flex items-center justify-between text-fg-muted text-[10px]">
               <span>File:</span>
-              <span className="text-gray-200 font-mono truncate max-w-[120px]" title={selectedModel.original_filename || selectedModel.hef_path}>
+              <span className="text-fg font-mono truncate max-w-[120px]" title={selectedModel.original_filename || selectedModel.hef_path}>
                 {selectedModel.original_filename || selectedModel.hef_path}
               </span>
             </div>
             {selectedModel.file_hash && (
-              <div className="flex items-center justify-between text-gray-400 text-[10px]">
+              <div className="flex items-center justify-between text-fg-muted text-[10px]">
                 <span>SHA-256:</span>
                 <span className="text-purple-400 font-mono text-[9px]" title={selectedModel.file_hash}>
                   #{selectedModel.file_hash.substring(0, 8)}
@@ -140,7 +140,7 @@ export default function AINode({ id, data }) {
               </div>
             )}
             {selectedModel.classes && selectedModel.classes.length > 0 && (
-              <div className="text-[10px] text-gray-400 pt-0.5 flex items-center justify-between border-t border-gray-800/80 mt-1">
+              <div className="text-[10px] text-fg-muted pt-0.5 flex items-center justify-between border-t border-line/80 mt-1">
                 <span>Classes ({selectedModel.classes.length}):</span>
                 <span className="text-purple-300 font-mono truncate max-w-[100px]">
                   {selectedModel.classes.slice(0, 2).join(', ')}{selectedModel.classes.length > 2 ? '...' : ''}
@@ -157,12 +157,12 @@ export default function AINode({ id, data }) {
       <Handle 
         type="target" 
         position={Position.Left} 
-        className="w-3 h-3 bg-purple-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-purple-500 border-2 border-line-subtle"
       />
       <Handle 
         type="source" 
         position={Position.Right} 
-        className="w-3 h-3 bg-purple-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-purple-500 border-2 border-line-subtle"
       />
 
       {/* ROI Editor Modal — rendered outside the node overflow:hidden container via portal-like approach */}

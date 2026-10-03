@@ -10,22 +10,22 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
   return (
     <div className="font-mono text-[11px] leading-tight">
       <div 
-        className={`group flex items-center py-1 hover:bg-gray-200/50 dark:hover:bg-gray-100 dark:bg-gray-800/50 rounded px-1 -ml-1 transition-colors ${isSelected ? 'bg-blue-900/30 border border-blue-800/50' : 'border border-transparent'}`}
+        className={`group flex items-center py-1 hover:bg-surface-2/50 rounded px-1 -ml-1 transition-colors ${isSelected ? 'bg-blue-900/30 border border-blue-800/50' : 'border border-transparent'}`}
       >
         <div className="flex items-center gap-1 flex-1 cursor-pointer select-none" onClick={() => isObject && setIsExpanded(!isExpanded)}>
           {isObject ? (
-            isExpanded ? <ChevronDown size={12} className="text-gray-500 dark:text-gray-500" /> : <ChevronRight size={12} className="text-gray-500 dark:text-gray-500" />
+            isExpanded ? <ChevronDown size={12} className="text-fg-subtle" /> : <ChevronRight size={12} className="text-fg-subtle" />
           ) : (
             <span className="w-3" />
           )}
           <span className="text-purple-400">{nodeKey}</span>
-          <span className="text-gray-500 dark:text-gray-500">:</span>
+          <span className="text-fg-subtle">:</span>
           {!isObject && (
             <span className={typeof value === 'number' ? 'text-orange-400' : typeof value === 'string' ? 'text-green-400' : 'text-blue-400'}>
               {JSON.stringify(value)}
             </span>
           )}
-          {isObject && !isExpanded && <span className="text-gray-500 italic dark:text-gray-500">{"{...}"}</span>}
+          {isObject && !isExpanded && <span className="italic text-fg-subtle">{"{...}"}</span>}
         </div>
         
         {!isObject && (
@@ -33,7 +33,7 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
             type="button"
             onClick={(e) => { e.stopPropagation(); onSelect(path); }}
             className={`opacity-0 group-hover:opacity-100 flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] transition-all
-              ${isSelected ? 'opacity-100 bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 hover:bg-blue-600 hover:text-white dark:text-gray-300'}`}
+              ${isSelected ? 'opacity-100 bg-blue-600 text-white' : 'bg-surface-3 text-fg-faint hover:bg-blue-600 hover:text-fg-secondary'}`}
           >
             {isSelected ? <Check size={10} /> : <MousePointerClick size={10} />}
             {isSelected ? 'Selected' : 'Select'}
@@ -42,7 +42,7 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
       </div>
       
       {isObject && isExpanded && (
-        <div className="ml-3 border-l border-gray-300/50 dark:border-gray-700/50 pl-2 mt-0.5 space-y-0.5">
+        <div className="ml-3 border-l border-line-strong/50 pl-2 mt-0.5 space-y-0.5">
           {Object.entries(value).map(([k, v]) => (
             <JsonTreeNode 
               key={k} 
@@ -78,7 +78,7 @@ export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, ma
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between mt-1">
-        <label className="text-xs text-gray-600 font-bold uppercase tracking-wider flex items-center gap-2 dark:text-gray-400">
+        <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-fg-muted">
           Realtime Data Mapping
           {sourcePayload ? (
             <span className="relative flex h-2 w-2">
@@ -86,13 +86,13 @@ export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, ma
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
           ) : (
-            <span className="text-[9px] bg-gray-200 dark:bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded font-normal normal-case border border-gray-300 dark:border-gray-700 dark:text-gray-500">Waiting for data...</span>
+            <span className="text-[9px] bg-surface-2 px-1.5 py-0.5 rounded font-normal normal-case border border-line-strong text-fg-subtle">Waiting for data...</span>
           )}
         </label>
       </div>
       
       <div 
-        className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded p-3 overflow-y-auto custom-scrollbar shadow-inner"
+        className="bg-canvas border border-line rounded p-3 overflow-y-auto custom-scrollbar shadow-inner"
         style={{ maxHeight }}
       >
         {sourcePayload ? (
@@ -108,8 +108,8 @@ export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, ma
           ))
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center py-4">
-            <p className="text-xs text-gray-500 dark:text-gray-500">No payload data available.</p>
-            <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-1 dark:text-gray-600">Connect an incoming node and trigger it to see the data structure.</p>
+            <p className="text-xs text-fg-subtle">No payload data available.</p>
+            <p className="text-[10px] mt-1 text-fg-faint">Connect an incoming node and trigger it to see the data structure.</p>
           </div>
         )}
       </div>

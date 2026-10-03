@@ -78,20 +78,20 @@ export default function NodeSuggestionMenu({ position, sourceNodeType, sourceHan
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl p-2 w-64 max-h-[400px] overflow-y-auto animate-in fade-in zoom-in duration-150"
+      className="absolute z-50 bg-surface border border-line-strong rounded-xl shadow-2xl p-2 w-64 max-h-[400px] overflow-y-auto animate-in fade-in zoom-in duration-150"
       style={{
         top: position.top,
         left: position.left,
         transform: 'translate(-50%, 0)', // Center horizontally on the mouse
       }}
     >
-      <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-2 py-1.5 border-b border-gray-200 dark:border-gray-800 mb-2 dark:text-gray-400">
+      <div className="text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 border-b border-line mb-2 text-fg-muted">
         {filteredCategories.length > 0 ? 'Suggested Nodes' : 'No Suggested Nodes'}
       </div>
 
       {filteredCategories.map(category => (
         <div key={category.title} className="mb-2">
-          <div className="text-gray-500 font-semibold text-[10px] uppercase tracking-wider px-2 py-1 dark:text-gray-500">
+          <div className="font-semibold text-[10px] uppercase tracking-wider px-2 py-1 text-fg-subtle">
             {category.title}
           </div>
           <div className="flex flex-col gap-1">
@@ -101,7 +101,7 @@ export default function NodeSuggestionMenu({ position, sourceNodeType, sourceHan
                 <button
                   key={item.type}
                   onClick={() => onSelect(item.type)}
-                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-100 dark:bg-gray-800 text-left transition-colors active:scale-95 group"
+                  className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-2 text-left transition-colors active:scale-95 group"
                 >
                   <div className={`p-1.5 rounded-md flex items-center justify-center border ${item.bg}`}>
                     {IconComponent ? (
@@ -110,7 +110,7 @@ export default function NodeSuggestionMenu({ position, sourceNodeType, sourceHan
                       <span className="font-bold text-[10px]">{item.textIcon}</span>
                     )}
                   </div>
-                  <span className="text-gray-800 font-medium text-xs flex-1 dark:text-gray-200">{item.label}</span>
+                  <span className="font-medium text-xs flex-1 text-fg">{item.label}</span>
                 </button>
               );
             })}
@@ -119,7 +119,7 @@ export default function NodeSuggestionMenu({ position, sourceNodeType, sourceHan
       ))}
       
       {filteredCategories.length === 0 && (
-        <div className="px-2 py-3 text-xs text-gray-500 text-center dark:text-gray-500">
+        <div className="px-2 py-3 text-xs text-center text-fg-subtle">
           No valid connections found.
         </div>
       )}

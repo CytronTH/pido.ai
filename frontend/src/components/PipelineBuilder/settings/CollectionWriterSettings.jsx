@@ -60,7 +60,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
     <div className="flex flex-col gap-4">
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="block text-xs font-medium text-slate-400">Target Collection</label>
+          <label className="block text-xs font-medium text-fg-muted">Target Collection</label>
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setIsCollectionModalOpen(true)}
@@ -68,7 +68,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
             >
               <Plus size={10} /> New
             </button>
-            <button onClick={fetchCollections} className="text-slate-500 hover:text-slate-300">
+            <button onClick={fetchCollections} className="text-fg-subtle hover:text-fg-secondary">
               <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
@@ -76,7 +76,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
         <select
           value={data?.collectionId || ''}
           onChange={handleCollectionChange}
-          className="w-full bg-white dark:bg-slate-950 border border-slate-700 rounded-md p-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+          className="w-full bg-canvas border border-line-strong rounded-md p-2 text-sm text-fg focus:outline-none focus:border-indigo-500"
         >
           <option value="">-- Select a Collection --</option>
           {collections.map(c => (
@@ -86,19 +86,19 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
       </div>
 
       {schema.length > 0 && (
-        <div className="bg-white dark:bg-slate-950/80 p-3 rounded-lg border border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+        <div className="bg-canvas/80 p-3 rounded-lg border border-line">
+          <h4 className="text-xs font-semibold text-fg-secondary mb-2 flex items-center gap-1.5">
             <Database size={12} /> Field Mapping
           </h4>
-          <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
+          <p className="text-[10px] text-fg-subtle mb-3 leading-relaxed">
             Map incoming data fields to the collection columns. Type a custom payload path or select from the tree.
           </p>
           
           <div className="space-y-4">
             {schema.map(col => (
               <div key={col.key} className="flex flex-col gap-1">
-                <label className="text-[10px] font-medium text-slate-400">
-                  {col.name} <span className="text-slate-600">({col.type})</span>
+                <label className="text-[10px] font-medium text-fg-muted">
+                  {col.name} <span className="text-fg-faint">({col.type})</span>
                 </label>
                 
                 <div className="flex gap-1.5">
@@ -106,12 +106,12 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
                     type="text"
                     value={data?.fieldMappings?.[col.key] || ''}
                     onChange={(e) => handleFieldMappingChange(col.key, e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-slate-200 font-mono focus:border-indigo-500 outline-none"
+                    className="w-full bg-surface border border-line-strong rounded p-1.5 text-xs text-fg font-mono focus:border-indigo-500 outline-none"
                     placeholder="e.g. counts.person"
                   />
                   <button
                     onClick={() => setActiveSelector(activeSelector === col.key ? null : col.key)}
-                    className={`px-2 py-1.5 rounded border text-xs flex items-center gap-1 transition-colors ${activeSelector === col.key ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300' : 'bg-gray-100 dark:bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500'}`}
+                    className={`px-2 py-1.5 rounded border text-xs flex items-center gap-1 transition-colors ${activeSelector === col.key ? 'bg-indigo-900/50 border-indigo-500 text-indigo-300' : 'bg-surface-2 border-line-strong text-fg-muted hover:text-fg hover:border-fg-subtle'}`}
                     title="Select from Payload JSON"
                   >
                     {'{...}'}
@@ -119,17 +119,17 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
                 </div>
                 
                 <div className="flex flex-wrap gap-1 mt-0.5">
-                  <button onClick={() => handleFieldMappingChange(col.key, '')} className="text-[9px] bg-gray-100 dark:bg-slate-800/80 px-1.5 py-0.5 border border-slate-700 rounded text-slate-400 hover:text-gray-900 hover:bg-slate-700 dark:hover:text-white">Clear</button>
-                  <button onClick={() => handleFieldMappingChange(col.key, '__snapshot__')} className="text-[9px] bg-gray-100 dark:bg-slate-800/80 px-1.5 py-0.5 border border-slate-700 rounded text-slate-400 hover:text-gray-900 hover:bg-slate-700 dark:hover:text-white">📸 __snapshot__</button>
-                  <button onClick={() => handleFieldMappingChange(col.key, '__timestamp__')} className="text-[9px] bg-gray-100 dark:bg-slate-800/80 px-1.5 py-0.5 border border-slate-700 rounded text-slate-400 hover:text-gray-900 hover:bg-slate-700 dark:hover:text-white">🕒 __timestamp__</button>
-                  <button onClick={() => handleFieldMappingChange(col.key, '__raw_payload__')} className="text-[9px] bg-gray-100 dark:bg-slate-800/80 px-1.5 py-0.5 border border-slate-700 rounded text-slate-400 hover:text-gray-900 hover:bg-slate-700 dark:hover:text-white">📦 __raw_payload__</button>
+                  <button onClick={() => handleFieldMappingChange(col.key, '')} className="text-[9px] bg-surface-2/80 px-1.5 py-0.5 border border-line-strong rounded text-fg-muted hover:bg-surface-3 hover:text-fg">Clear</button>
+                  <button onClick={() => handleFieldMappingChange(col.key, '__snapshot__')} className="text-[9px] bg-surface-2/80 px-1.5 py-0.5 border border-line-strong rounded text-fg-muted hover:bg-surface-3 hover:text-fg">📸 __snapshot__</button>
+                  <button onClick={() => handleFieldMappingChange(col.key, '__timestamp__')} className="text-[9px] bg-surface-2/80 px-1.5 py-0.5 border border-line-strong rounded text-fg-muted hover:bg-surface-3 hover:text-fg">🕒 __timestamp__</button>
+                  <button onClick={() => handleFieldMappingChange(col.key, '__raw_payload__')} className="text-[9px] bg-surface-2/80 px-1.5 py-0.5 border border-line-strong rounded text-fg-muted hover:bg-surface-3 hover:text-fg">📦 __raw_payload__</button>
                 </div>
 
                 {activeSelector === col.key && (
-                  <div className="mt-2 border border-indigo-500/30 rounded-lg p-2 bg-white dark:bg-slate-950 shadow-inner custom-animate-slide-in">
+                  <div className="mt-2 border border-indigo-500/30 rounded-lg p-2 bg-canvas shadow-inner custom-animate-slide-in">
                     <div className="text-[10px] text-indigo-400 mb-2 flex justify-between items-center font-semibold">
                       <span>Select path for mapping to '{col.name}':</span>
-                      <button onClick={() => setActiveSelector(null)} className="text-slate-500 hover:text-slate-300 font-normal">✕ Close</button>
+                      <button onClick={() => setActiveSelector(null)} className="text-fg-subtle hover:text-fg-secondary font-normal">✕ Close</button>
                     </div>
                     <PayloadPathSelector
                       nodeId={nodeId}
@@ -149,7 +149,7 @@ export default function CollectionWriterSettings({ nodeId, data, onChange }) {
       )}
       
       {!selectedCollection && (
-        <div className="text-xs text-slate-500 bg-white dark:bg-slate-950/50 p-3 rounded-lg border border-slate-800 border-dashed text-center">
+        <div className="text-xs text-fg-subtle bg-canvas/50 p-3 rounded-lg border border-line border-dashed text-center">
           Please select a collection to map fields.
         </div>
       )}

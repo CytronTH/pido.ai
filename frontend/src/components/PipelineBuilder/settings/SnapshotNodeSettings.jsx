@@ -11,21 +11,21 @@ export default function SnapshotNodeSettings({ data, onChange }) {
       
       {/* Trigger Edge Selector */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Trigger Edge</label>
-        <p className="text-[10px] text-gray-500 leading-relaxed mb-1 dark:text-gray-500">
+        <label className="text-sm font-medium text-fg">Trigger Edge</label>
+        <p className="text-[10px] leading-relaxed mb-1 text-fg-subtle">
           Choose when the snapshot should be taken relative to the incoming condition.
         </p>
-        <div className="flex bg-gray-50 dark:bg-gray-950 p-1 rounded-lg border border-gray-200 dark:border-gray-800">
+        <div className="flex bg-canvas p-1 rounded-lg border border-line">
           <button
             type="button"
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'rising' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30 shadow-sm' : 'text-gray-600 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-100 dark:bg-gray-800 border border-transparent dark:text-gray-400 dark:hover:text-gray-700 dark:text-gray-300'}`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'rising' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30 shadow-sm' : 'hover:bg-surface-2 border border-transparent text-fg-muted hover:text-fg-secondary'}`}
             onClick={() => onChange({ triggerEdge: 'rising' })}
           >
             Rising Edge (False → True)
           </button>
           <button
             type="button"
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'falling' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30 shadow-sm' : 'text-gray-600 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-100 dark:bg-gray-800 border border-transparent dark:text-gray-400 dark:hover:text-gray-700 dark:text-gray-300'}`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${triggerEdge === 'falling' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30 shadow-sm' : 'hover:bg-surface-2 border border-transparent text-fg-muted hover:text-fg-secondary'}`}
             onClick={() => onChange({ triggerEdge: 'falling' })}
           >
             Falling Edge (True → False)
@@ -34,10 +34,10 @@ export default function SnapshotNodeSettings({ data, onChange }) {
       </div>
       
       {/* Zero Latency Toggle */}
-      <div className="flex items-start justify-between bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+      <div className="flex items-start justify-between bg-canvas p-3 rounded-lg border border-line">
         <div className="pr-4">
-          <label className="text-sm font-medium text-gray-800 block mb-1 dark:text-gray-200">Zero Latency Mode</label>
-          <p className="text-[10px] text-gray-500 leading-relaxed dark:text-gray-500">
+          <label className="text-sm font-medium block mb-1 text-fg">Zero Latency Mode</label>
+          <p className="text-[10px] leading-relaxed text-fg-subtle">
             Continuously buffers frames in memory to eliminate RTSP connection delay when triggered. 
             Improves accuracy but consumes slightly more memory per snapshot node.
           </p>
@@ -49,15 +49,15 @@ export default function SnapshotNodeSettings({ data, onChange }) {
             checked={zeroLatency}
             onChange={(e) => onChange({ zeroLatency: e.target.checked })}
           />
-          <div className="w-9 h-5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 dark:border-gray-700 dark:after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+          <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
         </label>
       </div>
 
       {/* RTSP Sync Delay Slider */}
       {zeroLatency && (
-        <div className="flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Video Sync Delay (ms)</label>
-          <p className="text-[10px] text-gray-500 leading-relaxed mb-2 dark:text-gray-500">
+        <div className="flex flex-col gap-1.5 bg-canvas p-3 rounded-lg border border-line">
+          <label className="text-sm font-medium text-fg">Video Sync Delay (ms)</label>
+          <p className="text-[10px] leading-relaxed mb-2 text-fg-subtle">
             Fine-tune the capture timing. Negative values (-ms) will act as a Time Machine, pulling an older frame from memory so the object hasn't crossed the line yet.
           </p>
           <div className="flex items-center gap-4">
@@ -68,7 +68,7 @@ export default function SnapshotNodeSettings({ data, onChange }) {
               step="10"
               value={syncDelay}
               onChange={(e) => onChange({ syncDelay: parseInt(e.target.value, 10) })}
-              className="flex-1 accent-pink-600 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+              className="flex-1 accent-pink-600 h-1.5 bg-surface-3 rounded-lg appearance-none cursor-pointer"
             />
             <span className="text-xs font-mono font-bold text-pink-400 w-14 text-right">{syncDelay > 0 ? `+${syncDelay}` : syncDelay}ms</span>
           </div>
@@ -76,10 +76,10 @@ export default function SnapshotNodeSettings({ data, onChange }) {
       )}
 
       {/* Draw Bbox Toggle */}
-      <div className="flex items-start justify-between bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+      <div className="flex items-start justify-between bg-canvas p-3 rounded-lg border border-line">
         <div className="pr-4">
-          <label className="text-sm font-medium text-gray-800 block mb-1 dark:text-gray-200">Draw Bounding Boxes</label>
-          <p className="text-[10px] text-gray-500 leading-relaxed dark:text-gray-500">
+          <label className="text-sm font-medium block mb-1 text-fg">Draw Bounding Boxes</label>
+          <p className="text-[10px] leading-relaxed text-fg-subtle">
             Overlays detection bounding boxes on the saved snapshot image if detection data is available in the message payload.
           </p>
         </div>
@@ -90,7 +90,7 @@ export default function SnapshotNodeSettings({ data, onChange }) {
             checked={drawBbox}
             onChange={(e) => onChange({ drawBbox: e.target.checked })}
           />
-          <div className="w-9 h-5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 dark:border-gray-700 dark:after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+          <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
         </label>
       </div>
 

@@ -426,7 +426,7 @@ export default memo(({ data, isConnectable, id }) => {
   let content = null;
   
   if (!sourceNode) {
-    content = <div className="text-gray-500 text-xs text-center px-2 py-4">Not Connected</div>;
+    content = <div className="text-fg-subtle text-xs text-center px-2 py-4">Not Connected</div>;
 
   } else if (isVideoMode && (sourceNode.type === 'aiNode' || sourceNode.type === 'inputNode' || isForkliftNode)) {
     content = (
@@ -441,7 +441,7 @@ export default memo(({ data, isConnectable, id }) => {
         />
         
         {!whepUrl && (
-          <div className="absolute text-xs text-gray-500">Initializing stream...</div>
+          <div className="absolute text-xs text-fg-subtle">Initializing stream...</div>
         )}
         
         {whepUrl && status === 'error' && (
@@ -452,21 +452,21 @@ export default memo(({ data, isConnectable, id }) => {
         )}
         
         <canvas ref={canvasRef} width={640} height={360} className="absolute inset-0 w-full h-full pointer-events-none" />
-        <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded flex gap-2">
+        <div className="absolute top-1 left-1 bg-black/60 text-fg text-[10px] px-1 rounded flex gap-2">
           <span>{sourceNode.type === 'forkliftZoneNode' ? `Forklift Video (${sourceHandle || 'debug'})` : 'Live Preview'}</span>
-          {resolution && <span className="text-gray-300 font-mono">{resolution}</span>}
+          {resolution && <span className="text-fg-secondary font-mono">{resolution}</span>}
         </div>
       </div>
     );
   } else if (data?.outputType === 'text' || sourceNode?.type === 'rateLimitNode' || sourceNode?.type === 'functionNode') {
     content = (
-      <div className="flex flex-col items-center justify-center p-3 gap-1 bg-gray-900/50 min-h-[60px]">
-        <span className="text-[10px] text-gray-500 text-center leading-tight">Open right Debug Panel<br/>to view payload</span>
+      <div className="flex flex-col items-center justify-center p-3 gap-1 bg-surface/50 min-h-[60px]">
+        <span className="text-[10px] text-fg-subtle text-center leading-tight">Open right Debug Panel<br/>to view payload</span>
       </div>
     );
   } else if (sourceNode.type === 'logicNode') {
     const state = debugData[sourceNode.id];
-    let displayValue = "--", color = "text-gray-400";
+    let displayValue = "--", color = "text-fg-muted";
     if (state !== undefined) {
       if (typeof state === 'boolean' || typeof state?.value === 'boolean') {
         const val = typeof state === 'boolean' ? state : state.value;
@@ -478,8 +478,8 @@ export default memo(({ data, isConnectable, id }) => {
       }
     }
     content = (
-      <div className="flex flex-col items-center justify-center p-3 gap-1 bg-gray-900/50">
-        <span className="text-xs text-gray-400">Logic Output</span>
+      <div className="flex flex-col items-center justify-center p-3 gap-1 bg-surface/50">
+        <span className="text-xs text-fg-muted">Logic Output</span>
         <span className={`text-xl font-bold ${color}`}>{displayValue}</span>
       </div>
     );
@@ -490,8 +490,8 @@ export default memo(({ data, isConnectable, id }) => {
     const entries = Object.entries(counts);
 
     content = (
-      <div className="flex flex-col p-3 gap-2 bg-gray-900/60 min-w-[200px]">
-        <div className="flex items-center justify-between border-b border-gray-700/60 pb-1.5 text-xs text-gray-400">
+      <div className="flex flex-col p-3 gap-2 bg-surface/60 min-w-[200px]">
+        <div className="flex items-center justify-between border-b border-line-strong/60 pb-1.5 text-xs text-fg-muted">
           <span className="flex items-center gap-1.5 text-teal-400 font-semibold">
             <span>⇄</span> Flow Counts
           </span>
@@ -503,18 +503,18 @@ export default memo(({ data, isConnectable, id }) => {
         {entries.length > 0 ? (
           <div className="flex flex-col gap-1 max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
             {entries.map(([cls, cnt]) => (
-              <div key={cls} className="flex items-center justify-between bg-gray-950/80 px-2.5 py-1.5 rounded text-xs border border-gray-800">
+              <div key={cls} className="flex items-center justify-between bg-canvas/80 px-2.5 py-1.5 rounded text-xs border border-line">
                 <span className="text-teal-300 font-medium truncate max-w-[130px]" title={cls}>
                   {cls}
                 </span>
-                <span className="text-white font-bold font-mono bg-gray-900 px-2 py-0.5 rounded border border-gray-700/60">
+                <span className="text-fg font-bold font-mono bg-surface px-2 py-0.5 rounded border border-line-strong/60">
                   {cnt}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-[11px] text-gray-500 italic text-center py-2">
+          <div className="text-[11px] text-fg-subtle italic text-center py-2">
             Waiting for objects... (Total: 0)
           </div>
         )}
@@ -524,8 +524,8 @@ export default memo(({ data, isConnectable, id }) => {
     const debugState = debugData[sourceNode.id];
     const val = debugState?.value ?? 0;
     content = (
-      <div className="flex flex-col items-center justify-center p-3 gap-1 bg-gray-900/50 min-w-[160px]">
-        <span className="text-xs text-gray-400">Event Counter</span>
+      <div className="flex flex-col items-center justify-center p-3 gap-1 bg-surface/50 min-w-[160px]">
+        <span className="text-xs text-fg-muted">Event Counter</span>
         <span className="text-2xl font-bold text-emerald-400 font-mono">{val}</span>
       </div>
     );
@@ -537,38 +537,38 @@ export default memo(({ data, isConnectable, id }) => {
 
     if (sourceHandle === 'is_critical') {
       content = (
-        <div className="flex flex-col items-center justify-center p-3.5 gap-2 bg-gray-900/80 min-w-[210px]">
-          <div className="flex items-center gap-1.5 text-xs text-gray-300 font-medium">
-            <AlertOctagon size={15} className={isCriticalVal ? "text-red-500 animate-bounce" : "text-gray-500"} />
+        <div className="flex flex-col items-center justify-center p-3.5 gap-2 bg-surface/80 min-w-[210px]">
+          <div className="flex items-center gap-1.5 text-xs text-fg-secondary font-medium">
+            <AlertOctagon size={15} className={isCriticalVal ? "text-red-500 animate-bounce" : "text-fg-subtle"} />
             <span>Critical Collision Alert</span>
           </div>
           <div className={`text-xl font-black font-mono tracking-wider px-3.5 py-1.5 rounded-lg border ${
             isCriticalVal
               ? "bg-red-950/90 text-red-200 border-red-600 animate-pulse shadow-lg shadow-red-950/80"
-              : "bg-gray-950/80 text-gray-400 border-gray-800"
+              : "bg-canvas/80 text-fg-muted border-line"
           }`}>
             {isCriticalVal ? "TRUE (SIREN)" : "FALSE"}
           </div>
-          <span className="text-[10px] text-gray-400 font-mono text-center">
+          <span className="text-[10px] text-fg-muted font-mono text-center">
             {isCriticalVal ? "🚨 Forklift + Person / Conflict" : "Normal / No Critical Hazard"}
           </span>
         </div>
       );
     } else if (sourceHandle === 'is_danger') {
       content = (
-        <div className="flex flex-col items-center justify-center p-3.5 gap-2 bg-gray-900/80 min-w-[210px]">
-          <div className="flex items-center gap-1.5 text-xs text-gray-300 font-medium">
-            <AlertTriangle size={15} className={isDangerVal ? "text-amber-400 animate-pulse" : "text-gray-500"} />
+        <div className="flex flex-col items-center justify-center p-3.5 gap-2 bg-surface/80 min-w-[210px]">
+          <div className="flex items-center gap-1.5 text-xs text-fg-secondary font-medium">
+            <AlertTriangle size={15} className={isDangerVal ? "text-amber-400 animate-pulse" : "text-fg-subtle"} />
             <span>Any Forklift Warning</span>
           </div>
           <div className={`text-xl font-black font-mono tracking-wider px-3.5 py-1.5 rounded-lg border ${
             isDangerVal
               ? "bg-amber-950/90 text-amber-200 border-amber-600 shadow-md shadow-amber-950/60"
-              : "bg-gray-950/80 text-emerald-400 border-gray-800"
+              : "bg-canvas/80 text-emerald-400 border-line"
           }`}>
             {isDangerVal ? "TRUE (WARN)" : "FALSE (CLEAR)"}
           </div>
-          <span className="text-[10px] text-gray-400 font-mono text-center">
+          <span className="text-[10px] text-fg-muted font-mono text-center">
             Forklifts in Area: {debugState?.forklift_count ?? 0}
           </span>
         </div>
@@ -582,25 +582,25 @@ export default memo(({ data, isConnectable, id }) => {
       const zoneColor = zoneCfg.color || (zoneCfg.type === 'caution' ? '#f59e0b' : '#f43f5e');
 
       content = (
-        <div className="flex flex-col p-3 gap-2 bg-gray-900/80 min-w-[220px]">
-          <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
+        <div className="flex flex-col p-3 gap-2 bg-surface/80 min-w-[220px]">
+          <div className="flex items-center justify-between border-b border-line pb-1.5">
             <div className="flex items-center gap-1.5 truncate max-w-[140px]">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: zoneColor }} />
-              <span className="text-xs font-semibold text-gray-200 truncate">{zoneCfg.name || sourceHandle}</span>
+              <span className="text-xs font-semibold text-fg truncate">{zoneCfg.name || sourceHandle}</span>
             </div>
             <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-              isOccupied ? "bg-rose-950 text-rose-200 border border-rose-700" : "bg-gray-950 text-gray-400 border border-gray-800"
+              isOccupied ? "bg-rose-950 text-rose-200 border border-rose-700" : "bg-canvas text-fg-muted border border-line"
             }`}>
               {isOccupied ? "OCCUPIED" : "CLEAR"}
             </span>
           </div>
-          <div className="flex items-center justify-around bg-gray-950/90 py-1.5 px-2 rounded border border-gray-800 text-center">
+          <div className="flex items-center justify-around bg-canvas/90 py-1.5 px-2 rounded border border-line text-center">
             <div>
-              <span className="text-[9px] text-gray-400 block">Forklifts</span>
+              <span className="text-[9px] text-fg-muted block">Forklifts</span>
               <span className="text-sm font-bold font-mono text-rose-400">{fkCount}</span>
             </div>
             <div>
-              <span className="text-[9px] text-gray-400 block">Persons</span>
+              <span className="text-[9px] text-fg-muted block">Persons</span>
               <span className="text-sm font-bold font-mono text-cyan-400">{pCount}</span>
             </div>
           </div>
@@ -618,8 +618,8 @@ export default memo(({ data, isConnectable, id }) => {
       const isCaution = hazardLevel === 1;
 
       content = (
-        <div className="flex flex-col p-3 gap-2 bg-gray-900/80 min-w-[240px]">
-          <div className="flex items-center justify-between border-b border-gray-700/60 pb-1.5">
+        <div className="flex flex-col p-3 gap-2 bg-surface/80 min-w-[240px]">
+          <div className="flex items-center justify-between border-b border-line-strong/60 pb-1.5">
             <span className="flex items-center gap-1.5 text-rose-400 font-semibold text-xs">
               <ShieldAlert size={14} /> Forklift Safety Telemetry
             </span>
@@ -636,22 +636,22 @@ export default memo(({ data, isConnectable, id }) => {
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-1 bg-gray-950/90 p-1.5 rounded border border-gray-800 text-center">
+          <div className="grid grid-cols-3 gap-1 bg-canvas/90 p-1.5 rounded border border-line text-center">
             <div>
-              <div className="text-[9px] text-gray-400">Forklifts</div>
+              <div className="text-[9px] text-fg-muted">Forklifts</div>
               <div className="text-xs font-bold font-mono text-rose-400">{fkCount}</div>
             </div>
             <div>
-              <div className="text-[9px] text-gray-400">Persons</div>
+              <div className="text-[9px] text-fg-muted">Persons</div>
               <div className="text-xs font-bold font-mono text-cyan-400">{pCount}</div>
             </div>
             <div>
-              <div className="text-[9px] text-gray-400">Near-Miss</div>
+              <div className="text-[9px] text-fg-muted">Near-Miss</div>
               <div className="text-xs font-bold font-mono text-amber-400">{nearMiss}</div>
             </div>
           </div>
 
-          <div className="text-[10px] font-medium text-center text-gray-300 bg-gray-950/60 py-1 px-2 rounded border border-gray-800 truncate">
+          <div className="text-[10px] font-medium text-center text-fg-secondary bg-canvas/60 py-1 px-2 rounded border border-line truncate">
             {hazardText}
           </div>
 
@@ -663,7 +663,7 @@ export default memo(({ data, isConnectable, id }) => {
                   className={`flex items-center justify-between px-2 py-1 rounded text-[10px] border ${
                     z.occupied
                       ? 'bg-rose-950/60 border-rose-800/80 text-rose-200'
-                      : 'bg-gray-950/60 border-gray-800 text-gray-400'
+                      : 'bg-canvas/60 border-line text-fg-muted'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 truncate max-w-[130px]">
@@ -684,48 +684,48 @@ export default memo(({ data, isConnectable, id }) => {
       );
     }
   } else {
-    content = <div className="text-gray-400 text-xs text-center px-2 py-3">Unsupported Node</div>;
+    content = <div className="text-fg-muted text-xs text-center px-2 py-3">Unsupported Node</div>;
   }
 
   const hasVideoPreview = isVideoMode && sourceNode && (sourceNode.type === 'aiNode' || sourceNode.type === 'inputNode' || isForkliftNode);
 
   return (
-    <div className={`bg-gray-900 border-2 rounded-xl shadow-2xl min-w-[180px] overflow-hidden transition-all duration-300 relative ${
-      isHighlighted ? 'border-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.6)] scale-105 z-50' : 'border-gray-700/80'
+    <div className={`bg-surface border-2 rounded-xl shadow-2xl min-w-[180px] overflow-hidden transition-all duration-300 relative ${
+      isHighlighted ? 'border-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.6)] scale-105 z-50' : 'border-line-strong/80'
     } ${isPaused ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : ''}`}>
-      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-gray-400 border-2 border-gray-800" />
+      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-fg-muted border-2 border-line" />
       <div className={`px-3 py-2 border-b flex items-center justify-between ${
-        isPaused ? 'bg-amber-950/40 border-amber-900/50' : 'bg-gray-800/80 border-gray-700/80'
+        isPaused ? 'bg-amber-950/40 border-amber-900/50' : 'bg-surface-2/80 border-line-strong/80'
       }`}>
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-md ${isPaused ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-700 text-gray-300'}`}>
+          <div className={`p-1.5 rounded-md ${isPaused ? 'bg-amber-500/20 text-amber-400' : 'bg-surface-3 text-fg-secondary'}`}>
             <Bug size={14} />
           </div>
-          <span className="text-xs font-bold text-gray-200 uppercase tracking-wider">Debug Node</span>
+          <span className="text-xs font-bold text-fg uppercase tracking-wider">Debug Node</span>
         </div>
         <div className="flex items-center gap-1">
           {hasVideoPreview && (
-            <button onClick={togglePause} className="bg-gray-900/80 hover:bg-gray-700 p-1 rounded text-gray-300 shadow-md transition-colors" title={isPaused ? "Resume Node" : "Pause Node"}>
+            <button onClick={togglePause} className="bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors" title={isPaused ? "Resume Node" : "Pause Node"}>
               {isPaused ? <Play size={12} className="text-green-400" /> : <Pause size={12} className="text-amber-400" />}
             </button>
           )}
           <NodeMenu id={id} />
         </div>
       </div>
-      <div className="bg-gray-950 flex flex-col relative min-h-[40px]">
+      <div className="bg-canvas flex flex-col relative min-h-[40px]">
         <div className={`transition-all duration-300 ${isPaused ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
           {content}
         </div>
         
         {/* BIG PAUSE BUTTON (Only for non-video modes) */}
         {!hasVideoPreview && (
-          <div className="p-2 border-t border-gray-800/50 bg-gray-900/50">
+          <div className="p-2 border-t border-line/50 bg-surface/50">
             <button 
               onClick={togglePause} 
               className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-[11px] uppercase tracking-wider shadow-sm transition-all active:scale-95 ${
                 isPaused 
                   ? 'bg-amber-500 text-gray-900 hover:bg-amber-400 border border-amber-400/50' 
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 hover:text-white'
+                  : 'bg-surface-2 text-fg-secondary hover:bg-surface-3 border border-line-strong hover:text-fg'
               }`}
             >
               {isPaused ? <Play size={14} className="fill-current" /> : <Pause size={14} className="fill-current" />}

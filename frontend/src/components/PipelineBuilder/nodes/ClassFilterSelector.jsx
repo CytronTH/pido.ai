@@ -56,7 +56,7 @@ export default function ClassFilterSelector({
     <div className="flex flex-col gap-1.5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <label className="text-xs text-gray-600 flex items-center gap-1.5 dark:text-gray-400">
+        <label className="text-xs flex items-center gap-1.5 text-fg-muted">
           <span>Target Classes</span>
           {modelName && (
             <span className="text-[10px] text-purple-300 bg-purple-950/70 border border-purple-800/60 px-1.5 py-0.5 rounded font-mono truncate max-w-[110px]" title={modelName}>
@@ -77,7 +77,7 @@ export default function ClassFilterSelector({
             <button
               type="button"
               onClick={() => setIsManualMode(!isManualMode)}
-              className={`p-1 rounded transition-colors nodrag ${isManualMode ? 'text-teal-400 bg-teal-950 border border-teal-800' : 'text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700 dark:text-gray-300'}`}
+              className={`p-1 rounded transition-colors nodrag ${isManualMode ? 'text-teal-400 bg-teal-950 border border-teal-800' : 'text-fg-subtle hover:text-fg-secondary'}`}
               title={isManualMode ? "Switch to Class Badges" : "Manual Text Input"}
             >
               <Edit3 size={11} />
@@ -88,17 +88,17 @@ export default function ClassFilterSelector({
 
       {/* Case 1: No Upstream AI Model connected */}
       {!hasUpstreamAi && (
-        <div className="bg-gray-50/80 dark:bg-gray-950/80 p-2.5 rounded-lg border border-dashed border-gray-200 dark:border-gray-800 flex flex-col gap-2">
+        <div className="bg-canvas/80 p-2.5 rounded-lg border border-dashed border-line flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-amber-400/90 text-[11px] font-medium">
             <AlertCircle size={13} className="shrink-0" />
             <span>Connect to AI Model</span>
           </div>
-          <p className="text-[10px] text-gray-500 leading-tight dark:text-gray-500">
+          <p className="text-[10px] leading-tight text-fg-subtle">
             Connect an edge from an AI Model node to automatically pull available detection classes.
           </p>
           <input
             type="text"
-            className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-1.5 text-xs text-gray-900 focus:outline-none focus:border-teal-500 nodrag placeholder:text-gray-600 dark:text-gray-400 dark:placeholder:text-gray-600 dark:text-white"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag placeholder:text-fg-faint text-fg"
             value={rawInput !== undefined ? rawInput : selectedClasses.join(', ')}
             onChange={handleRawChange}
             placeholder="e.g. person, car, box_a"
@@ -109,12 +109,12 @@ export default function ClassFilterSelector({
       {/* Case 2: Upstream AI connected but model has 0 classes */}
       {hasUpstreamAi && availableClasses.length === 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] text-gray-500 italic dark:text-gray-500">
+          <div className="text-[10px] italic text-fg-subtle">
             Connected model has no predefined classes. Enter classes manually:
           </div>
           <input
             type="text"
-            className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-1.5 text-xs text-gray-900 focus:outline-none focus:border-teal-500 nodrag placeholder:text-gray-600 dark:text-gray-400 dark:placeholder:text-gray-600 dark:text-white"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag placeholder:text-fg-faint text-fg"
             value={rawInput !== undefined ? rawInput : selectedClasses.join(', ')}
             onChange={handleRawChange}
             placeholder="e.g. person, car, box_a"
@@ -128,12 +128,12 @@ export default function ClassFilterSelector({
           <div className="flex flex-col gap-1">
             <input
               type="text"
-              className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-1.5 text-xs text-gray-900 focus:outline-none focus:border-teal-500 nodrag placeholder:text-gray-600 dark:text-gray-400 dark:placeholder:text-gray-600 font-mono dark:text-white"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag placeholder:text-fg-faint font-mono text-fg"
               value={rawInput !== undefined ? rawInput : selectedClasses.join(', ')}
               onChange={handleRawChange}
               placeholder="e.g. person, car"
             />
-            <div className="text-[10px] text-gray-500 flex justify-between dark:text-gray-500">
+            <div className="text-[10px] flex justify-between text-fg-subtle">
               <span>Comma-separated class names</span>
               <button 
                 type="button" 
@@ -150,13 +150,13 @@ export default function ClassFilterSelector({
             <div className="flex items-center gap-1.5">
               {availableClasses.length > 5 && (
                 <div className="relative flex-1">
-                  <Search size={11} className="absolute left-2 top-2 text-gray-500 dark:text-gray-500" />
+                  <Search size={11} className="absolute left-2 top-2 text-fg-subtle" />
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search classes..."
-                    className="w-full bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded p-1 pl-6 text-[11px] text-gray-900 focus:outline-none focus:border-teal-500 nodrag placeholder:text-gray-500 dark:placeholder:text-gray-500 dark:text-white"
+                    className="w-full bg-surface-2 border border-line-strong rounded p-1 pl-6 text-[11px] focus:outline-none focus:border-teal-500 nodrag placeholder:text-fg-subtle text-fg"
                   />
                 </div>
               )}
@@ -168,7 +168,7 @@ export default function ClassFilterSelector({
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors nodrag ${
                     isAllCounted 
                       ? 'bg-teal-600 text-white shadow-sm' 
-                      : 'bg-gray-200 dark:bg-gray-800 text-gray-600 hover:text-white hover:bg-gray-300 dark:hover:bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 dark:text-gray-400'}`}
+                      : 'bg-surface-2 hover:text-fg hover:bg-surface-3 border border-line-strong text-fg-muted'}`}
                   title="Count all classes from the model"
                 >
                   All
@@ -177,7 +177,7 @@ export default function ClassFilterSelector({
                   <button
                     type="button"
                     onClick={handleClear}
-                    className="text-[10px] text-gray-600 hover:text-red-400 bg-gray-200 dark:bg-gray-800 hover:bg-gray-750 border border-gray-300 dark:border-gray-700 px-1.5 py-0.5 rounded transition-colors nodrag dark:text-gray-400"
+                    className="text-[10px] hover:text-red-400 bg-surface-2 hover:bg-surface-3 border border-line-strong px-1.5 py-0.5 rounded transition-colors nodrag text-fg-muted"
                     title="Reset to All"
                   >
                     Reset
@@ -187,7 +187,7 @@ export default function ClassFilterSelector({
             </div>
 
             {/* Chips Container */}
-            <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto custom-scrollbar p-1.5 bg-gray-50/80 dark:bg-gray-950/80 rounded-lg border border-gray-200 dark:border-gray-800">
+            <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto custom-scrollbar p-1.5 bg-canvas/80 rounded-lg border border-line">
               {filteredClasses.length > 0 ? (
                 filteredClasses.map(cls => {
                   const isChecked = selectedClasses.includes(cls);
@@ -200,8 +200,8 @@ export default function ClassFilterSelector({
                         isChecked
                           ? 'bg-teal-600/30 text-teal-200 border-teal-500/80 shadow-sm'
                           : isAllCounted
-                            ? 'bg-gray-200/80 dark:bg-gray-800/80 text-gray-700 border-gray-300/80 dark:border-gray-700/80 hover:border-teal-500/60 hover:text-teal-200'
-                            : 'bg-gray-100/60 dark:bg-gray-900/60 text-gray-500 border-gray-200/80 dark:border-gray-800/80 hover:border-gray-300 dark:hover:border-gray-300 dark:border-gray-700 hover:text-gray-700                      dark:text-gray-500 dark:hover:text-gray-700 dark:text-gray-300'
+                            ? 'bg-surface-2/80 text-fg-faint border-line-strong/80 hover:border-teal-500/60 hover:text-teal-200'
+                            : 'bg-surface/60 hover:border-fg-secondary border-line-strong text-fg-subtle hover:text-fg-secondary'
 }`}
                     >
                       {isChecked && <Check size={11} className="text-teal-400 shrink-0" />}
@@ -210,13 +210,13 @@ export default function ClassFilterSelector({
                   );
                 })
               ) : (
-                <div className="text-[10px] text-gray-500 italic p-1 dark:text-gray-500">
+                <div className="text-[10px] italic p-1 text-fg-subtle">
                   No classes matching "{search}"
                 </div>
               )}
             </div>
             
-            <div className="text-[10px] text-gray-500 px-0.5 dark:text-gray-500">
+            <div className="text-[10px] px-0.5 text-fg-subtle">
               {isAllCounted 
                 ? "💡 Counting all classes. Click any class to filter specifically."
                 : `Filtering ${selectedClasses.length} selected class${selectedClasses.length > 1 ? 'es' : ''}.`}

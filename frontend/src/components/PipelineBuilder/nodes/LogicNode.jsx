@@ -145,12 +145,12 @@ export default function LogicNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-gray-900 border-2 border-orange-600 rounded-xl shadow-lg shadow-orange-900/20 ${isCompact ? 'w-48' : 'w-80'} text-white flex flex-col`}>
+    <div className={`bg-surface border-2 border-orange-600 rounded-xl shadow-lg shadow-orange-900/20 ${isCompact ? 'w-48' : 'w-80'} text-fg flex flex-col`}>
       {/* Header */}
       <div className="bg-orange-600/20 p-3 flex items-center justify-between border-b border-orange-900/50">
         <div className="flex items-center gap-3">
           <div className="bg-orange-600 p-1.5 rounded-lg">
-            <Filter size={16} className="text-white" />
+            <Filter size={16} className="text-fg" />
           </div>
           <div>
             <div className="font-semibold text-sm">Logic Filter</div>
@@ -163,15 +163,15 @@ export default function LogicNode({ id, data }) {
       <div className={`p-3 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         
         {/* Mode Toggle */}
-        <div className="flex bg-gray-950 rounded-lg p-1 border border-gray-800 shrink-0">
+        <div className="flex bg-canvas rounded-lg p-1 border border-line shrink-0">
           <button 
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${!isAdvancedMode ? 'bg-gray-800 text-orange-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${!isAdvancedMode ? 'bg-surface-2 text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
             onClick={() => setMode(false)}
           >
             <LayoutList size={12} /> Equation Builder
           </button>
           <button 
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${isAdvancedMode ? 'bg-gray-800 text-orange-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${isAdvancedMode ? 'bg-surface-2 text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
             onClick={() => setMode(true)}
           >
             <Code size={12} /> Code Editor
@@ -220,23 +220,23 @@ export default function LogicNode({ id, data }) {
                     handleEditorInput();
                   }
                 }}
-                className="nodrag w-full bg-black/60 border border-orange-900/50 shadow-inner rounded-lg p-2 text-sm text-gray-200 outline-none focus:border-orange-500 min-h-[70px] leading-relaxed cursor-text break-words font-mono"
+                className="nodrag w-full bg-black/60 border border-orange-900/50 shadow-inner rounded-lg p-2 text-sm text-fg outline-none focus:border-orange-500 min-h-[70px] leading-relaxed cursor-text break-words font-mono"
                 dangerouslySetInnerHTML={{ __html: equationHtml }}
               />
               
-              <div className="text-[9px] text-gray-500 font-mono flex items-start gap-1 p-1.5 bg-gray-950 rounded border border-gray-800 mt-1">
+              <div className="text-[9px] text-fg-subtle font-mono flex items-start gap-1 p-1.5 bg-canvas rounded border border-line mt-1">
                 <span className="text-orange-500/50 shrink-0">Output:</span> 
                 <span className="break-all">{expr}</span>
               </div>
             </div>
 
             {/* Block Palette */}
-            <div className="flex flex-col gap-2 bg-gray-800/40 p-2 rounded-lg border border-gray-700/50 max-h-[250px] overflow-y-auto nodrag styled-scrollbar">
-              <div className="text-[10px] text-gray-400 font-bold uppercase">Palette</div>
+            <div className="flex flex-col gap-2 bg-surface-2/40 p-2 rounded-lg border border-line-strong/50 max-h-[250px] overflow-y-auto nodrag styled-scrollbar">
+              <div className="text-[10px] text-fg-muted font-bold uppercase">Palette</div>
               
               {/* Operators */}
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] text-gray-500">Operators & Logic</span>
+                <span className="text-[9px] text-fg-subtle">Operators & Logic</span>
                 <div className="flex flex-wrap gap-1">
                   <DraggableBlock label="==" code=" == " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
                   <DraggableBlock label="!=" code=" != " colorClass="bg-orange-900/40 text-orange-300 border-orange-500/50" />
@@ -253,7 +253,7 @@ export default function LogicNode({ id, data }) {
 
               {/* Data Blocks */}
               <div className="flex flex-col gap-1 mt-1">
-                <span className="text-[9px] text-gray-500">General Properties</span>
+                <span className="text-[9px] text-fg-subtle">General Properties</span>
                 <div className="flex flex-wrap gap-1">
                   <DraggableBlock label="Total Count" code="len(msg['payload'])" colorClass="bg-emerald-900/40 text-emerald-300 border-emerald-500/50" />
                   <DraggableBlock label="Max Confidence" code="confidence" colorClass="bg-emerald-900/40 text-emerald-300 border-emerald-500/50" />
@@ -263,10 +263,10 @@ export default function LogicNode({ id, data }) {
               {/* AI Classes */}
               {availableClasses.length > 0 ? (
                 <div className="flex flex-col gap-2 mt-1">
-                  <span className="text-[9px] text-gray-500">AI Classes ({availableClasses.length})</span>
+                  <span className="text-[9px] text-fg-subtle">AI Classes ({availableClasses.length})</span>
                   {availableClasses.map(cls => (
-                    <div key={cls} className="flex flex-col gap-1 p-1.5 rounded border border-gray-700/60 bg-gray-900/40">
-                      <span className="text-[9px] font-bold text-gray-400 capitalize px-0.5">{cls}</span>
+                    <div key={cls} className="flex flex-col gap-1 p-1.5 rounded border border-line-strong/60 bg-surface/40">
+                      <span className="text-[9px] font-bold text-fg-muted capitalize px-0.5">{cls}</span>
                       <div className="flex flex-wrap gap-1">
                         <DraggableBlock label={`Has ${cls}`} code={`has("${cls}")`} colorClass="bg-blue-900/40 text-blue-300 border-blue-500/50" />
                         <DraggableBlock label={`Count ${cls}`} code={`label_count("${cls}")`} colorClass="bg-green-900/40 text-green-300 border-green-500/50" />
@@ -276,7 +276,7 @@ export default function LogicNode({ id, data }) {
                   ))}
                 </div>
               ) : (
-                <div className="mt-2 text-[9px] text-gray-500 text-center py-2 border border-dashed border-gray-700 rounded">
+                <div className="mt-2 text-[9px] text-fg-subtle text-center py-2 border border-dashed border-line-strong rounded">
                   Connect to an AI Node to see class blocks
                 </div>
               )}
@@ -290,12 +290,12 @@ export default function LogicNode({ id, data }) {
         {isAdvancedMode && (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex justify-between">
+              <label className="text-[10px] text-fg-muted font-bold uppercase tracking-wider flex justify-between">
                 <span>Expression</span>
                 <span className="text-orange-400 font-normal">Python</span>
               </label>
               <textarea
-                className="nodrag bg-gray-950 border border-gray-700 rounded-lg p-2 text-xs font-mono text-green-300 focus:outline-none focus:border-orange-500 resize-none leading-relaxed"
+                className="nodrag bg-canvas border border-line-strong rounded-lg p-2 text-xs font-mono text-green-300 focus:outline-none focus:border-orange-500 resize-none leading-relaxed"
                 rows={3}
                 value={expr}
                 onChange={e => setExpr(e.target.value)}
@@ -306,13 +306,13 @@ export default function LogicNode({ id, data }) {
 
             {/* Quick-insert snippets */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-gray-500 uppercase tracking-wider">Quick insert</label>
+              <label className="text-[10px] text-fg-subtle uppercase tracking-wider">Quick insert</label>
               <div className="flex flex-wrap gap-1">
                 {SNIPPETS.map(s => (
                   <button
                     key={s.label}
                     onClick={() => insertSnippet(s.expr)}
-                    className="text-[9px] bg-gray-800 hover:bg-orange-900/40 border border-gray-700 hover:border-orange-600 text-gray-400 hover:text-orange-300 px-1.5 py-0.5 rounded transition-colors nodrag"
+                    className="text-[9px] bg-surface-2 hover:bg-orange-900/40 border border-line-strong hover:border-orange-600 text-fg-muted hover:text-orange-300 px-1.5 py-0.5 rounded transition-colors nodrag"
                     title={s.expr}
                   >
                     {s.label}
@@ -322,9 +322,9 @@ export default function LogicNode({ id, data }) {
             </div>
 
             {/* Variable reference */}
-            <div className="border border-gray-700/60 rounded-lg overflow-hidden">
+            <div className="border border-line-strong/60 rounded-lg overflow-hidden">
               <button
-                className="nodrag w-full flex items-center justify-between px-2.5 py-1.5 bg-gray-800/50 hover:bg-gray-800 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                className="nodrag w-full flex items-center justify-between px-2.5 py-1.5 bg-surface-2/50 hover:bg-surface-2 text-xs text-fg-muted hover:text-fg transition-colors"
                 onClick={() => setShowRef(r => !r)}
               >
                 <span className="flex items-center gap-1.5">
@@ -334,17 +334,17 @@ export default function LogicNode({ id, data }) {
                 {showRef ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </button>
               {showRef && (
-                <div className="bg-gray-950/80 px-2.5 py-2 flex flex-col gap-1">
+                <div className="bg-canvas/80 px-2.5 py-2 flex flex-col gap-1">
                   {VARS_REF.map(([v, desc]) => (
                     <div key={v} className="flex gap-2 items-start">
                       <code
-                        className="text-[9px] font-mono text-amber-300 bg-gray-800 px-1 py-0.5 rounded cursor-pointer hover:bg-orange-900/30 transition-colors shrink-0 nodrag"
+                        className="text-[9px] font-mono text-amber-300 bg-surface-2 px-1 py-0.5 rounded cursor-pointer hover:bg-orange-900/30 transition-colors shrink-0 nodrag"
                         onClick={() => setExpr(v)}
                         title="Click to insert"
                       >
                         {v}
                       </code>
-                      <span className="text-[9px] text-gray-500 leading-relaxed">{desc}</span>
+                      <span className="text-[9px] text-fg-subtle leading-relaxed">{desc}</span>
                     </div>
                   ))}
                 </div>
@@ -354,11 +354,11 @@ export default function LogicNode({ id, data }) {
         )}
 
         {/* Debounce */}
-        <label className="text-xs text-gray-400 flex items-center justify-between mt-1 shrink-0">
+        <label className="text-xs text-fg-muted flex items-center justify-between mt-1 shrink-0">
           <span>Debounce (ms)</span>
           <input
             type="number" min="0" step="100"
-            className="nodrag bg-gray-800 border border-gray-700 rounded p-1 text-xs focus:outline-none focus:border-orange-500 w-20 text-right"
+            className="nodrag bg-surface-2 border border-line-strong rounded p-1 text-xs focus:outline-none focus:border-orange-500 w-20 text-right"
             value={debounceMs}
             onChange={e => setDebounce(e.target.value)}
           />
@@ -368,8 +368,8 @@ export default function LogicNode({ id, data }) {
         <NodeTelemetryBadge nodeId={id} />
       </div>
 
-      <Handle type="target" position={Position.Left}  className="w-3 h-3 bg-orange-500 border-2 border-gray-900" />
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-orange-500 border-2 border-gray-900" />
+      <Handle type="target" position={Position.Left}  className="w-3 h-3 bg-orange-500 border-2 border-line-subtle" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-orange-500 border-2 border-line-subtle" />
     </div>
   );
 }

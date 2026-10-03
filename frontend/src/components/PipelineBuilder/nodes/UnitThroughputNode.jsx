@@ -33,22 +33,22 @@ export default function UnitThroughputNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-gray-100 dark:bg-gray-900 border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 text-gray-900 dark:text-white flex flex-col overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'}`}>
+    <div className={`bg-surface border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 text-fg flex flex-col overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'}`}>
       <div className="bg-indigo-600/20 p-3 flex items-center justify-between border-b border-indigo-900/50">
         <div className="flex items-center gap-3">
           <div className="bg-indigo-600 p-1.5 rounded-lg">
-            <Activity size={16} className="text-gray-900 dark:text-white" />
+            <Activity size={16} className="text-fg" />
           </div>
           <div>
             <div className="flex flex-col justify-center">
               <div className="font-semibold text-sm truncate max-w-[140px] leading-tight">{data?.label || 'Unit Throughput'}</div>
               {data?.label && data.label !== 'Unit Throughput' && (
-                <span className="text-[10px] text-gray-900 font-mono leading-none truncate mt-0.5 dark:text-white/50">Unit Throughput</span>
+                <span className="text-[10px] font-mono leading-none truncate mt-0.5 text-fg/50">Unit Throughput</span>
               )}
             </div>
             {!isCompact && (
               <div className="text-[10px] flex items-center gap-1 mt-1">
-                 <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-gray-500 dark:bg-gray-500'}`}></span>
+                 <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-fg-subtle'}`}></span>
                  <span className="text-indigo-300/70">{isRunning ? 'Running' : 'Paused'}</span>
               </div>
             )}
@@ -61,12 +61,12 @@ export default function UnitThroughputNode({ id, data }) {
         <div className="p-4 flex flex-col gap-3">
           {/* Quick Stats on the Node itself */}
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <div className="bg-gray-50 dark:bg-gray-950 p-2 rounded border border-gray-200 dark:border-gray-800 text-center">
-              <div className="text-[10px] text-gray-500 uppercase dark:text-gray-500">Rate</div>
+            <div className="bg-canvas p-2 rounded border border-line text-center">
+              <div className="text-[10px] uppercase text-fg-subtle">Rate</div>
               <div className="text-sm font-mono text-emerald-400 font-bold">{Number(liveRate).toFixed(1)} <span className="text-[9px]">/{data?.rateUnit?.substring(0,1) || 'm'}</span></div>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-950 p-2 rounded border border-gray-200 dark:border-gray-800 text-center">
-              <div className="text-[10px] text-gray-500 uppercase dark:text-gray-500">Units</div>
+            <div className="bg-canvas p-2 rounded border border-line text-center">
+              <div className="text-[10px] uppercase text-fg-subtle">Units</div>
               <div className="text-sm font-mono text-blue-400 font-bold">{liveCount}</div>
             </div>
           </div>
@@ -76,9 +76,9 @@ export default function UnitThroughputNode({ id, data }) {
       )}
 
       {/* Input from AI Model / upstream */}
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-indigo-500 border-2 border-gray-100 dark:border-gray-900" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-indigo-500 border-2 border-line-subtle" />
       {/* Output downstream if needed */}
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-indigo-500 border-2 border-gray-100 dark:border-gray-900" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-indigo-500 border-2 border-line-subtle" />
     </div>
   );
 }

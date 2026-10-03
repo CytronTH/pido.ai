@@ -15,12 +15,12 @@ const TypeIcon = ({ type }) => {
     case 'object':
       return <Box size={12} className="text-orange-400" />;
     default:
-      return <Type size={12} className="text-gray-400" />;
+      return <Type size={12} className="text-fg-muted" />;
   }
 };
 
 const formatValue = (val, type) => {
-  if (val === undefined || val === null) return <span className="text-gray-500 italic">null</span>;
+  if (val === undefined || val === null) return <span className="text-fg-subtle italic">null</span>;
   
   if (type === 'boolean') {
     return <span className={val ? "text-green-400" : "text-red-400"}>{val ? 'true' : 'false'}</span>;
@@ -44,7 +44,7 @@ const formatValue = (val, type) => {
     return <span className="text-orange-300">{'{...}'}</span>;
   }
   
-  return <span className="text-gray-300">{String(val)}</span>;
+  return <span className="text-fg-secondary">{String(val)}</span>;
 };
 
 export default function RealtimePropertySelector({ 
@@ -59,7 +59,7 @@ export default function RealtimePropertySelector({
   // If no options (e.g. not connected, or waiting)
   if (!options || options.length === 0) {
     return (
-      <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-4 text-center text-xs text-gray-500 italic nodrag">
+      <div className="bg-surface/50 border border-line-strong/50 rounded-lg p-4 text-center text-xs text-fg-subtle italic nodrag">
         Waiting for data stream...<br/>Run pipeline to see properties.
       </div>
     );
@@ -68,11 +68,11 @@ export default function RealtimePropertySelector({
   return (
     <div className="flex flex-col gap-1.5 nodrag">
       <div className="flex items-center justify-between px-1">
-        <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase">Available Properties</span>
+        <span className="text-[10px] text-fg-muted font-medium tracking-wider uppercase">Available Properties</span>
         <button
           type="button"
           onClick={onCustomClick}
-          className={`text-[10px] hover:text-white flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded ${isCustomMode ? 'text-white bg-gray-700' : 'text-gray-400'}`}
+          className={`text-[10px] hover:text-fg flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded ${isCustomMode ? 'text-fg bg-surface-3' : 'text-fg-muted'}`}
           title="Enter custom path manually"
         >
           <Edit3 size={10} />
@@ -92,8 +92,8 @@ export default function RealtimePropertySelector({
               className={`
                 relative flex flex-col p-2 rounded-md cursor-pointer border transition-all duration-200 overflow-hidden
                 ${isSelected 
-                  ? 'bg-gray-800 border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.15)]' 
-                  : 'bg-gray-900/80 border-gray-800 hover:border-gray-600 hover:bg-gray-800'}
+                  ? 'bg-surface-2 border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.15)]' 
+                  : 'bg-surface/80 border-line hover:border-line-stronger hover:bg-surface-2'}
               `}
             >
               {/* Highlight bar for selected */}
@@ -104,13 +104,13 @@ export default function RealtimePropertySelector({
               <div className="flex items-center justify-between pl-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <TypeIcon type={opt.type} />
-                  <span className={`text-[11px] font-mono truncate max-w-[120px] ${isSelected ? 'text-indigo-300 font-bold' : 'text-gray-300'}`} title={opt.value}>
+                  <span className={`text-[11px] font-mono truncate max-w-[120px] ${isSelected ? 'text-indigo-300 font-bold' : 'text-fg-secondary'}`} title={opt.value}>
                     {opt.value}
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="text-[10px] font-mono bg-black/60 px-1.5 py-0.5 rounded text-gray-300 max-w-[80px] truncate" title={String(liveValue)}>
+                  <div className="text-[10px] font-mono bg-black/60 px-1.5 py-0.5 rounded text-fg-secondary max-w-[80px] truncate" title={String(liveValue)}>
                     {formatValue(liveValue, opt.type)}
                   </div>
                   {isSelected ? (

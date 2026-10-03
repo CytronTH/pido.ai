@@ -93,7 +93,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-gray-900 border-2 border-amber-500 rounded-xl shadow-xl shadow-amber-900/20 ${isCompact ? 'w-48' : 'w-80'} text-white flex flex-col select-none`}>
+    <div className={`bg-surface border-2 border-amber-500 rounded-xl shadow-xl shadow-amber-900/20 ${isCompact ? 'w-48' : 'w-80'} text-fg flex flex-col select-none`}>
       {/* Target Handle from AINode */}
       <Handle
         type="target"
@@ -146,12 +146,12 @@ export default function ShelfSlotMonitorNode({ id, data }) {
         )}
 
         {/* Global Output Row */}
-        <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950 border border-gray-800 text-xs">
+        <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas border border-line text-xs">
           <div className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${anyEmpty ? 'bg-red-500 animate-ping' : 'bg-emerald-500'}`} />
-            <span className="font-semibold text-gray-200">Any Slot Empty (Global)</span>
+            <span className="font-semibold text-fg">Any Slot Empty (Global)</span>
           </div>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${anyEmpty ? 'bg-red-900/60 text-red-300' : 'bg-gray-800 text-gray-400'}`}>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${anyEmpty ? 'bg-red-900/60 text-red-300' : 'bg-surface-2 text-fg-muted'}`}>
             {anyEmpty ? 'TRUE' : 'FALSE'}
           </span>
           <Handle
@@ -165,7 +165,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
 
         {/* Slots List with Per-Slot Output Handles */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-fg-muted">
             Configured Slots ({slots.length})
           </span>
 
@@ -182,7 +182,7 @@ export default function ShelfSlotMonitorNode({ id, data }) {
                   className={`relative flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
                     isSlotEmpty
                       ? 'bg-red-950/40 border-red-800/80'
-                      : 'bg-gray-950/70 border-gray-800 hover:border-gray-700'
+                      : 'bg-canvas/70 border-line hover:border-line-strong'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -191,10 +191,10 @@ export default function ShelfSlotMonitorNode({ id, data }) {
                       style={{ backgroundColor: color.hex }}
                     />
                     <div className="truncate">
-                      <p className="font-medium text-gray-200 text-xs truncate leading-tight">
+                      <p className="font-medium text-fg text-xs truncate leading-tight">
                         {slot.name}
                       </p>
-                      <p className="text-[9px] text-gray-500 font-mono">
+                      <p className="text-[9px] text-fg-subtle font-mono">
                         Count: {slotCount} (Min: {slot.minCount || 1})
                       </p>
                     </div>
@@ -235,9 +235,9 @@ export default function ShelfSlotMonitorNode({ id, data }) {
       </div>
 
       {/* Footer Info */}
-      <div className="px-3.5 py-2 bg-gray-950/80 border-t border-gray-800 flex items-center justify-between text-[10px] text-gray-400">
+      <div className="px-3.5 py-2 bg-canvas/80 border-t border-line flex items-center justify-between text-[10px] text-fg-muted">
         <span className="flex items-center gap-1">
-          <ShieldAlert size={12} className={data?.personSuppression !== false ? 'text-cyan-400' : 'text-gray-600'} />
+          <ShieldAlert size={12} className={data?.personSuppression !== false ? 'text-cyan-400' : 'text-fg-faint'} />
           Person check: {data?.personSuppression !== false ? 'Active' : 'Disabled'}
         </span>
         <span>Debounce: {(data?.debounceMs || 3000) / 1000}s</span>

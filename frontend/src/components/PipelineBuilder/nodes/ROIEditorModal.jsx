@@ -198,7 +198,7 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: '#111827', border: '1px solid rgba(168,85,247,0.45)',
+        background: 'var(--surface)', border: '1px solid rgba(168,85,247,0.45)',
         borderRadius: '1rem', boxShadow: '0 30px 70px rgba(88,28,135,0.55)',
         width: '92vw', maxWidth: '900px',
         display: 'flex', flexDirection: 'column', maxHeight: '92vh', overflow: 'hidden',
@@ -206,25 +206,25 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
 
         {/* Header */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                      padding:'1rem 1.25rem', borderBottom:'1px solid #1f2937', flexShrink:0 }}>
+                      padding:'1rem 1.25rem', borderBottom:'1px solid var(--line)', flexShrink:0 }}>
           <div>
-            <h2 style={{ margin:0, color:'#fff', fontWeight:700, fontSize:'0.95rem',
+            <h2 style={{ margin:0, color:'var(--fg)', fontWeight:700, fontSize:'0.95rem',
                          display:'flex', alignItems:'center', gap:'0.5rem' }}>
               <Maximize2 size={16} style={{ color:'#a855f7' }} />
               Draw Inspection Zone
             </h2>
-            <p style={{ margin:'3px 0 0', color:'#6b7280', fontSize:'0.75rem' }}>
+            <p style={{ margin:'3px 0 0', color:'var(--fg-subtle)', fontSize:'0.75rem' }}>
               {isFile
                 ? 'Scrub the timeline to pick a frame, then drag on the image to draw the zone'
                 : 'Take a snapshot, then drag on the image to draw the zone'}
             </p>
           </div>
           <button onClick={onClose} style={{
-            background:'none', border:'none', color:'#6b7280', cursor:'pointer',
+            background:'none', border:'none', color:'var(--fg-subtle)', cursor:'pointer',
             padding:'4px', borderRadius:'6px', display:'flex', alignItems:'center',
           }}
-            onMouseEnter={e => e.currentTarget.style.color='#fff'}
-            onMouseLeave={e => e.currentTarget.style.color='#6b7280'}
+            onMouseEnter={e => e.currentTarget.style.color='var(--fg)'}
+            onMouseLeave={e => e.currentTarget.style.color='var(--fg-subtle)'}
           ><X size={20} /></button>
         </div>
 
@@ -268,11 +268,11 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
                   onLoadedData={onVideoLoaded} onSeeked={grabVideoFrame} />
               )}
               {videoDuration > 0 ? (
-                <div style={{ background:'rgba(31,41,55,0.7)', border:'1px solid #374151',
+                <div style={{ background:'var(--surface-2)', border:'1px solid var(--line-strong)',
                               borderRadius:'10px', padding:'10px 14px', display:'flex',
                               flexDirection:'column', gap:'6px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between',
-                                fontSize:'0.75rem', color:'#9ca3af' }}>
+                                fontSize:'0.75rem', color:'var(--fg-muted)' }}>
                     <span style={{ display:'flex', alignItems:'center', gap:'5px' }}>
                       <Film size={11} style={{ color:'#a855f7' }} /> Scrub to select frame
                     </span>
@@ -286,7 +286,7 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
                 </div>
               ) : (
                 <div style={{ display:'flex', alignItems:'center', gap:'8px',
-                              fontSize:'0.85rem', color:'#6b7280' }}>
+                              fontSize:'0.85rem', color:'var(--fg-subtle)' }}>
                   <RefreshCw size={14} style={{ color:'#a855f7', animation:'roi-spin 1s linear infinite' }} />
                   Loading video…
                 </div>
@@ -297,11 +297,11 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
           {/* Image + canvas area */}
           <div style={{
             position:'relative', borderRadius:'10px', overflow:'hidden',
-            border:'1px solid #374151', background:'#030712',
+            border:'1px solid var(--line-strong)', background:'var(--canvas)',
             minHeight:240, display:'flex', alignItems:'center', justifyContent:'center',
           }}>
             {!imageSrc && !loading && (
-              <div style={{ textAlign:'center', color:'#4b5563', padding:'2.5rem' }}>
+              <div style={{ textAlign:'center', color:'var(--fg-faint)', padding:'2.5rem' }}>
                 <Camera size={40} style={{ opacity:0.2, display:'block', margin:'0 auto 10px' }} />
                 <p style={{ margin:0, fontSize:'0.875rem' }}>
                   {isFile ? 'Waiting for video to load…' : 'Click "Take Snapshot" to capture a frame'}
@@ -335,24 +335,24 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
           {/* Numeric readout */}
           <div style={{
             display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:'8px',
-            background:'rgba(31,41,55,0.5)', borderRadius:'10px',
+            background:'var(--surface-2)', borderRadius:'10px',
             padding:'10px 14px', border:'1px solid rgba(55,65,81,0.5)',
           }}>
             {['x','y','w','h'].map(key => (
               <div key={key} style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
                 <label style={{ fontSize:'0.65rem', textTransform:'uppercase', fontWeight:700,
-                                color:'#6b7280', letterSpacing:'0.08em', textAlign:'center' }}>
+                                color:'var(--fg-subtle)', letterSpacing:'0.08em', textAlign:'center' }}>
                   {key}
                 </label>
                 <input type="number" min="0" max="1" step="0.01" value={roi[key]}
                   onChange={e => setRoi(r => ({
                     ...r, [key]: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0))
                   }))}
-                  style={{ background:'#030712', border:'1px solid #374151', borderRadius:'6px',
-                           padding:'6px 4px', fontSize:'0.85rem', color:'#fff',
+                  style={{ background:'var(--canvas)', border:'1px solid var(--line-strong)', borderRadius:'6px',
+                           padding:'6px 4px', fontSize:'0.85rem', color:'var(--fg)',
                            textAlign:'center', width:'100%', outline:'none' }}
                   onFocus={e  => e.target.style.borderColor='#9333ea'}
-                  onBlur={e   => e.target.style.borderColor='#374151'}
+                  onBlur={e   => e.target.style.borderColor='var(--line-strong)'}
                 />
               </div>
             ))}
@@ -361,23 +361,23 @@ export default function ROIEditorModal({ sourceType, cameraId, videoPath, curren
 
         {/* Footer */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                      padding:'0.9rem 1.25rem', borderTop:'1px solid #1f2937', flexShrink:0 }}>
+                      padding:'0.9rem 1.25rem', borderTop:'1px solid var(--line)', flexShrink:0 }}>
           <button onClick={handleReset} style={{
             display:'flex', alignItems:'center', gap:'6px', background:'none', border:'none',
-            color:'#9ca3af', fontSize:'0.85rem', cursor:'pointer',
+            color:'var(--fg-muted)', fontSize:'0.85rem', cursor:'pointer',
             padding:'6px 12px', borderRadius:'8px',
           }}
             onMouseEnter={e => { e.currentTarget.style.color='#f87171'; e.currentTarget.style.background='rgba(127,29,29,0.25)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color='#9ca3af'; e.currentTarget.style.background='none'; }}
+            onMouseLeave={e => { e.currentTarget.style.color='var(--fg-muted)'; e.currentTarget.style.background='none'; }}
           ><Trash2 size={14} /> Reset to Full Frame</button>
 
           <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
             <button onClick={onClose} style={{
-              background:'none', border:'1px solid #374151', color:'#9ca3af',
+              background:'none', border:'1px solid var(--line-strong)', color:'var(--fg-muted)',
               borderRadius:'8px', padding:'7px 18px', fontSize:'0.85rem', cursor:'pointer',
             }}
-              onMouseEnter={e => { e.currentTarget.style.color='#fff'; e.currentTarget.style.borderColor='#6b7280'; }}
-              onMouseLeave={e => { e.currentTarget.style.color='#9ca3af'; e.currentTarget.style.borderColor='#374151'; }}
+              onMouseEnter={e => { e.currentTarget.style.color='var(--fg)'; e.currentTarget.style.borderColor='var(--fg-subtle)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color='var(--fg-muted)'; e.currentTarget.style.borderColor='var(--line-strong)'; }}
             >Cancel</button>
             <button onClick={handleApply} style={{
               display:'flex', alignItems:'center', gap:'6px', background:'#9333ea',

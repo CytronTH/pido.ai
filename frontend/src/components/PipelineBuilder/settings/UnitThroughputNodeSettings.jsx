@@ -39,9 +39,9 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
       <div className="flex flex-col gap-3">
         {/* Start Trigger */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Start Trigger</label>
+          <label className="text-sm font-semibold text-fg-secondary">Start Trigger</label>
           <select 
-            className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-500 w-full dark:text-white"
+            className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
             value={data?.startTrigger || 'first_object'}
             onChange={(e) => onChange({ startTrigger: e.target.value })}
           >
@@ -54,7 +54,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           {data?.startTrigger === 'time' && (
             <input 
               type="time" 
-              className="mt-1 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:border-indigo-500 dark:text-white"
+              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
               value={data?.startTimeConfig || ''}
               onChange={(e) => onChange({ startTimeConfig: e.target.value })}
               placeholder="08:00"
@@ -63,7 +63,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           {data?.startTrigger === 'sensor' && (
             <input 
               type="text" 
-              className="mt-1 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:border-indigo-500 dark:text-white"
+              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
               value={data?.startSensorId || ''}
               onChange={(e) => onChange({ startSensorId: e.target.value })}
               placeholder="e.g. GPIO_4_IN"
@@ -73,9 +73,9 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
 
         {/* Pause Trigger */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Pause Trigger</label>
+          <label className="text-sm font-semibold text-fg-secondary">Pause Trigger</label>
           <select 
-            className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-500 w-full dark:text-white"
+            className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
             value={data?.pauseTrigger || 'timeout'}
             onChange={(e) => onChange({ pauseTrigger: e.target.value })}
           >
@@ -90,17 +90,17 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
               <input 
                 type="number" 
                 min="1"
-                className="bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:border-indigo-500 w-24 dark:text-white"
+                className="bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 w-24 text-fg"
                 value={data?.pauseTimeoutSeconds || 60}
                 onChange={(e) => onChange({ pauseTimeoutSeconds: parseInt(e.target.value, 10) })}
               />
-              <span className="text-xs text-gray-600 dark:text-gray-400">seconds</span>
+              <span className="text-xs text-fg-muted">seconds</span>
             </div>
           )}
           {data?.pauseTrigger === 'time' && (
             <input 
               type="time" 
-              className="mt-1 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:border-indigo-500 dark:text-white"
+              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
               value={data?.pauseTimeConfig || ''}
               onChange={(e) => onChange({ pauseTimeConfig: e.target.value })}
               placeholder="17:00"
@@ -109,7 +109,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           {data?.pauseTrigger === 'sensor' && (
             <input 
               type="text" 
-              className="mt-1 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:border-indigo-500 dark:text-white"
+              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
               value={data?.pauseSensorId || ''}
               onChange={(e) => onChange({ pauseSensorId: e.target.value })}
               placeholder="e.g. GPIO_5_IN"
@@ -119,9 +119,9 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         
         {/* Mode Selector for rate calculation */}
         <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Rate Unit</label>
+            <label className="text-sm font-semibold text-fg-secondary">Rate Unit</label>
             <select 
-              className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-500 w-full dark:text-white"
+              className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
               value={data?.rateUnit || 'minute'}
               onChange={(e) => onChange({ rateUnit: e.target.value })}
             >
@@ -133,37 +133,37 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         
         {/* Decimal Places */}
         <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Decimal Places</label>
+            <label className="text-sm font-semibold text-fg-secondary">Decimal Places</label>
             <input 
               type="number"
               min="0"
               max="5"
-              className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-500 w-full dark:text-white"
+              className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
               value={data?.decimalPlaces ?? 2}
               onChange={(e) => onChange({ decimalPlaces: parseInt(e.target.value, 10) || 0 })}
             />
         </div>
       </div>
 
-      <hr className="border-gray-200 dark:border-gray-800" />
+      <hr className="border-line" />
 
       {/* Live Telemetry Display */}
-      <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 flex flex-col gap-3">
+      <div className="bg-canvas p-3 rounded-lg border border-line flex flex-col gap-3">
         
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Timer size={16} className="text-indigo-400" />
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400">Status:</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Status:</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isRunning ? 'bg-indigo-500/20 text-indigo-400' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isRunning ? 'bg-indigo-500/20 text-indigo-400' : 'bg-surface-3 text-fg-muted'}`}>
               {isRunning ? 'RUNNING' : 'PAUSED'}
             </span>
             {(data?.startTrigger === 'manual' || data?.pauseTrigger === 'manual') && (
               <button 
                 type="button"
                 onClick={handleManualToggle}
-                className="px-2 py-1 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 text-xs rounded transition-colors text-gray-900 dark:text-white"
+                className="px-2 py-1 bg-surface-2 hover:bg-surface-3 border border-line-strong text-xs rounded transition-colors text-fg"
               >
                 {isRunning ? 'Pause' : 'Start'}
               </button>
@@ -174,11 +174,11 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity size={16} className="text-emerald-400" />
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400">Throughput:</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Throughput:</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold font-mono text-emerald-400">
-              {Number(liveRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs text-gray-500 font-sans font-normal dark:text-gray-500">/{data?.rateUnit || 'min'}</span>
+              {Number(liveRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
             </span>
           </div>
         </div>
@@ -186,14 +186,14 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Settings2 size={16} className="text-blue-400" />
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400">Total Units:</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Total Units:</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold font-mono text-blue-400">{liveCount}</span>
             <button
               type="button"
               onClick={handleReset}
-              className="text-gray-600 hover:text-red-400 p-1 rounded transition-colors dark:text-gray-400"
+              className="hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
               title="Reset Counter"
             >
               <RotateCcw size={14} />

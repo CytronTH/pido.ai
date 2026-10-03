@@ -15,11 +15,11 @@ export default function TrafficLightWidget({ title, value, config = {} }) {
   }
 
   return (
-    <div className="flex flex-col h-full rounded-xl overflow-hidden p-4 bg-[#111520] border border-gray-700/50 shadow-[inset_0_0_40px_rgba(0,0,0,0.5)] transition-colors duration-300 relative items-center justify-center">
-      {title && <div className="absolute top-4 left-4 text-xs font-semibold text-gray-400 uppercase tracking-widest opacity-80">{title}</div>}
+    <div className="flex flex-col h-full rounded-xl overflow-hidden p-4 bg-surface border border-line-strong/50 shadow-well transition-colors duration-300 relative items-center justify-center">
+      {title && <div className="absolute top-4 left-4 text-xs font-semibold text-fg-muted uppercase tracking-widest opacity-80">{title}</div>}
       
       <div className="flex gap-6 items-center mt-4 w-full justify-center">
-          <div className="flex flex-col gap-2 bg-gradient-to-b from-[#1a2235] to-[#0b0e14] p-3 rounded-[30px] border border-gray-700/50 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_0_15px_rgba(0,0,0,0.8)] relative">
+          <div className="flex flex-col gap-2 bg-gradient-to-b from-[#1a2235] to-[#0b0e14] p-3 rounded-[30px] border border-line-strong/50 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_0_15px_rgba(0,0,0,0.8)] relative">
             {/* Glass reflection */}
             <div className="absolute top-2 left-2 bottom-2 w-1.5 bg-white/5 rounded-full blur-[1px]"></div>
 
@@ -32,7 +32,7 @@ export default function TrafficLightWidget({ title, value, config = {} }) {
             <span className={`text-xl font-black tracking-wider ${status === 'error' ? 'text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : status === 'warning' ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]'}`}>
                {status === 'error' ? 'FAULT' : status === 'warning' ? 'WARN' : 'SYSTEM OK'}
             </span>
-            <span className="text-xs text-gray-500 tracking-widest mt-1 uppercase">Status</span>
+            <span className="text-xs text-fg-subtle tracking-widest mt-1 uppercase">Status</span>
           </div>
       </div>
     </div>

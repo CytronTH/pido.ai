@@ -18,12 +18,12 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     // If they are logged in but don't have the right role, 
     // maybe show a "Not Authorized" component or redirect.
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0a0a0a] text-white flex-col gap-4">
+      <div className="flex h-screen items-center justify-center bg-canvas text-fg flex-col gap-4">
         <h1 className="text-4xl font-bold text-red-500">Access Denied</h1>
-        <p className="text-zinc-400">You do not have permission to view this page.</p>
+        <p className="text-fg-muted">You do not have permission to view this page.</p>
         <button 
           onClick={() => window.history.back()}
-          className="mt-4 px-6 py-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+          className="mt-4 px-6 py-2 bg-surface-2 rounded-lg hover:bg-surface-3 transition-colors"
         >
           Go Back
         </button>

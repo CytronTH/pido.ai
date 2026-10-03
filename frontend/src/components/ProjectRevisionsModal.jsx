@@ -86,26 +86,26 @@ export default function ProjectRevisionsModal({ isOpen, onClose, projectId, onRe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="flex justify-between items-center bg-gray-200 dark:bg-gray-800 p-4 border-b border-gray-300 dark:border-gray-700 shrink-0">
-          <div className="flex items-center gap-2 text-gray-800 font-bold dark:text-gray-200">
+      <div className="bg-surface border border-line-strong rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="flex justify-between items-center bg-surface-2 p-4 border-b border-line-strong shrink-0">
+          <div className="flex items-center gap-2 font-bold text-fg">
             <History size={18} className="text-blue-400" />
             <span>Version History</span>
           </div>
-          <button onClick={onClose} className="text-gray-600 hover:text-white transition-colors dark:text-gray-400">
+          <button onClick={onClose} className="hover:text-fg transition-colors text-fg-muted">
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-4 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 shrink-0">
-          <label className="block text-sm font-medium text-gray-600 mb-1 dark:text-gray-400">Save Current State</label>
+        <div className="p-4 bg-canvas border-b border-line shrink-0">
+          <label className="block text-sm font-medium mb-1 text-fg-muted">Save Current State</label>
           <div className="flex gap-2">
             <input 
               type="text" 
               value={newRevisionName}
               onChange={(e) => setNewRevisionName(e.target.value)}
               placeholder="e.g., Working Model before adding OCR"
-              className="flex-1 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-sm text-gray-900 focus:border-blue-500 outline-none dark:text-white"
+              className="flex-1 bg-surface border border-line-strong rounded-lg p-2 text-sm focus:border-blue-500 outline-none text-fg"
               onKeyDown={(e) => e.key === 'Enter' && handleSaveRevision()}
             />
             <button 
@@ -132,10 +132,10 @@ export default function ProjectRevisionsModal({ isOpen, onClose, projectId, onRe
           ) : revisions.length > 0 ? (
             <div className="space-y-3">
               {revisions.map((rev) => (
-                <div key={rev.id} className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 flex items-center justify-between group hover:border-gray-500 dark:hover:border-gray-500 transition-colors">
+                <div key={rev.id} className="bg-surface-2 border border-line-strong rounded-lg p-3 flex items-center justify-between group hover:border-fg-subtle transition-colors">
                   <div className="flex flex-col">
-                    <span className="text-gray-800 font-medium text-sm dark:text-gray-200">{rev.name}</span>
-                    <span className="text-gray-500 text-xs flex items-center gap-1 mt-1 dark:text-gray-500">
+                    <span className="font-medium text-sm text-fg">{rev.name}</span>
+                    <span className="text-xs flex items-center gap-1 mt-1 text-fg-subtle">
                       <Clock size={12} />
                       {new Date(rev.created_at).toLocaleString()}
                     </span>
@@ -143,7 +143,7 @@ export default function ProjectRevisionsModal({ isOpen, onClose, projectId, onRe
                   <button
                     onClick={() => handleRestore(rev.id)}
                     disabled={restoringId === rev.id}
-                    className="opacity-0 group-hover:opacity-100 bg-gray-300 dark:bg-gray-700 hover:bg-emerald-600 text-gray-700 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 disabled:opacity-50 dark:text-gray-300"
+                    className="opacity-0 group-hover:opacity-100 bg-surface-3 hover:bg-emerald-600 hover:text-white px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 disabled:opacity-50 text-fg-secondary"
                   >
                     {restoringId === rev.id ? (
                       <Loader2 size={14} className="animate-spin" />
@@ -156,7 +156,7 @@ export default function ProjectRevisionsModal({ isOpen, onClose, projectId, onRe
               ))}
             </div>
           ) : (
-            <div className="text-center text-gray-500 text-sm italic py-8 dark:text-gray-500">
+            <div className="text-center text-sm italic py-8 text-fg-subtle">
               No revisions saved yet.
             </div>
           )}

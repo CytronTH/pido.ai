@@ -131,7 +131,7 @@ export default function ForkliftZoneNode({ id, data }) {
   };
 
   return (
-    <div className="bg-gray-900 border-2 border-rose-500/80 rounded-xl shadow-xl shadow-rose-950/30 w-84 text-white flex flex-col select-none">
+    <div className="bg-surface border-2 border-rose-500/80 rounded-xl shadow-xl shadow-rose-950/30 w-84 text-fg flex flex-col select-none">
       {/* Target Handle from AINode */}
       <Handle
         type="target"
@@ -196,39 +196,39 @@ export default function ForkliftZoneNode({ id, data }) {
         )}
 
         {/* Real-time Metric Counts */}
-        <div className="grid grid-cols-3 gap-1.5 bg-gray-950 p-2 rounded-lg border border-gray-800 text-center">
+        <div className="grid grid-cols-3 gap-1.5 bg-canvas p-2 rounded-lg border border-line text-center">
           <div>
-            <div className="text-[10px] text-gray-400">Forklifts</div>
+            <div className="text-[10px] text-fg-muted">Forklifts</div>
             <div className="text-sm font-bold font-mono text-rose-400">{forkliftCount}</div>
           </div>
           <div>
-            <div className="text-[10px] text-gray-400">Persons</div>
+            <div className="text-[10px] text-fg-muted">Persons</div>
             <div className="text-sm font-bold font-mono text-cyan-400">{personCount}</div>
           </div>
           <div>
-            <div className="text-[10px] text-gray-400">Near-Miss</div>
+            <div className="text-[10px] text-fg-muted">Near-Miss</div>
             <div className="text-sm font-bold font-mono text-amber-400">{nearMissCount}</div>
           </div>
         </div>
 
         {/* Global Output Source Handles */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-fg-muted">
             Global Action Outputs
           </span>
 
           {/* 1. Critical Siren Handle */}
-          <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950/80 border border-red-900/50 text-xs">
+          <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas/80 border border-red-900/50 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${isCritical ? 'bg-red-500 animate-ping' : 'bg-gray-700'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${isCritical ? 'bg-red-500 animate-ping' : 'bg-surface-3'}`} />
               <div>
                 <span className="font-semibold text-red-200 block leading-tight">Critical Collision Alert</span>
-                <span className="text-[9px] text-gray-500">Forklift+Person / Conflict</span>
+                <span className="text-[9px] text-fg-subtle">Forklift+Person / Conflict</span>
               </div>
             </div>
             <span
               className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 ${
-                isCritical ? 'bg-red-900 text-red-200' : 'bg-gray-800 text-gray-500'
+                isCritical ? 'bg-red-900 text-red-200' : 'bg-surface-2 text-fg-subtle'
               }`}
             >
               {isCritical ? 'TRUE' : 'FALSE'}
@@ -243,17 +243,17 @@ export default function ForkliftZoneNode({ id, data }) {
           </div>
 
           {/* 2. Caution / Danger Handle */}
-          <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950/80 border border-amber-900/50 text-xs">
+          <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas/80 border border-amber-900/50 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${isDanger ? 'bg-amber-400' : 'bg-gray-700'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${isDanger ? 'bg-amber-400' : 'bg-surface-3'}`} />
               <div>
                 <span className="font-semibold text-amber-200 block leading-tight">Any Forklift Warning</span>
-                <span className="text-[9px] text-gray-500">Approaching or in intersection</span>
+                <span className="text-[9px] text-fg-subtle">Approaching or in intersection</span>
               </div>
             </div>
             <span
               className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 ${
-                isDanger ? 'bg-amber-900/80 text-amber-200' : 'bg-gray-800 text-gray-500'
+                isDanger ? 'bg-amber-900/80 text-amber-200' : 'bg-surface-2 text-fg-subtle'
               }`}
             >
               {isDanger ? 'TRUE' : 'FALSE'}
@@ -268,12 +268,12 @@ export default function ForkliftZoneNode({ id, data }) {
           </div>
 
           {/* 3. Debug & Telemetry Stream Handle */}
-          <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950/80 border border-purple-900/60 text-xs">
+          <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas/80 border border-purple-900/60 text-xs">
             <div className="flex items-center gap-1.5">
               <Bug size={13} className="text-purple-400" />
               <div>
                 <span className="font-semibold text-purple-200 block leading-tight">Debug & Telemetry Stream</span>
-                <span className="text-[9px] text-gray-500">Connect to Debug Node</span>
+                <span className="text-[9px] text-fg-subtle">Connect to Debug Node</span>
               </div>
             </div>
             <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 bg-purple-950/80 border border-purple-800/80 text-purple-300">
@@ -291,7 +291,7 @@ export default function ForkliftZoneNode({ id, data }) {
 
         {/* Configured Zones List with Per-Zone Output Handles */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-fg-muted">
             Configured Zones ({zones.length})
           </span>
 
@@ -310,7 +310,7 @@ export default function ForkliftZoneNode({ id, data }) {
                   className={`relative flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
                     isOccupied
                       ? 'bg-rose-950/50 border-rose-700'
-                      : 'bg-gray-950/70 border-gray-800 hover:border-gray-700'
+                      : 'bg-canvas/70 border-line hover:border-line-strong'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -319,10 +319,10 @@ export default function ForkliftZoneNode({ id, data }) {
                       style={{ backgroundColor: color }}
                     />
                     <div className="truncate">
-                      <p className="font-medium text-gray-200 text-xs truncate leading-tight">
+                      <p className="font-medium text-fg text-xs truncate leading-tight">
                         {zone.name}
                       </p>
-                      <p className="text-[9px] text-gray-500 font-mono">
+                      <p className="text-[9px] text-fg-subtle font-mono">
                         Forklifts: {fkCount} • Persons: {pCount}
                       </p>
                     </div>
@@ -330,7 +330,7 @@ export default function ForkliftZoneNode({ id, data }) {
 
                   <span
                     className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 mr-2 ${
-                      isOccupied ? 'bg-rose-900/80 text-rose-200' : 'bg-gray-800 text-gray-400'
+                      isOccupied ? 'bg-rose-900/80 text-rose-200' : 'bg-surface-2 text-fg-muted'
                     }`}
                   >
                     {isOccupied ? 'OCCUPIED' : 'CLEAR'}
@@ -361,7 +361,7 @@ export default function ForkliftZoneNode({ id, data }) {
       </div>
 
       {/* Footer Info */}
-      <div className="px-3.5 py-2 bg-gray-950/80 border-t border-gray-800 flex items-center justify-between text-[10px] text-gray-400">
+      <div className="px-3.5 py-2 bg-canvas/80 border-t border-line flex items-center justify-between text-[10px] text-fg-muted">
         <span className="flex items-center gap-1">
           <Activity size={12} className="text-emerald-400" />
           Anchor: {data?.anchorMode === 'centroid' ? 'Centroid' : 'Ground Footprint (45°)'}

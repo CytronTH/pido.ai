@@ -18,11 +18,11 @@ export default function RateLimitNode({ id, data, isConnectable }) {
   };
 
   return (
-    <div className="bg-gray-900 border-2 border-teal-600 rounded-xl shadow-lg shadow-teal-900/20 w-56 text-white overflow-hidden">
+    <div className="bg-surface border-2 border-teal-600 rounded-xl shadow-lg shadow-teal-900/20 w-56 text-fg overflow-hidden">
       <div className="bg-teal-600/20 p-2 flex items-center justify-between border-b border-teal-900/50">
         <div className="flex items-center gap-2">
           <div className="bg-teal-600 p-1 rounded-lg">
-            <Timer size={14} className="text-white" />
+            <Timer size={14} className="text-fg" />
           </div>
           <div className="font-semibold text-xs uppercase tracking-wider text-teal-100">Rate Limit</div>
         </div>
@@ -30,23 +30,23 @@ export default function RateLimitNode({ id, data, isConnectable }) {
       </div>
       
       <div className={`p-3 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <div className="text-[10px] text-gray-400">
+        <div className="text-[10px] text-fg-muted">
           Limits the rate of messages passing through. Excess messages are dropped.
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-300">Allow</span>
+          <span className="text-xs text-fg-secondary">Allow</span>
           <input 
             type="number"
             min="0.1"
             step="0.1"
-            className="bg-gray-800 border border-gray-700 rounded-md p-1 text-sm focus:outline-none focus:border-teal-500 nodrag w-16 text-center"
+            className="bg-surface-2 border border-line-strong rounded-md p-1 text-sm focus:outline-none focus:border-teal-500 nodrag w-16 text-center"
             value={data?.rate || 1}
             onChange={handleRateChange}
           />
-          <span className="text-xs text-gray-300">msg(s) per</span>
+          <span className="text-xs text-fg-secondary">msg(s) per</span>
           <select
-            className="bg-gray-800 border border-gray-700 rounded-md p-1 text-xs focus:outline-none focus:border-teal-500 nodrag flex-1"
+            className="bg-surface-2 border border-line-strong rounded-md p-1 text-xs focus:outline-none focus:border-teal-500 nodrag flex-1"
             value={data?.period || 'second'}
             onChange={handlePeriodChange}
           >
@@ -61,13 +61,13 @@ export default function RateLimitNode({ id, data, isConnectable }) {
         type="target" 
         position={Position.Left} 
         isConnectable={isConnectable}
-        className="w-3 h-3 bg-teal-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-teal-500 border-2 border-line-subtle"
       />
       <Handle 
         type="source" 
         position={Position.Right} 
         isConnectable={isConnectable}
-        className="w-3 h-3 bg-teal-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-teal-500 border-2 border-line-subtle"
       />
     </div>
   );

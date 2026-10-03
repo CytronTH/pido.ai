@@ -52,15 +52,15 @@ export default function ProjectVariableMonitor({ projectId }) {
   }, [projectId]);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+    <div className="flex flex-col h-full bg-surface border border-line rounded-2xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-gray-50 dark:bg-slate-900/50">
+      <div className="flex items-center justify-between p-5 border-b border-line bg-surface/50">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 dark:text-white">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-fg">
             <Activity size={20} className="text-indigo-400" />
             Project Variables
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-fg-muted mt-1">
             Real-time variables written to the database by this project
           </p>
         </div>
@@ -81,7 +81,7 @@ export default function ProjectVariableMonitor({ projectId }) {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
           </div>
         ) : variables.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-slate-500 bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-800">
+          <div className="flex flex-col items-center justify-center h-40 text-fg-subtle bg-surface/50 rounded-xl border border-dashed border-line">
             <Database size={32} className="mb-3 opacity-20" />
             <p>No variables found in the database.</p>
             <p className="text-xs mt-1">Ensure a Database Writer Node is running.</p>
@@ -94,28 +94,28 @@ export default function ProjectVariableMonitor({ projectId }) {
               <div 
                 key={i} 
                 onClick={() => setSelectedVar(v)}
-                className="bg-white dark:bg-slate-950/80 border border-slate-800 hover:border-indigo-500/50 cursor-pointer group transition-all rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden mt-2"
+                className="bg-canvas/80 border border-line hover:border-indigo-500/50 cursor-pointer group transition-all rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden mt-2"
               >
-                <div className="absolute top-2 left-4 px-2 py-0.5 bg-gray-100 dark:bg-slate-800/80 text-[10px] text-slate-300 rounded-full font-medium border border-slate-700/50 flex items-center gap-1">
+                <div className="absolute top-2 left-4 px-2 py-0.5 bg-surface-2/80 text-[10px] text-fg-secondary rounded-full font-medium border border-line-strong/50 flex items-center gap-1">
                   <Database size={10} className="text-indigo-400" /> {v.record_count?.toLocaleString() || 0} records
                 </div>
-                <div className="absolute top-4 right-4 text-slate-700 group-hover:text-indigo-400 transition-colors">
+                <div className="absolute top-4 right-4 text-fg-faint group-hover:text-indigo-400 transition-colors">
                   <ChevronRight size={18} />
                 </div>
                 <div className="flex items-center gap-2 mb-3 pr-6 mt-4">
                   <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-md">
                     <Hash size={16} />
                   </div>
-                  <h3 className="font-semibold text-slate-200 truncate" title={v.variable_name}>
+                  <h3 className="font-semibold text-fg truncate" title={v.variable_name}>
                     {v.variable_name}
                   </h3>
                 </div>
                 <div className="flex-1 flex items-end">
-                  <div className="text-3xl font-bold font-mono text-gray-900 mb-2 dark:text-white">
+                  <div className="text-3xl font-bold font-mono mb-2 text-fg">
                     {typeof v.value === 'number' ? (Number.isInteger(v.value) ? v.value : v.value.toFixed(2)) : v.value}
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-800/60">
+                <div className="flex items-center justify-between text-[11px] text-fg-subtle mt-2 pt-2 border-t border-line/60">
                   <span className="flex items-center gap-1 font-sans truncate" title={`${nodeInfo.label} (${nodeInfo.type})`}>
                     <Layers size={10} /> {nodeInfo.label} <span className="opacity-50">({nodeInfo.type})</span>
                   </span>

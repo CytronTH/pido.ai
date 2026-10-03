@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend 
 } from 'recharts';
 import { BarChart2 } from 'lucide-react';
+import { chartTheme } from '../../utils/theme';
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
 
@@ -215,11 +216,11 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-xl p-4">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200 dark:border-gray-800">
+    <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl p-4">
+      <div className="flex items-center justify-between mb-4 pb-2 border-b border-line">
         <div className="flex items-center gap-2">
           <Icon size={20} className="text-emerald-400" />
-          <h3 className="text-gray-500 dark:text-gray-400 dark:text-gray-400 font-semibold text-sm uppercase tracking-wider">{title}</h3>
+          <h3 className="text-fg-muted font-semibold text-sm uppercase tracking-wider">{title}</h3>
         </div>
         <div className="flex items-center gap-2">
           {zoomDomain && (
@@ -230,7 +231,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
               Reset Zoom
             </button>
           )}
-          {config.timeframe && <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{config.timeframe} {lockTimeframe && '(Locked)'}</span>}
+          {config.timeframe && <span className="text-xs text-fg-muted bg-surface-2 px-2 py-1 rounded">{config.timeframe} {lockTimeframe && '(Locked)'}</span>}
         </div>
       </div>
       <div 
@@ -241,22 +242,22 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         {historyData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <ChartComponent data={historyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
               <XAxis 
                 {...xAxisProps}
-                stroke="#9ca3af" 
+                stroke={chartTheme.axis} 
                 fontSize={12}
               />
               <YAxis 
-                stroke="#9ca3af" 
+                stroke={chartTheme.axis} 
                 fontSize={12} 
                 domain={[yMin, yMax]}
                 allowDataOverflow={true}
               />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#fff' }}
-                itemStyle={{ color: '#fff' }}
-                labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
+                contentStyle={chartTheme.tooltip.contentStyle}
+                itemStyle={chartTheme.tooltip.itemStyle}
+                labelStyle={chartTheme.tooltip.labelStyle}
               />
               
               {nodeIds.length > 1 && <Legend wrapperStyle={{ fontSize: '12px' }} />}
@@ -287,7 +288,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
             </ChartComponent>
           </ResponsiveContainer>
         ) : (
-          <div className="text-gray-500 dark:text-gray-400 text-sm italic flex items-center justify-center h-full">
+          <div className="text-fg-muted text-sm italic flex items-center justify-center h-full">
             Waiting for data...
           </div>
         )}

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTheme, getAdaptiveColor } from '../../utils/theme';
 import { Activity, Users, Thermometer, Car, Cpu, Droplets, Zap, Camera, Eye, BarChart2 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -7,7 +6,6 @@ const ICON_MAP = {
 };
 
 export default function CapacityBarWidget({ title, value, unit, config = {} }) {
-  const isDark = useTheme();
   
   const max = config.max !== undefined && config.max !== '' ? parseFloat(config.max) : 100;
   const min = config.min !== undefined && config.min !== '' ? parseFloat(config.min) : 0;
@@ -93,7 +91,7 @@ export default function CapacityBarWidget({ title, value, unit, config = {} }) {
   }
   
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-[inset_0_0_40px_rgba(0,0,0,0.5)] transition-colors duration-300 relative ${isAlert ? 'bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-[#111520] border border-gray-700/50'}`} style={{ containerType: 'size' }}>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-well transition-colors duration-300 relative ${isAlert ? 'bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line-strong/50'}`} style={{ containerType: 'size' }}>
       {title && config.showTitle !== false && (
         <div className="absolute top-4 left-4 flex items-center gap-2 text-blue-400 opacity-80 z-10">
           {SelectedIcon && <SelectedIcon size={14} />}
@@ -103,9 +101,9 @@ export default function CapacityBarWidget({ title, value, unit, config = {} }) {
       
       <div className={`flex-1 flex items-center justify-center gap-[6cqw] mt-4 ${isHorizontal ? 'flex-col' : 'flex-row'}`}>
         {/* Tube Holder/Backdrop */}
-        <div className={`relative p-[2cqw] bg-[#1a2235] rounded-3xl border-[max(1px,0.2cqw)] border-gray-700/50 shadow-xl ${isHorizontal ? 'rounded-l-none' : 'rounded-t-none'}`}>
+        <div className={`relative p-[2cqw] bg-surface-2 rounded-3xl border-[max(1px,0.2cqw)] border-line-strong/50 shadow-xl ${isHorizontal ? 'rounded-l-none' : 'rounded-t-none'}`}>
             {/* The Glass Tube */}
-            <div className={`relative bg-[#0b0e14] rounded-full border border-white/10 shadow-[inset_0_0_15px_rgba(0,0,0,1)] overflow-hidden flex ${
+            <div className={`relative bg-canvas rounded-full border border-fg/10 shadow-well-deep overflow-hidden flex ${
               isHorizontal ? 'rounded-l-sm flex-row justify-start' : 'rounded-t-sm flex-col justify-end'
             }`} style={{
               width: isHorizontal ? 'min(70cqw, 200cqh)' : 'min(20cqw, 30cqh)',

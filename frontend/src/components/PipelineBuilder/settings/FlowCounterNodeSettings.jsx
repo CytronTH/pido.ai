@@ -115,10 +115,10 @@ export default function FlowCounterNodeSettings({ nodeId, data, onChange, isSide
     <div className="flex flex-col gap-4">
       {/* Trigger Mode & Zone */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Trigger Mode</label>
+        <label className="text-sm font-semibold text-fg-secondary">Trigger Mode</label>
         <div className="grid grid-cols-2 gap-2">
           <select
-            className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-teal-500 dark:text-white"
+            className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-teal-500 text-fg"
             value={data?.mode || 'roi'}
             onChange={(e) => onChange({ mode: e.target.value })}
           >
@@ -129,7 +129,7 @@ export default function FlowCounterNodeSettings({ nodeId, data, onChange, isSide
           <button
             type="button"
             onClick={() => setShowROIEditor(true)}
-            className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-200 dark:bg-gray-700 text-teal-300 border border-teal-600/50 rounded-md p-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            className="bg-surface-2 hover:bg-surface-3 text-teal-300 border border-teal-600/50 rounded-md p-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
           >
             <Crosshair size={14} /> Edit Action Zone / Tripwire
           </button>
@@ -156,7 +156,7 @@ export default function FlowCounterNodeSettings({ nodeId, data, onChange, isSide
       </div>
 
       {/* Target Classes Selector */}
-      <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50/40 dark:bg-gray-950/40">
+      <div className="border border-line rounded-lg p-3 bg-canvas/40">
         <ClassFilterSelector
           selectedClasses={data?.classFilter || []}
           availableClasses={availableClasses}
@@ -173,7 +173,7 @@ export default function FlowCounterNodeSettings({ nodeId, data, onChange, isSide
       <button
         type="button"
         onClick={handleResetCounters}
-        className="w-full bg-gray-200 dark:bg-gray-800 hover:bg-red-950/40 text-gray-700 hover:text-red-300 border border-gray-300 dark:border-gray-700 hover:border-red-800/60 rounded-lg py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 transition-colors mt-2 dark:text-gray-300"
+        className="w-full bg-surface-2 hover:bg-red-950/40 hover:text-red-300 border border-line-strong hover:border-red-800/60 rounded-lg py-2 px-3 text-xs font-semibold flex items-center justify-center gap-2 transition-colors mt-2 text-fg-secondary"
       >
         <RotateCcw size={14} /> Reset Current Counts
       </button>

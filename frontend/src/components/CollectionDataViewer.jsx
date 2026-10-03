@@ -79,17 +79,17 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-slate-800/80 bg-gray-50 dark:bg-slate-900/50">
+    <div className="flex flex-col h-full overflow-hidden bg-surface border border-line rounded-2xl shadow-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-line/80 bg-surface/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
             <FileSpreadsheet size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-fg flex items-center gap-2">
               {collection.name}
             </h2>
-            <p className="text-xs font-medium text-slate-400 mt-0.5">
+            <p className="text-xs font-medium text-fg-muted mt-0.5">
               <span className="text-emerald-400 font-mono">{total.toLocaleString()}</span> records in database
             </p>
           </div>
@@ -99,13 +99,13 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
           <button 
             onClick={fetchRecords}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 hover:bg-surface-3 border border-line-strong text-fg-secondary rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95"
           >
             <RefreshCw size={14} className={loading ? "animate-spin text-emerald-400" : ""} />
             <span>Refresh</span>
           </button>
           
-          <div className="w-px h-6 bg-gray-100 dark:bg-slate-800 mx-1"></div>
+          <div className="w-px h-6 bg-surface-2 mx-1"></div>
 
           <button 
             onClick={handleClear}
@@ -129,52 +129,52 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-[#0d1117] border-t border-slate-800">
-        <table className="w-full text-left text-sm text-slate-400 border-collapse">
-          <thead className="text-[10px] text-slate-400 font-bold uppercase tracking-wider bg-gray-50 dark:bg-slate-900/90 sticky top-0 z-10 shadow-sm border-b border-slate-700 backdrop-blur-md">
-            <tr className="divide-x divide-slate-800/60">
-              <th className="px-4 py-2.5 whitespace-nowrap w-[160px] bg-gray-50 dark:bg-slate-900/50">Timestamp</th>
+      <div className="flex-1 overflow-auto bg-canvas border-t border-line">
+        <table className="w-full text-left text-sm text-fg-muted border-collapse">
+          <thead className="text-[10px] text-fg-muted font-bold uppercase tracking-wider bg-surface/90 sticky top-0 z-10 shadow-sm border-b border-line-strong backdrop-blur-md">
+            <tr className="divide-x divide-line/60">
+              <th className="px-4 py-2.5 whitespace-nowrap w-[160px] bg-surface/50">Timestamp</th>
               {schema.map(col => (
-                <th key={col.key} className="px-4 py-2.5 whitespace-nowrap bg-gray-50 dark:bg-slate-900/50">{col.name}</th>
+                <th key={col.key} className="px-4 py-2.5 whitespace-nowrap bg-surface/50">{col.name}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className="divide-y divide-line/60">
             {loading && records.length === 0 ? (
               <tr>
-                <td colSpan={schema.length + 1} className="px-4 py-12 text-center text-slate-500 font-medium">
+                <td colSpan={schema.length + 1} className="px-4 py-12 text-center text-fg-subtle font-medium">
                   Loading records...
                 </td>
               </tr>
             ) : records.length === 0 ? (
               <tr>
-                <td colSpan={schema.length + 1} className="px-4 py-16 text-center text-slate-500 font-medium bg-gray-50 dark:bg-slate-900/30">
+                <td colSpan={schema.length + 1} className="px-4 py-16 text-center text-fg-subtle font-medium bg-surface/30">
                   <FileSpreadsheet size={48} className="mx-auto mb-4 opacity-20" />
                   No data in this collection yet. Connect a Database Writer node to start saving data.
                 </td>
               </tr>
             ) : (
               records.map(record => (
-                <tr key={record.id} className="hover:bg-gray-100 dark:bg-slate-800/40 transition-colors divide-x divide-slate-800/60 group">
-                  <td className="px-4 py-2 whitespace-nowrap text-xs text-slate-400 font-mono">
+                <tr key={record.id} className="hover:bg-surface-2/40 transition-colors divide-x divide-line/60 group">
+                  <td className="px-4 py-2 whitespace-nowrap text-xs text-fg-muted font-mono">
                     {new Date(record.timestamp).toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </td>
                   {schema.map(col => {
                     const val = record.data[col.key];
                     return (
-                      <td key={col.key} className="px-4 py-2 text-xs text-slate-300">
+                      <td key={col.key} className="px-4 py-2 text-xs text-fg-secondary">
                         {col.type === 'image' ? (
                           val ? (
                             <div className="flex justify-center">
                               <img 
                                 src={val.replace('/api/files/snapshots/', '/api/snapshots/')} 
                                 alt="Snapshot" 
-                                className="h-10 object-contain rounded bg-black/50 border border-slate-700 cursor-pointer hover:border-blue-500 hover:scale-105 transition-all shadow-sm" 
+                                className="h-10 object-contain rounded bg-black/50 border border-line-strong cursor-pointer hover:border-blue-500 hover:scale-105 transition-all shadow-sm" 
                                 onClick={() => setSelectedImage(val.replace('/api/files/snapshots/', '/api/snapshots/'))}
                               />
                             </div>
                           ) : (
-                            <div className="flex justify-center text-slate-700"><ImageIcon size={14} /></div>
+                            <div className="flex justify-center text-fg-faint"><ImageIcon size={14} /></div>
                           )
                         ) : col.type === 'boolean' ? (
                           <div className="flex">
@@ -209,7 +209,7 @@ export default function CollectionDataViewer({ projectId, collection, onCollecti
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
             />
             <button 
-              className="absolute top-4 right-4 text-gray-900 bg-gray-100 dark:bg-slate-800/50 hover:bg-slate-700 p-2 rounded-full backdrop-blur-md dark:text-white"
+              className="absolute top-4 right-4 bg-surface-2/50 hover:bg-surface-3 p-2 rounded-full backdrop-blur-md text-fg"
               onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>

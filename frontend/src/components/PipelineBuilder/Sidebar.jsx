@@ -29,7 +29,7 @@ export const NODE_CATEGORIES = [
   {
     title: 'Debugging',
     items: [
-      { type: 'debugNode', label: 'Debug Node', textIcon: '🐛', bg: 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300' },
+      { type: 'debugNode', label: 'Debug Node', textIcon: '🐛', bg: 'bg-surface-2 border-line-stronger text-fg-secondary' },
     ]
   }
 ];
@@ -53,14 +53,14 @@ export default function Sidebar({ onOpenWiki, onAddNode, onCloseMobile }) {
   };
 
   return (
-    <aside className="w-full md:w-64 bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 p-4 flex flex-col gap-3 overflow-y-auto h-full">
+    <aside className="w-full md:w-64 bg-surface border-l border-line p-4 flex flex-col gap-3 overflow-y-auto h-full">
       {/* Mobile Drawer Header */}
       {onCloseMobile && (
-        <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800 md:hidden">
-          <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">Tap to Add Node</span>
+        <div className="flex items-center justify-between pb-3 border-b border-line md:hidden">
+          <span className="font-semibold text-sm text-fg">Tap to Add Node</span>
           <button 
             onClick={onCloseMobile} 
-            className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-white border border-gray-300 dark:border-gray-700 active:scale-95"
+            className="p-1.5 rounded-lg bg-surface-2 text-fg-muted hover:text-fg border border-line-strong active:scale-95"
           >
             <X size={16} />
           </button>
@@ -77,7 +77,7 @@ export default function Sidebar({ onOpenWiki, onAddNode, onCloseMobile }) {
 
       {NODE_CATEGORIES.map(category => (
         <div key={category.title} className="flex flex-col gap-1.5">
-          <div className="text-gray-600 dark:text-gray-400 font-semibold text-xs uppercase tracking-wider mt-2 mb-1">
+          <div className="text-fg-muted font-semibold text-xs uppercase tracking-wider mt-2 mb-1">
             {category.title}
           </div>
           {category.items.map(item => {
@@ -96,11 +96,11 @@ export default function Sidebar({ onOpenWiki, onAddNode, onCloseMobile }) {
                 ) : (
                   <span className="font-bold text-sm shrink-0 w-4 text-center">{item.textIcon}</span>
                 )}
-                <span className="text-gray-800 dark:text-gray-200 font-medium text-xs sm:text-sm truncate flex-1">{item.label}</span>
-                <span className="md:hidden text-[10px] text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800/80 px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-700">Add</span>
+                <span className="text-fg font-medium text-xs sm:text-sm truncate flex-1">{item.label}</span>
+                <span className="md:hidden text-[10px] text-fg-muted bg-surface-2/80 px-1.5 py-0.5 rounded border border-line-strong">Add</span>
                 <button 
                   onClick={(e) => handleInfoClick(e, item.type)} 
-                  className="text-gray-600 dark:text-gray-400 hover:text-white sm:opacity-0 sm:group-hover:opacity-100 transition-all p-1 hover:bg-gray-100 dark:bg-gray-800 rounded shrink-0"
+                  className="text-fg-muted hover:text-fg sm:opacity-0 sm:group-hover:opacity-100 transition-all p-1 hover:bg-surface-2 rounded shrink-0"
                   title="View Wiki Info"
                 >
                   <Info size={15} />
@@ -111,7 +111,7 @@ export default function Sidebar({ onOpenWiki, onAddNode, onCloseMobile }) {
         </div>
       ))}
 
-      <div className="mt-auto text-[11px] text-gray-500 italic text-center p-3 border-t border-gray-200 dark:border-gray-800/60 shrink-0">
+      <div className="mt-auto text-[11px] text-fg-subtle italic text-center p-3 border-t border-line/60 shrink-0">
         <span className="hidden md:inline">Drag or tap node to add to canvas.</span>
         <span className="md:hidden">Tap any node to add to canvas.</span>
       </div>

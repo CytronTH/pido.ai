@@ -1,59 +1,135 @@
 @import "tailwindcss";
 
-@theme {
-  --color-gray-50: var(--app-gray-50);
-  --color-gray-100: var(--app-gray-100);
-  --color-gray-200: var(--app-gray-200);
-  --color-gray-300: var(--app-gray-300);
-  --color-gray-400: var(--app-gray-400);
-  --color-gray-500: var(--app-gray-500);
-  --color-gray-600: var(--app-gray-600);
-  --color-gray-700: var(--app-gray-700);
-  --color-gray-800: var(--app-gray-800);
-  --color-gray-900: var(--app-gray-900);
-  --color-gray-950: var(--app-gray-950);
-  --color-white: var(--app-white);
-  --color-black: var(--app-black);
+/* =========================================================================
+ * THEME SYSTEM — single source of truth for light/dark colors.
+ * Read frontend/docs/THEME_GUIDE.md before adding UI. Rules:
+ *   - Use semantic utilities (bg-surface, text-fg-muted, border-line, ...).
+ *   - Do NOT use gray-* / slate-* / white / black for UI chrome.
+ *   - Do NOT write `dark:` pairs for neutrals — tokens already switch.
+ * ========================================================================= */
+
+/* `dark:` follows the app toggle (.dark on <html>), not the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  /* Backgrounds (low -> high elevation in dark mode) */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+
+  /* Borders / dividers */
+  --color-line-subtle: var(--line-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-stronger: var(--line-stronger);
+
+  /* Foreground (text / icons) */
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-fg-inverse: var(--fg-inverse);
+
+  /* Brand & status */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  /* Data viz / canvas */
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
+  --color-overlay: var(--overlay);
+
+  /* Shadows (utilities: shadow-well, shadow-well-deep) */
+  --shadow-well: inset 0 0 40px var(--shadow-well-color);
+  --shadow-well-deep: inset 0 0 15px var(--shadow-well-deep-color);
 }
 
 :root {
-  /* LIGHT MODE (Inverted Gray Scale & High Contrast) */
-  --app-gray-950: #f8fafc;
-  --app-gray-900: #f1f5f9;
-  --app-gray-800: #e2e8f0;
-  --app-gray-700: #cbd5e1;
-  --app-gray-600: #94a3b8;
-  --app-gray-500: #64748b;
-  --app-gray-400: #475569;
-  --app-gray-300: #334155;
-  --app-gray-200: #1e293b;
-  --app-gray-100: #0f172a;
-  --app-gray-50:  #020617;
-  
-  --app-white: #0f172a; /* Make text-white become very dark gray in light mode */
-  --app-black: #ffffff; /* Make black backgrounds become white */
-  background-color: var(--color-gray-950);
-  color: var(--color-gray-100);
+  color-scheme: light;
+
+  --canvas: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+  --surface-4: #cbd5e1;
+
+  --line-subtle: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --line-stronger: #94a3b8;
+
+  --fg: #0f172a;
+  --fg-secondary: #334155;
+  --fg-muted: #475569;
+  --fg-subtle: #64748b;
+  --fg-faint: #94a3b8;
+  --fg-inverse: #f8fafc;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --on-primary: #ffffff;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #0284c7;
+
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --overlay: rgb(15 23 42 / 0.5);
+  --shadow-well-color: rgb(15 23 42 / 0.05);
+  --shadow-well-deep-color: rgb(15 23 42 / 0.2);
 }
 
 .dark {
-  /* DARK MODE (Standard Tailwind Gray Scale) */
-  --app-gray-950: #020617;
-  --app-gray-900: #0f172a;
-  --app-gray-800: #1e293b;
-  --app-gray-700: #334155;
-  --app-gray-600: #475569;
-  --app-gray-500: #64748b;
-  --app-gray-400: #94a3b8;
-  --app-gray-300: #cbd5e1;
-  --app-gray-200: #e2e8f0;
-  --app-gray-100: #f1f5f9;
-  --app-gray-50:  #f8fafc;
-  
-  --app-white: #ffffff;
-  --app-black: #000000;
-  background-color: var(--color-gray-950);
-  color: var(--color-gray-100);
+  color-scheme: dark;
+
+  --canvas: #020617;
+  --surface: #0f172a;
+  --surface-2: #1e293b;
+  --surface-3: #334155;
+  --surface-4: #475569;
+
+  --line-subtle: #0f172a;
+  --line: #1e293b;
+  --line-strong: #334155;
+  --line-stronger: #475569;
+
+  --fg: #f8fafc;
+  --fg-secondary: #cbd5e1;
+  --fg-muted: #94a3b8;
+  --fg-subtle: #64748b;
+  --fg-faint: #475569;
+  --fg-inverse: #0f172a;
+
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --on-primary: #ffffff;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #38bdf8;
+
+  --chart-grid: #1e293b;
+  --chart-axis: #94a3b8;
+  --overlay: rgb(0 0 0 / 0.6);
+  --shadow-well-color: rgb(0 0 0 / 0.5);
+  --shadow-well-deep-color: rgb(0 0 0 / 1);
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--canvas);
+    color: var(--fg);
+  }
 }
 
 /* Base styling for canvas overlay to ensure it sits above video */
@@ -83,8 +159,8 @@
   bottom: 5px;
   width: 12px;
   height: 12px;
-  border-right: 3px solid rgba(255, 255, 255, 0.4);
-  border-bottom: 3px solid rgba(255, 255, 255, 0.4);
+  border-right: 3px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  border-bottom: 3px solid color-mix(in srgb, var(--fg) 40%, transparent);
   border-radius: 2px;
 }
 
@@ -142,7 +218,7 @@
   height: 14px;
   border-radius: 50%;
   background-color: #3b82f6;
-  border: 2px solid #1e293b;
+  border: 2px solid var(--surface);
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.3);
   z-index: 9999;
   pointer-events: none;

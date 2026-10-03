@@ -13,6 +13,7 @@ import NodeSuggestionMenu from './NodeSuggestionMenu';
 import ProjectRevisionsModal from '../ProjectRevisionsModal';
 
 import { nodeTypes, edgeTypes } from './nodeTypes';
+import { useResolvedTheme } from '../../utils/theme';
 
 const DEFAULT_NODE_NAMES = {
   inputNode: 'Input Source',
@@ -42,6 +43,7 @@ const getId = () => `dndnode_${Date.now()}_${id++}`;
 
 export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
   const reactFlowWrapper = useRef(null);
+  const resolvedTheme = useResolvedTheme();
   const [reactFlowInstance, setReactFlowInstance] = React.useState(null);
   const [isSelectMode, setIsSelectMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -522,10 +524,10 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
   }, [edges]);
 
   return (
-    <div className="flex h-full bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl animate-in fade-in duration-500 relative">
+    <div className="flex h-full bg-canvas rounded-xl overflow-hidden border border-line shadow-2xl animate-in fade-in duration-500 relative">
       <ReactFlowProvider>
         {/* Desktop Collapsible Sidebar Container (Moved to Left) */}
-        <div className={`hidden md:flex transition-all duration-300 ease-in-out overflow-hidden shrink-0 border-r border-gray-200 dark:border-gray-800 ${isSidebarOpen ? 'w-64' : 'w-0'}`}>
+        <div className={`hidden md:flex transition-all duration-300 ease-in-out overflow-hidden shrink-0 border-r border-line ${isSidebarOpen ? 'w-64' : 'w-0'}`}>
           <div className="w-64 shrink-0 flex h-full">
             <Sidebar onOpenWiki={onOpenWiki} onAddNode={handleTapAddNode} />
           </div>
@@ -555,38 +557,38 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           </button>
 
           {/* Floating Dock (Controls) */}
-          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 sm:gap-3 bg-gray-100/90 dark:bg-gray-900/90 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md border border-gray-300 dark:border-gray-700 shadow-2xl max-w-[95vw]">
-            <div className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-1 rounded-xl flex shadow-inner">
+          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 sm:gap-3 bg-surface/90 p-1.5 sm:p-2 rounded-2xl backdrop-blur-md border border-line-strong shadow-2xl max-w-[95vw]">
+            <div className="bg-surface-2 border border-line-strong p-1 rounded-xl flex shadow-inner">
               <button 
                 onClick={() => setIsSelectMode(false)}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all ${!isSelectMode ? 'bg-gray-300 dark:bg-gray-700 text-white shadow' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all ${!isSelectMode ? 'bg-surface-3 text-fg shadow' : 'text-fg-muted hover:text-fg'}`}
                 title="Pan Tool (Hand)"
               >
                 <Hand size={18} className="sm:w-5 sm:h-5" />
               </button>
               <button 
                 onClick={() => setIsSelectMode(true)}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all ${isSelectMode ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all ${isSelectMode ? 'bg-blue-600 text-white shadow' : 'text-fg-muted hover:text-fg'}`}
                 title="Select Tool (Cursor)"
               >
                 <MousePointer2 size={18} className="sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div className="w-px h-6 sm:h-8 bg-gray-300 dark:bg-gray-700"></div>
+            <div className="w-px h-6 sm:h-8 bg-surface-3"></div>
 
             {/* View Mode Toggle */}
-            <div className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 p-1 rounded-xl flex shadow-inner">
+            <div className="bg-surface-2 border border-line-strong p-1 rounded-xl flex shadow-inner">
               <button 
                 onClick={() => setPipelineViewMode('inline')}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all text-xs font-semibold flex items-center gap-1 ${pipelineViewMode === 'inline' ? 'bg-gray-300 dark:bg-gray-700 text-white shadow' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all text-xs font-semibold flex items-center gap-1 ${pipelineViewMode === 'inline' ? 'bg-surface-3 text-fg shadow' : 'text-fg-muted hover:text-fg'}`}
                 title="Inline View: Show settings on the nodes"
               >
                 <span className="hidden md:inline">Inline</span>
               </button>
               <button 
                 onClick={() => setPipelineViewMode('compact')}
-                className={`p-1.5 sm:p-2 rounded-lg transition-all text-xs font-semibold flex items-center gap-1 ${pipelineViewMode === 'compact' ? 'bg-gray-300 dark:bg-gray-700 text-white shadow' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all text-xs font-semibold flex items-center gap-1 ${pipelineViewMode === 'compact' ? 'bg-surface-3 text-fg shadow' : 'text-fg-muted hover:text-fg'}`}
                 title="Compact View: Settings in sidebar"
               >
                 <span className="hidden md:inline">Sidebar</span>
@@ -596,13 +598,13 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             {/* Layout Auto-Save Indicator */}
             {autoSaveStatus !== 'idle' && (
               <div 
-                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-gray-200/80 dark:bg-gray-800/80 border border-gray-300/80 dark:border-gray-700/80 animate-in fade-in zoom-in-95 duration-150"
+                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-surface-2/80 border border-line-strong/80 animate-in fade-in zoom-in-95 duration-150"
                 title={autoSaveStatus === 'saving' ? 'Auto-saving node layout...' : 'Layout saved to device'}
               >
                 {autoSaveStatus === 'saving' ? (
                   <>
                     <Loader2 size={13} className="animate-spin text-blue-400" />
-                    <span className="hidden xl:inline text-gray-600 font-medium dark:text-gray-400">Saving...</span>
+                    <span className="hidden xl:inline font-medium text-fg-muted">Saving...</span>
                   </>
                 ) : (
                   <>
@@ -613,7 +615,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               </div>
             )}
 
-            <div className="w-px h-6 sm:h-8 bg-gray-300 dark:bg-gray-700"></div>
+            <div className="w-px h-6 sm:h-8 bg-surface-3"></div>
 
             {/* Toggle Live Telemetry Overlay */}
             <button
@@ -621,7 +623,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               className={`p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all ${
                 showMetricsOverlay 
                   ? 'bg-purple-950/80 border border-purple-600 text-purple-300 shadow-md shadow-purple-950/40' 
-                  : 'bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  : 'bg-surface-2 border border-line-strong text-fg-muted hover:text-fg'
               }`}
               title="Toggle Live CPU & NPU Performance Overlay on Nodes"
             >
@@ -635,7 +637,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               className={`p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition-all ${
                 advancedDebugMode 
                   ? 'bg-blue-950/80 border border-blue-600 text-blue-300 shadow-md shadow-blue-950/40' 
-                  : 'bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  : 'bg-surface-2 border border-line-strong text-fg-muted hover:text-fg'
               }`}
               title="Toggle Advanced Debug Mode (Show payloads on edges)"
             >
@@ -646,7 +648,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             {/* Auto-Layout (Beautify) */}
             <button
               onClick={beautifyPipeline}
-              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 hover:text-white hover:bg-gray-750 transition-all active:scale-95 dark:text-gray-300"
+              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
               title="Auto-Layout Nodes (Beautify)"
             >
               <Wand2 size={16} className="text-fuchsia-400" />
@@ -656,7 +658,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             {/* Export Project Quick Action */}
             <button
               onClick={() => setIsExportModalOpen(true)}
-              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 hover:text-white hover:bg-gray-750 transition-all active:scale-95 dark:text-gray-300"
+              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
               title="Export / Backup this Project"
             >
               <Download size={16} className="text-blue-400" />
@@ -666,14 +668,14 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             {/* Revisions / History Button */}
             <button
               onClick={() => setIsRevisionsModalOpen(true)}
-              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 hover:text-white hover:bg-gray-750 transition-all active:scale-95 dark:text-gray-300"
+              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
               title="Version History / Restore"
             >
               <History size={16} className="text-amber-400" />
               <span className="hidden md:inline">History</span>
             </button>
 
-            <div className="w-px h-6 sm:h-8 bg-gray-300 dark:bg-gray-700"></div>
+            <div className="w-px h-6 sm:h-8 bg-surface-3"></div>
 
             {/* Split Deploy Button (Node-RED Style) */}
             <div className="relative flex items-stretch" ref={deployMenuRef}>
@@ -682,9 +684,9 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                 disabled={isDeploying || dirtyNodeIds.length === 0}
                 className={`flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-l-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shadow-lg ${
                   dirtyNodeIds.length > 0 && !isDeploying
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-900/50 active:scale-95 cursor-pointer'
-                    : 'bg-gray-200/80 dark:bg-gray-800/80 text-gray-500 border-y border-l border-gray-300/60 dark:border-gray-700/60 cursor-not-allowed opacity-50 shadow-none'
-                } dark:text-gray-500`}
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-fg-subtle shadow-green-900/50 active:scale-95 cursor-pointer'
+                    : 'bg-surface-2/80 text-fg-subtle border-y border-l border-line-strong/60 cursor-not-allowed opacity-50 shadow-none'
+                }`}
                 title={
                   dirtyNodeIds.length === 0
                     ? 'No modified nodes to deploy'
@@ -692,13 +694,13 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                 }
               >
                 {isDeploying ? (
-                  <Loader2 size={16} className="animate-spin text-gray-900 dark:text-white" />
+                  <Loader2 size={16} className="animate-spin text-fg" />
                 ) : deployMode === 'modified_nodes' ? (
-                  <Zap size={16} className={dirtyNodeIds.length > 0 ? "fill-current text-white" : "text-gray-500 dark:text-gray-500"} />
+                  <Zap size={16} className={dirtyNodeIds.length > 0 ? "fill-current text-fg" : "text-fg-subtle"} />
                 ) : deployMode === 'modified_flows' ? (
-                  <RefreshCw size={16} className={dirtyNodeIds.length > 0 ? "text-amber-400" : "text-gray-500 dark:text-gray-500"} />
+                  <RefreshCw size={16} className={dirtyNodeIds.length > 0 ? "text-amber-400" : "text-fg-subtle"} />
                 ) : (
-                  <Play size={16} fill="currentColor" className={dirtyNodeIds.length > 0 ? "" : "text-gray-500 dark:text-gray-500"} />
+                  <Play size={16} fill="currentColor" className={dirtyNodeIds.length > 0 ? "" : "text-fg-subtle"} />
                 )}
                 <span>
                   {isDeploying ? 'Deploying...' : dirtyNodeIds.length > 0 ? `Deploy (${dirtyNodeIds.length})` : 'Deploy'}
@@ -712,8 +714,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                 className={`px-2 py-2 sm:py-2.5 rounded-r-xl border-l transition-all ${
                   dirtyNodeIds.length > 0 && !isDeploying
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-700/50 cursor-pointer'
-                    : 'bg-gray-200/80 dark:bg-gray-800/80 text-gray-500 border-t border-b border-r border-l border-gray-300/60 dark:border-gray-700/60 cursor-not-allowed opacity-50 shadow-none'
-                } dark:text-gray-500`}
+                    : 'bg-surface-2/80 text-fg-subtle border-t border-b border-r border-l border-line-strong/60 cursor-not-allowed opacity-50 shadow-none'
+                }`}
                 title={dirtyNodeIds.length === 0 ? "No modified nodes to deploy" : "Choose Deploy Mode (Node-RED Style)"}
               >
                 <ChevronDown size={14} className={`transition-transform duration-200 ${deployMenuOpen ? 'rotate-180' : ''}`} />
@@ -722,9 +724,9 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
               {/* Dropdown Popup */}
               {deployMenuOpen && dirtyNodeIds.length > 0 && (
                 <div 
-                  className="absolute bottom-full mb-2 right-0 w-72 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+                  className="absolute bottom-full mb-2 right-0 w-72 bg-surface border border-line-strong rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
                 >
-                  <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-3 py-1.5 border-b border-gray-200 dark:border-gray-800 mb-1 dark:text-gray-400">
+                  <div className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 border-b border-line mb-1 text-fg-muted">
                     Deploy Options
                   </div>
 
@@ -736,8 +738,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2.5 transition-all ${
                       deployMode === 'modified_nodes' 
-                        ? 'bg-emerald-950/70 border border-emerald-600/50 text-white' 
-                        : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        ? 'bg-emerald-950/70 border border-emerald-600/50 text-fg' 
+                        : 'hover:bg-surface-2 text-fg-secondary'
                     }`}
                   >
                     <Zap size={16} className="text-emerald-400 mt-0.5 shrink-0" />
@@ -746,7 +748,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                         <span>Modified Nodes</span>
                         {deployMode === 'modified_nodes' && <Check size={14} className="text-emerald-400" />}
                       </div>
-                      <div className="text-[11px] text-gray-600 leading-tight mt-0.5 dark:text-gray-400">
+                      <div className="text-[11px] leading-tight mt-0.5 text-fg-muted">
                         Hot-reload changed logic & AI params (Zero video downtime)
                       </div>
                     </div>
@@ -760,8 +762,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2.5 transition-all mt-1 ${
                       deployMode === 'modified_flows' 
-                        ? 'bg-amber-950/70 border border-amber-600/50 text-white' 
-                        : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        ? 'bg-amber-950/70 border border-amber-600/50 text-fg' 
+                        : 'hover:bg-surface-2 text-fg-secondary'
                     }`}
                   >
                     <RefreshCw size={16} className="text-amber-400 mt-0.5 shrink-0" />
@@ -770,7 +772,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                         <span>Modified Flows</span>
                         {deployMode === 'modified_flows' && <Check size={14} className="text-amber-400" />}
                       </div>
-                      <div className="text-[11px] text-gray-600 leading-tight mt-0.5 dark:text-gray-400">
+                      <div className="text-[11px] leading-tight mt-0.5 text-fg-muted">
                         Restart only changed camera stream flows
                       </div>
                     </div>
@@ -784,8 +786,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2.5 transition-all mt-1 ${
                       deployMode === 'full' 
-                        ? 'bg-rose-950/70 border border-rose-600/50 text-white' 
-                        : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        ? 'bg-rose-950/70 border border-rose-600/50 text-fg' 
+                        : 'hover:bg-surface-2 text-fg-secondary'
                     }`}
                   >
                     <Play size={16} className="text-rose-400 mt-0.5 shrink-0" />
@@ -794,7 +796,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                         <span>Full Deploy</span>
                         {deployMode === 'full' && <Check size={14} className="text-rose-400" />}
                       </div>
-                      <div className="text-[11px] text-gray-600 leading-tight mt-0.5 dark:text-gray-400">
+                      <div className="text-[11px] leading-tight mt-0.5 text-fg-muted">
                         Full restart of GStreamer & NPU engines
                       </div>
                     </div>
@@ -806,10 +808,10 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
           {/* Floating multi-node selection pill with quick delete */}
           {selectedNodesCount > 1 && (
-            <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-gray-100/95 dark:bg-gray-900/95 border border-blue-500/70 text-blue-200 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-surface/95 border border-blue-500/70 text-blue-200 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
               <span><strong>{selectedNodesCount}</strong> nodes selected</span>
-              <span className="text-gray-400 dark:text-gray-600">•</span>
+              <span className="text-fg-faint">•</span>
               <button
                 onClick={() => {
                   const selectedIds = nodes.filter(n => n.selected && !n.data?.isTutorialMock).map(n => n.id);
@@ -825,6 +827,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           )}
 
           <ReactFlow
+            colorMode={resolvedTheme}
             nodes={styledNodes}
             edges={mainEdges}
             onNodesChange={onNodesChange}
@@ -861,14 +864,14 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             onlyRenderVisibleElements={false}
             fitView
             minZoom={0.05}
-            className="bg-gray-100 dark:bg-gray-900"
+            className="bg-surface"
           >
-            <Background color="#374151" gap={16} />
-            <Controls className="bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-700 fill-white text-gray-900 dark:text-white" />
+            <Background color="var(--line-strong)" gap={16} />
+            <Controls className="bg-surface-2 border-line-strong fill-fg text-fg" />
             <MiniMap 
               nodeColor="#3b82f6" 
-              maskColor="rgba(17, 24, 39, 0.7)"
-              className="hidden sm:block bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-700" 
+              maskColor="color-mix(in srgb, var(--canvas) 70%, transparent)"
+              className="hidden sm:block bg-surface-2 border-line-strong" 
             />
           </ReactFlow>
           
@@ -887,7 +890,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           {/* Desktop Sidebar Toggle Button (Moved to Left) */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="hidden md:flex absolute top-4 left-4 z-20 bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors dark:text-white"
+            className="hidden md:flex absolute top-4 left-4 z-20 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-colors text-fg"
             title="Toggle Node Palette"
           >
             {isSidebarOpen ? <ChevronLeft size={20} /> : <Network size={20} />}
@@ -896,7 +899,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           {/* Desktop Debug Panel Toggle Button */}
           <button
             onClick={() => setIsDebugPanelOpen(!isDebugPanelOpen)}
-            className="hidden md:flex absolute top-4 right-4 z-20 bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors dark:text-white"
+            className="hidden md:flex absolute top-4 right-4 z-20 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-colors text-fg"
             title="Toggle Debug Panel"
           >
             {isDebugPanelOpen ? <ChevronRight size={20} /> : <Terminal size={20} className={nodes.some(n => n.type === 'debugNode' && n.data?.outputType === 'text') ? 'text-purple-400' : ''} />}
@@ -922,7 +925,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             onClick={() => setIsMobilePaletteOpen(false)}
           >
             <div 
-              className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-gray-100 dark:bg-gray-900 shadow-2xl flex flex-col animate-in slide-in-from-left duration-200"
+              className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-surface shadow-2xl flex flex-col animate-in slide-in-from-left duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               <Sidebar 

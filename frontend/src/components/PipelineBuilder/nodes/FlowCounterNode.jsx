@@ -102,7 +102,7 @@ export default function FlowCounterNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-gray-900 border-2 border-teal-500 rounded-xl shadow-lg shadow-teal-900/20 ${isCompact ? 'w-48' : 'w-72'} text-white flex flex-col`}>
+    <div className={`bg-surface border-2 border-teal-500 rounded-xl shadow-lg shadow-teal-900/20 ${isCompact ? 'w-48' : 'w-72'} text-fg flex flex-col`}>
       <div className="bg-teal-500/20 p-3 flex items-center justify-between border-b border-teal-800/50">
         <div className="flex items-center gap-2.5">
           <div className="bg-teal-600 p-1.5 rounded-lg text-white">
@@ -118,11 +118,11 @@ export default function FlowCounterNode({ id, data }) {
 
       <div className={`p-3.5 flex flex-col gap-2.5 ${isCompact ? 'hidden' : ''}`}>
         {/* Node Label */}
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Node Label
           <input
             type="text"
-            className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-teal-500 nodrag"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-teal-500 nodrag"
             value={data?.label || ''}
             onChange={handleLabelChange}
             placeholder="e.g. Conveyor Counter"
@@ -131,10 +131,10 @@ export default function FlowCounterNode({ id, data }) {
 
         {/* Trigger Mode */}
         <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs text-gray-400 flex flex-col gap-1">
+          <label className="text-xs text-fg-muted flex flex-col gap-1">
             Trigger Mode
             <select
-              className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag"
               value={data?.mode || 'roi'}
               onChange={handleModeChange}
             >
@@ -146,7 +146,7 @@ export default function FlowCounterNode({ id, data }) {
           <div className="flex flex-col justify-end">
             <button
               onClick={() => setShowROIEditor(true)}
-              className="bg-gray-800 hover:bg-gray-700 text-teal-300 border border-teal-600/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors nodrag"
+              className="bg-surface-2 hover:bg-surface-3 text-teal-300 border border-teal-600/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors nodrag"
               title="Configure Zone coordinates"
             >
               <Crosshair size={13} /> Edit Zone
@@ -155,11 +155,11 @@ export default function FlowCounterNode({ id, data }) {
         </div>
 
         {/* Target Classes Filter */}
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Target Classes (Comma-separated, blank for all)
           <input
             type="text"
-            className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag placeholder:text-gray-600"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-xs focus:outline-none focus:border-teal-500 nodrag placeholder:text-fg-faint"
             value={data?.classFilterRaw !== undefined ? data.classFilterRaw : (data?.classFilter || []).join(', ')}
             onChange={handleClassFilterChange}
             placeholder="e.g. person, car, box_a"
@@ -167,7 +167,7 @@ export default function FlowCounterNode({ id, data }) {
         </label>
 
         {/* Auto Log Toggle */}
-        <div className="flex items-center justify-between bg-gray-950/80 px-2.5 py-1.5 rounded border border-gray-800 text-xs text-gray-300">
+        <div className="flex items-center justify-between bg-canvas/80 px-2.5 py-1.5 rounded border border-line text-xs text-fg-secondary">
           <div className="flex items-center gap-1.5">
             <Database size={13} className="text-teal-400" />
             <span>Auto-Save to DB</span>
@@ -176,19 +176,19 @@ export default function FlowCounterNode({ id, data }) {
             type="checkbox"
             checked={data?.autoLog ?? true}
             onChange={handleAutoLogChange}
-            className="rounded bg-gray-800 border-gray-700 text-teal-500 focus:ring-0 nodrag cursor-pointer"
+            className="rounded bg-surface-2 border-line-strong text-teal-500 focus:ring-0 nodrag cursor-pointer"
           />
         </div>
 
         {/* Live Counters Display & Reset */}
-        <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs text-gray-400">
+        <div className="bg-canvas p-2.5 rounded-lg border border-line flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-xs text-fg-muted">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Current Total:</span>
             <div className="flex items-center gap-2">
               <span className="text-teal-300 font-bold text-sm">{liveTotal}</span>
               <button
                 onClick={handleReset}
-                className="text-gray-400 hover:text-red-400 p-0.5 rounded transition-colors nodrag"
+                className="text-fg-muted hover:text-red-400 p-0.5 rounded transition-colors nodrag"
                 title="Reset Counters"
               >
                 <RotateCcw size={12} />
@@ -201,18 +201,18 @@ export default function FlowCounterNode({ id, data }) {
               {Object.entries(liveCounts).map(([cls, cnt]) => (
                 <span key={cls} className="text-[10px] bg-teal-950/60 border border-teal-800/60 text-teal-200 px-1.5 py-0.5 rounded flex items-center gap-1">
                   <span>{cls}:</span>
-                  <span className="font-bold text-white">{cnt}</span>
+                  <span className="font-bold text-fg">{cnt}</span>
                 </span>
               ))}
             </div>
           ) : (
-            <div className="text-[10px] text-gray-600 italic">Ready for streaming detections</div>
+            <div className="text-[10px] text-fg-faint italic">Ready for streaming detections</div>
           )}
         </div>
       </div>
 
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-teal-400 border-2 border-gray-900" />
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-teal-400 border-2 border-gray-900" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-teal-400 border-2 border-line-subtle" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-teal-400 border-2 border-line-subtle" />
 
       {/* ROI / Zone Editor Modal */}
       {showROIEditor && (

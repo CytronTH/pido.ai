@@ -110,25 +110,25 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
         }
       `}</style>
       <div 
-        className={`absolute top-0 right-0 h-full w-80 sm:w-96 bg-gray-100 dark:bg-gray-900 border-l border-gray-300 dark:border-gray-700 shadow-2xl z-50 flex flex-col ${isOpen ? 'custom-animate-slide-in' : 'custom-animate-slide-out'}`}
+        className={`absolute top-0 right-0 h-full w-80 sm:w-96 bg-surface border-l border-line-strong shadow-2xl z-50 flex flex-col ${isOpen ? 'custom-animate-slide-in' : 'custom-animate-slide-out'}`}
         onAnimationEnd={onAnimationEnd}
       >
         {/* Header */}
-      <div className="flex items-start justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
+      <div className="flex items-start justify-between p-4 border-b border-line bg-canvas">
         <div className="flex-1 mr-4">
           <div className="flex flex-col gap-1 mb-2">
-            <label className="text-xs text-gray-500 font-bold uppercase tracking-wider dark:text-gray-500">Node Name</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-fg-subtle">Node Name</label>
             <input
               type="text"
               value={draftData.label !== undefined ? draftData.label : ''}
               placeholder={selectedNode.type}
               onChange={(e) => handleDataChange({ label: e.target.value })}
-              className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:border-blue-500 text-sm font-semibold text-gray-900 rounded px-2.5 py-1.5 w-full outline-none transition-colors dark:text-gray-100"
+              className="bg-surface-2 border border-line-strong focus:border-blue-500 text-sm font-semibold rounded px-2.5 py-1.5 w-full outline-none transition-colors text-fg"
             />
           </div>
-          <p className="text-[10px] text-gray-500 font-mono dark:text-gray-500">ID: {selectedNode.id}</p>
+          <p className="text-[10px] font-mono text-fg-subtle">ID: {selectedNode.id}</p>
         </div>
-        <button onClick={onClose} className="p-1.5 text-gray-600 hover:text-white rounded-md hover:bg-gray-200 dark:hover:bg-gray-100 dark:bg-gray-800 transition-colors shrink-0 dark:text-gray-400">
+        <button onClick={onClose} className="p-1.5 hover:text-fg rounded-md hover:bg-surface-2 transition-colors shrink-0 text-fg-muted">
           <X size={18} />
         </button>
       </div>
@@ -143,22 +143,22 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
             isSidebar={true}
           />
         ) : (
-          <div className="text-center text-gray-500 py-10 flex flex-col items-center dark:text-gray-500">
-            <div className="mb-3 p-3 bg-gray-200 dark:bg-gray-800 rounded-full">
-              <X size={24} className="text-gray-600 dark:text-gray-400 dark:text-gray-600" />
+          <div className="text-center py-10 flex flex-col items-center text-fg-subtle">
+            <div className="mb-3 p-3 bg-surface-2 rounded-full">
+              <X size={24} className="text-fg-faint" />
             </div>
-            <p className="text-sm">No dedicated settings panel available for <br/> <span className="text-gray-700 font-mono dark:text-gray-300">{selectedNode.type}</span></p>
-            <p className="text-xs mt-2 text-gray-600 dark:text-gray-400 dark:text-gray-600">Please switch to Inline view to edit.</p>
+            <p className="text-sm">No dedicated settings panel available for <br/> <span className="font-mono text-fg-secondary">{selectedNode.type}</span></p>
+            <p className="text-xs mt-2 text-fg-faint">Please switch to Inline view to edit.</p>
           </div>
         )}
       </div>
 
       {/* Footer / Actions */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 flex gap-2">
+      <div className="p-4 border-t border-line bg-canvas flex gap-2">
         <button 
           onClick={handleUndo}
           disabled={!isDirty}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-gray-200 dark:bg-gray-800 text-gray-700 hover:bg-gray-300 dark:hover:bg-gray-700' : 'bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-600 cursor-not-allowed'}`}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-surface-2 text-fg-faint hover:bg-surface-3' : 'bg-surface text-fg-faint cursor-not-allowed'}`}
         >
           <Undo size={16} /> Undo
         </button>
