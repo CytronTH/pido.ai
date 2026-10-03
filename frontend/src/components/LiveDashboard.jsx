@@ -34,7 +34,7 @@ const WIDGET_TYPES = [
   { type: 'radialDonut', label: '🍩 Radial Donut', minW: 2, minH: 2 },
   { type: 'capacityBar', label: '🔋 Capacity Bar', minW: 2, minH: 2 },
   { type: 'targetTracker', label: '🎯 Target Tracker', minW: 3, minH: 3 },
-  { type: 'metric', label: '🔢 Metric (Number)', minW: 2, minH: 2 },
+  { type: 'metric', label: '🔢 Number', minW: 2, minH: 2 },
   { type: 'text', label: '📝 Text Value', minW: 2, minH: 2 },
   { type: 'textFeed', label: '📋 Log Feed', minW: 2, minH: 2 },
   { type: 'chart', label: '📈 Line Chart', minW: 2, minH: 2 },

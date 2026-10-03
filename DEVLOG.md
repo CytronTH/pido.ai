@@ -25,6 +25,22 @@
 - 
 -->
 
+## [2026-10-04] - พัฒนาฟีเจอร์ Number Widget (อัปเกรดจาก Metric) บน Dashboard
+
+### 🎯 เป้าหมาย (Goals)
+- [x] เปลี่ยนชื่อ Metric Widget เป็น Number เพื่อความเข้าใจง่ายสำหรับผู้ใช้ใหม่
+- [x] เพิ่มฟีเจอร์เลือกตำแหน่งของ Unit Suffix / Label (ต่อหลังตัวเลข หรือ อยู่ใต้ตัวเลข)
+- [x] ปรับช่องไฟตัวอักษรของ Unit Suffix / Label ไม่ให้ติดกันเกินไป (`tracking-wider`)
+- [x] ใส่เครื่องหมายจุลภาค (Comma `,`) คั่นหลักพันให้อัตโนมัติ
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **เปลี่ยนชื่อเป็น Number:** เปลี่ยน Label ใน `LiveDashboard.jsx` เป็น `🔢 Number` และอัปเดตชื่อใน Header และ Setting Modal
+- **ฟีเจอร์ Unit Position:** เพิ่มตัวเลือก `unitPosition` ใน `WidgetSettingsModal.jsx` เลือกระหว่าง "ต่อหลังตัวเลข (Behind / Inline)" หรือ "อยู่ใต้ตัวเลข (Below Number)"
+- **แก้ปัญหาตัวอักษร Unit ชิดกัน:** เพิ่ม `tracking-wider font-semibold ml-2.5` ให้ตัวอักษร Unit มีช่องไฟสวยงาม ชัดเจน ไม่โดน tracking-tighter ของตัวเลขดึง
+- **ใส่ Comma คั่นหลักพันอัตโนมัติ:** ใช้ฟังก์ชัน `formatWithCommas` แยกส่วนหน้าจุดทศนิยมและคั่นหลักพันด้วย regex `/\B(?=(\d{3})+(?!\d))/g` สวยงามและแม่นยำ
+
+---
+
 ## [2026-10-04] - แก้บั๊ก Dashboard Widgets (Data Source Binding N/A, Video Widget Data Path ผีหลอก, และ ROI / AI FPS Overlay หาย)
 
 ### 🎯 เป้าหมาย (Goals)

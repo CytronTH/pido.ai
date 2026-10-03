@@ -89,6 +89,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         thresholdCondition: widgetItem.config.thresholdCondition || '>',
         iconName: widgetItem.config.iconName || 'Activity',
         decimals: widgetItem.config.decimals !== undefined ? widgetItem.config.decimals : '',
+        unitPosition: widgetItem.config.unitPosition || 'inline',
         timeframe: widgetItem.config.timeframe || '5m',
         lockTimeframe: widgetItem.config.lockTimeframe || false,
         yMin: widgetItem.config.yMin || '',
@@ -273,7 +274,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
             </div>
             <div>
               <h3 className="font-bold text-fg text-lg leading-tight">Widget Settings</h3>
-              <p className="text-xs text-fg-muted">Configure "{widgetItem.type}" widget properties</p>
+              <p className="text-xs text-fg-muted">Configure "{widgetItem?.type === 'metric' ? 'Number' : widgetItem?.type}" widget properties</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-full transition-colors">
@@ -431,6 +432,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       placeholder="e.g. %, kg, pcs"
                     />
                   </div>
+                  {widgetItem?.type === 'metric' && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Position</label>
+                      <select
+                        name="unitPosition"
+                        value={formData.unitPosition || 'inline'}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                      >
+                        <option value="inline">ต่อหลังตัวเลข (Behind / Inline)</option>
+                        <option value="below">อยู่ใต้ตัวเลข (Below Number)</option>
+                      </select>
+                    </div>
+                  )}
                   {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) && (
                     <div>
                       <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
