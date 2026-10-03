@@ -396,11 +396,15 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
                     >
                       <option value="">-- Select Data Source --</option>
+                      {formData.dataPath && !filteredSources.some(ds => ds.id === formData.dataPath) && (
+                        <option value={formData.dataPath}>⚠️ Deleted Source ({formData.dataPath})</option>
+                      )}
                       {filteredSources.map(ds => {
-                        const val = getNestedValue(metadata, ds.id);
-                        const displayVal = formatDisplayVal(val);
+                        const isVideo = ds.dataType === 'video' || widgetItem?.type === 'video';
+                        const val = isVideo ? null : getNestedValue(metadata, ds.id);
+                        const displayVal = isVideo ? '' : ` [${formatDisplayVal(val)}]`;
                         return (
-                          <option key={ds.id} value={ds.id}>{ds.name} [{displayVal}]</option>
+                          <option key={ds.id} value={ds.id}>{ds.name}{displayVal}</option>
                         );
                       })}
                     </select>
@@ -414,33 +418,35 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
-                  <input 
-                    type="text" 
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                    placeholder="e.g. %, kg, pcs"
-                  />
-                </div>
-                {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem.type) && (
+              {['metric', 'gauge', 'capacityBar', 'radialDonut', 'text', 'targetTracker'].includes(widgetItem?.type) && (
+                <div className={['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) ? "grid grid-cols-2 gap-4" : "w-full"}>
                   <div>
-                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
                     <input 
-                      type="number" 
-                      name="decimals"
-                      value={formData.decimals}
+                      type="text" 
+                      name="unit"
+                      value={formData.unit}
                       onChange={handleChange}
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                      placeholder="e.g. 0, 1, 2"
-                      min="0" max="10"
+                      placeholder="e.g. %, kg, pcs"
                     />
                   </div>
-                )}
-              </div>
+                  {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
+                      <input 
+                        type="number" 
+                        name="decimals"
+                        value={formData.decimals}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
+                        placeholder="e.g. 0, 1, 2"
+                        min="0" max="10"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

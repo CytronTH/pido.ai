@@ -44,6 +44,15 @@
   - เพิ่ม Event Listener `ai_metadata` ใน `VideoWidget.jsx` อัปเดต `latestMetadataRef` แบบ zero-copy ไม่กระตุก React
   - แก้ไขใน `backend/ai_engine/hailo_worker.py` ให้แนบ `metadata["roi"]` เสมอเมื่อมีการเปิดใช้งาน ROI (`roi_enabled` หรือ `show_roi`)
   - วาด ROI Zone (กรอบเส้นประสีส้มพร้อมป้าย ROI ZONE), AI FPS สีเขียว/เหลือง/แดงที่มุมขวาบน และ Bounding Box บน Canvas ได้อย่างสมบูรณ์
+- **บั๊ก Video Widget showTitle ปิดแล้วไม่หาย:**
+  - เดิมใน `VideoWidget.jsx` แสดง icon กล้องและ title text เสมอโดยไม่ได้เช็ค `config?.showTitle`
+  - ครอบด้วย `{config?.showTitle !== false && (...)}` ซ่อน title และ icon กล้องอย่างถูกต้องเมื่อผู้ใช้ปิด Show Title ใน settings
+- **ปรับปรุง Data Source Dropdown สำหรับ Video:**
+  - วิดีโอสตรีมไม่มีค่าตัวเลขแบบ realtime ค่า `[${displayVal}]` จึงแสดงเป็น `[N/A]` หรือค่าว่างซึ่งทำให้สับสน
+  - ปรับใน `WidgetSettingsModal.jsx` ไม่ให้แสดงวงเล็บค่า realtime สำหรับ source ที่เป็น `video` แสดงเฉพาะชื่อ data path สะอาดตา
+- **ซ่อนช่อง Unit Suffix / Label สำหรับ Widget ที่ไม่ใช้ Unit:**
+  - เดิมแสดงช่อง Unit Suffix / Label สำหรับ widget ทุกชนิด ทำให้ตอนแก้ไข Video Widget มีช่องหน่วยโผล่มา
+  - จำกัดให้แสดงเฉพาะ Widget ที่รองรับการใส่หน่วย (`metric`, `gauge`, `capacityBar`, `radialDonut`, `text`, `targetTracker`) และซ่อนใน Video Widget และ widget อื่นๆ ที่ไม่เกี่ยวข้อง
 - **Widget Props อื่นๆ:** เชื่อมต่อ props `value`, `unit`, `config` ให้ `GaugeWidget`, `TrafficLightWidget`, `RadialDonutWidget`, `CapacityBarWidget`, `TargetTrackerWidget`, และ `MetricWidget` บน `LiveDashboard.jsx`
 - ทดสอบ build ด้วย Vite ผ่านฉลุย 100% และ oxlint 0 errors
 

@@ -371,10 +371,14 @@ export default function VideoWidget({ metadata, projectId, config, dataSources =
       {/* Header */}
       <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Camera size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="text-xs sm:text-sm font-semibold text-fg truncate">
-            {config?.title || 'Live Video Stream'}
-          </span>
+          {config?.showTitle !== false && (
+            <>
+              <Camera size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="text-xs sm:text-sm font-semibold text-fg truncate">
+                {config?.title || 'Live Video Stream'}
+              </span>
+            </>
+          )}
           <span
             className="inline-block w-2 h-2 rounded-full shrink-0"
             style={{ background: statusColor[status] ?? '#6b7280' }}
