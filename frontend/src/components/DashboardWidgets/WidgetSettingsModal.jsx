@@ -249,11 +249,9 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     
     switch(widgetItem?.type) {
       case 'gauge':
-        return <GaugeWidget {...previewProps} value={realValue !== null ? realValue : 65} unit={formData.unit || ''} />;
       case 'capacityBar':
-        return <CapacityBarWidget {...previewProps} value={realValue !== null ? realValue : 142} unit={formData.unit || ''} />;
       case 'radialDonut':
-        return <RadialDonutWidget {...previewProps} value={realValue !== null ? realValue : 75} unit={formData.unit || ''} />;
+        return <GaugeWidget {...previewProps} value={realValue !== null ? realValue : 65} unit={formData.unit || ''} />;
       case 'trafficLight':
         return <TrafficLightWidget {...previewProps} value={realValue !== null ? realValue : 1} />; // 1 is warning state
       case 'metric':
@@ -468,12 +466,12 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
 
                   {widgetItem?.type === 'metric' && (
                     <>
-                      <div className="col-span-2 pt-2 border-t border-line">
+                      <div className="col-span-2 p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 transition-colors hover:border-line-strong">
                         <ToggleSwitch 
                           label={
                             <div>
                               <span className="text-sm font-semibold text-fg">Compact Notation (K, M, B)</span>
-                              <p className="text-xs text-fg-subtle font-normal">ย่อตัวเลขจำนวนมาก เช่น 1.5K, 2.4M, 1.1B</p>
+                              <p className="text-xs text-fg-subtle font-normal mt-0.5">ย่อตัวเลขจำนวนมาก เช่น 1.5K, 2.4M, 1.1B</p>
                             </div>
                           } 
                           checked={formData.compactNotation || false} 
@@ -482,12 +480,12 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         />
                       </div>
 
-                      <div className="col-span-2 p-4 rounded-xl border border-line-strong bg-surface-2/40 space-y-3">
+                      <div className="col-span-2 p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 space-y-3 transition-colors hover:border-line-strong">
                         <ToggleSwitch 
                           label={
                             <div>
                               <span className="text-sm font-semibold text-fg">Trend Indicator (ลูกศรความเปลี่ยนแปลง)</span>
-                              <p className="text-xs text-fg-subtle font-normal">แสดงทิศทางการเปลี่ยนแปลงเทียบกับค่าก่อนหน้า (▲ / ▼)</p>
+                              <p className="text-xs text-fg-subtle font-normal mt-0.5">แสดงทิศทางการเปลี่ยนแปลงเทียบกับค่าก่อนหน้า (▲ / ▼)</p>
                             </div>
                           } 
                           checked={formData.showTrend || false} 
@@ -496,7 +494,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         />
 
                         {formData.showTrend && (
-                          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-line-strong/60 animate-in fade-in duration-200">
+                          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200">
                             <div>
                               <label className="block text-xs font-medium text-fg-secondary mb-1">Display Mode</label>
                               <select 
@@ -569,9 +567,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     >
                       <option value="half-circle">Modern Half-Circle</option>
                       <option value="horseshoe">Horseshoe with Needle</option>
+                      <option value="radial-donut">Radial Donut</option>
+                      <option value="capacity-bar">Capacity Bar (Linear Tube)</option>
                     </select>
                   </div>
-                  {formData.gaugeStyle !== 'horseshoe' && (
+                  {(formData.gaugeStyle === 'half-circle' || !formData.gaugeStyle) && (
                     <div>
                       <label className="block text-sm font-medium text-fg-secondary mb-1.5 flex justify-between">
                         <span>Tube Thickness</span>
@@ -587,6 +587,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         className="w-full accent-blue-500"
                       />
                       <p className="text-xs text-fg-subtle mt-1">Adjust the thickness of the gauge donut tube.</p>
+                    </div>
+                  )}
+                  {formData.gaugeStyle === 'capacity-bar' && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Bar Orientation</label>
+                      <select 
+                        name="orientation"
+                        value={formData.orientation || 'vertical'}
+                        onChange={(e) => setFormData({ ...formData, orientation: e.target.value })}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                      >
+                        <option value="vertical">Vertical</option>
+                        <option value="horizontal">Horizontal</option>
+                      </select>
                     </div>
                   )}
                 </div>
@@ -669,15 +683,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-xl border transition-colors ${formData.enableDynamicColors ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                  <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableDynamicColors ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                     <ToggleSwitch 
-                      label="Dynamic Colors & Ranges" 
+                      label={
+                        <div>
+                          <span className="text-sm font-semibold text-fg">Dynamic Colors & Ranges</span>
+                          <p className="text-xs text-fg-subtle font-normal mt-0.5">เปลี่ยนสีตามช่วงของค่าตัวเลข (Color Stops)</p>
+                        </div>
+                      }
                       checked={formData.enableDynamicColors} 
                       onChange={(e) => setFormData({ ...formData, enableDynamicColors: e.target.checked })} 
+                      className="mb-0"
                     />
                     
                     {formData.enableDynamicColors && (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                      <div className="space-y-4 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
 
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1.5">Color Display Mode</label>
@@ -780,15 +800,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-xl border transition-colors ${formData.enableVisualTweaks ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                  <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableVisualTweaks ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                     <ToggleSwitch 
-                      label="Visual Tweaks" 
+                      label={
+                        <div>
+                          <span className="text-sm font-semibold text-fg">Visual Tweaks</span>
+                          <p className="text-xs text-fg-subtle font-normal mt-0.5">ปรับแต่งเส้นกราฟ ความทึบ และจุดข้อมูล</p>
+                        </div>
+                      }
                       checked={formData.enableVisualTweaks} 
                       onChange={(e) => setFormData({ ...formData, enableVisualTweaks: e.target.checked })} 
+                      className="mb-0"
                     />
                     
                     {formData.enableVisualTweaks && (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                      <div className="space-y-4 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                         <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-fg-muted mb-1">Line Thickness (px)</label>
@@ -874,17 +900,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
           <div className={activeTab === 'limits' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
             <div className="space-y-4">
               
-              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableUpperLimit ? 'bg-red-50 dark:bg-red-950/20 border-red-900/30' : 'bg-transparent border-transparent'}`}>
-                {formData.enableUpperLimit && <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50"></div>}
-                <div className="mb-2">
-                  <ToggleSwitch 
-                    label={<span className="text-red-600 dark:text-red-400 flex items-center gap-2">Upper Limit (Max)</span>}
-                    checked={formData.enableUpperLimit} 
-                    onChange={(e) => setFormData({ ...formData, enableUpperLimit: e.target.checked })} 
-                  />
-                </div>
+              <div className={`p-3.5 rounded-xl border relative overflow-hidden transition-colors ${formData.enableUpperLimit ? 'bg-red-500/5 dark:bg-red-950/25 border-red-500/40' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
+                {formData.enableUpperLimit && <div className="absolute top-0 left-0 w-1 h-full bg-red-500/60"></div>}
+                <ToggleSwitch 
+                  label={
+                    <div>
+                      <span className="text-sm font-semibold text-red-600 dark:text-red-400">Upper Limit (Max)</span>
+                      <p className="text-xs text-fg-subtle font-normal mt-0.5">เตือนเมื่อค่าเกินเกณฑ์สูงสุดที่กำหนด</p>
+                    </div>
+                  } 
+                  checked={formData.enableUpperLimit} 
+                  onChange={(e) => setFormData({ ...formData, enableUpperLimit: e.target.checked })} 
+                  className="mb-0"
+                />
                 {formData.enableUpperLimit && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
+                  <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-fg-muted mb-1.5">Value Trigger</label>
@@ -945,17 +975,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 )}
               </div>
 
-              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableLowerLimit ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-900/30' : 'bg-transparent border-transparent'}`}>
-                {formData.enableLowerLimit && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50"></div>}
-                <div className="mb-2">
-                  <ToggleSwitch 
-                    label={<span className="text-blue-600 dark:text-blue-400 flex items-center gap-2">Lower Limit (Min)</span>}
-                    checked={formData.enableLowerLimit} 
-                    onChange={(e) => setFormData({ ...formData, enableLowerLimit: e.target.checked })} 
-                  />
-                </div>
+              <div className={`p-3.5 rounded-xl border relative overflow-hidden transition-colors ${formData.enableLowerLimit ? 'bg-blue-500/5 dark:bg-blue-950/25 border-blue-500/40' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
+                {formData.enableLowerLimit && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/60"></div>}
+                <ToggleSwitch 
+                  label={
+                    <div>
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Lower Limit (Min)</span>
+                      <p className="text-xs text-fg-subtle font-normal mt-0.5">เตือนเมื่อค่าต่ำกว่าเกณฑ์ต่ำสุดที่กำหนด</p>
+                    </div>
+                  } 
+                  checked={formData.enableLowerLimit} 
+                  onChange={(e) => setFormData({ ...formData, enableLowerLimit: e.target.checked })} 
+                  className="mb-0"
+                />
                 {formData.enableLowerLimit && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
+                  <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-fg-muted mb-1.5">Value Trigger (&lt;)</label>
@@ -1003,12 +1037,12 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
               </div>
 
               {widgetItem.type === 'metric' && (
-                <div className="p-4 rounded-xl border border-line-strong bg-surface-2/40">
+                <div className="p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 transition-colors hover:border-line-strong">
                   <ToggleSwitch 
                     label={
                       <div>
                         <span className="text-sm font-semibold text-fg">Card Neon Glow on Alert</span>
-                        <p className="text-xs text-fg-subtle font-normal">เพิ่มเอฟเฟกต์แสงเรืองรอบการ์ด (Neon Glow) เมื่อค่าเกินเกณฑ์ Alert</p>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">เพิ่มเอฟเฟกต์แสงเรืองรอบการ์ด (Neon Glow) เมื่อค่าเกินเกณฑ์ Alert</p>
                       </div>
                     } 
                     checked={formData.alertGlow ?? true} 
@@ -1019,14 +1053,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
               )}
               
               {(widgetItem.type === 'gauge' || widgetItem.type === 'capacityBar') && (
-                <div className={`p-4 rounded-xl border transition-colors ${formData.enableDisplayScale ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableDisplayScale ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                   <ToggleSwitch 
-                    label="Display Scale Range" 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Display Scale Range</span>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">กำหนดค่าต่ำสุด (0%) และสูงสุด (100%) สำหรับสเกลเกจ</p>
+                      </div>
+                    } 
                     checked={formData.enableDisplayScale} 
                     onChange={(e) => setFormData({ ...formData, enableDisplayScale: e.target.checked })} 
+                    className="mb-0"
                   />
                   {formData.enableDisplayScale && (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                    <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                       <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1">Minimum Value (0%)</label>
@@ -1057,14 +1097,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
               )}
               
               {widgetItem.type === 'chart' && (
-                <div className={`p-4 rounded-xl border transition-colors ${formData.enableYAxisConstraints ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableYAxisConstraints ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                   <ToggleSwitch 
-                    label="Y-Axis Constraints" 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Y-Axis Constraints</span>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">ล็อกช่วงแกน Y ไม่ให้ปรับอัตโนมัติ</p>
+                      </div>
+                    } 
                     checked={formData.enableYAxisConstraints} 
                     onChange={(e) => setFormData({ ...formData, enableYAxisConstraints: e.target.checked })} 
+                    className="mb-0"
                   />
                   {formData.enableYAxisConstraints && (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                    <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                       <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1">Fixed Min Value</label>

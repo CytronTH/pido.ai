@@ -25,6 +25,29 @@
 - 
 -->
 
+## [2026-10-04] - รวม Gauge/Radial Donut/Capacity Bar เป็น Widget เดียว และจัดระเบียบการ์ด Widget Settings ให้เป็นมาตรฐานเดียวกัน
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ยุบรวม Widget Gauge, Radial Donut และ Capacity Bar ให้มาอยู่ใน `⏱️ Gauge` Widget เดียว
+- [x] จัดระเบียบกล่องตั้งค่าฟีเจอร์ใน `WidgetSettingsModal.jsx` ทุกแท็บให้มีลักษณะดีไซน์สวยงามและเป็นมาตรฐานเดียวกัน (Consistent UI)
+- [x] คงความเข้ากันได้ย้อนหลัง (Backward Compatibility) ให้กับ Dashboard เก่าที่มี radialDonut หรือ capacityBar
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **รวม Gauge Widget Styles:**
+  - ยุบ `RadialDonut` และ `CapacityBar` มารวมไว้ใน `GaugeWidget.jsx` โดยรองรับ 4 สไตล์ผ่าน dropdown `Gauge Style`:
+    1. `half-circle`: Modern Half-Circle Gauge
+    2. `horseshoe`: Horseshoe with Needle
+    3. `radial-donut`: Radial Donut Chart
+    4. `capacity-bar`: Capacity Bar (Linear Tube ปรับได้ทั้ง Horizontal / Vertical)
+  - ใน `LiveDashboard.jsx`: นำ `radialDonut` และ `capacityBar` ออกจากรายการ Add Widget และแมป render ย้อนหลังมาที่ `GaugeWidget` อัตโนมัติ
+  - ใน `WidgetSettingsModal.jsx`: ปรับปรุง Preview ให้แสดงผลทุกสไตล์ได้อย่างถูกต้องแม่นยำ
+- **จัดระเบียบกล่องตั้งค่า (Consistent Setting Cards):**
+  - ปรับดีไซน์กล่องสวิตช์ Toggle และกล่องตั้งค่าในทุกแท็บ (General, Appearance, Limits & Alerts) ให้ใช้โครงสร้าง `p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 hover:border-line-strong transition-colors`
+  - มี Title (`text-sm font-semibold text-fg`) และคำอธิบายย่อย Subtitle (`text-xs text-fg-subtle font-normal mt-0.5`) ชัดเจนทุกกล่อง
+  - เมื่อเปิดสวิตช์ ส่วนปรับแต่งย่อยจะแสดงผลต่อท้ายด้วยเส้นคั่น `pt-3 border-t border-line-strong/50` อย่างเป็นระเบียบ เรียบร้อย และกลมกลืน
+
+---
+
 ## [2026-10-04] - เพิ่มฟีเจอร์ Trend Indicator, Compact Notation และ Card Alert Glow ให้กับ Number Widget
 
 ### 🎯 เป้าหมาย (Goals)

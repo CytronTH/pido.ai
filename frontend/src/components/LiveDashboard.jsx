@@ -29,10 +29,8 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const WIDGET_TYPES = [
   { type: 'video', label: '�� Video Stream', minW: 2, minH: 2 },
-{ type: 'gauge', label: '⏱️ Gauge', minW: 2, minH: 2 },
+  { type: 'gauge', label: '⏱️ Gauge', minW: 2, minH: 2 },
   { type: 'trafficLight', label: '🚦 Traffic Light', minW: 2, minH: 3 },
-  { type: 'radialDonut', label: '🍩 Radial Donut', minW: 2, minH: 2 },
-  { type: 'capacityBar', label: '🔋 Capacity Bar', minW: 2, minH: 2 },
   { type: 'targetTracker', label: '🎯 Target Tracker', minW: 3, minH: 3 },
   { type: 'metric', label: '🔢 Number', minW: 2, minH: 2 },
   { type: 'text', label: '📝 Text Value', minW: 2, minH: 2 },
@@ -339,19 +337,19 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                   />
                 )}
                 {type === 'radialDonut' && (
-                  <RadialDonutWidget 
+                  <GaugeWidget 
                     title={config.title} 
                     value={getNestedValue(metadata, config.dataPath)} 
                     unit={config.unit} 
-                    config={config} 
+                    config={{ ...config, gaugeStyle: 'radial-donut' }} 
                   />
                 )}
                 {type === 'capacityBar' && (
-                  <CapacityBarWidget 
+                  <GaugeWidget 
                     title={config.title} 
                     value={getNestedValue(metadata, config.dataPath)} 
                     unit={config.unit} 
-                    config={config} 
+                    config={{ ...config, gaugeStyle: 'capacity-bar' }} 
                   />
                 )}
                 {type === 'targetTracker' && (
