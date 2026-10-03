@@ -45,11 +45,11 @@ export default function InputNode({ id, data }) {
   const isFileSource = selectedCam?.type === 'file';
 
   return (
-    <div className={`bg-gray-900 border-2 border-blue-600 rounded-xl shadow-lg shadow-blue-900/20 ${isCompact ? 'w-48' : 'w-64'} text-white overflow-hidden`}>
+    <div className={`bg-surface border-2 border-blue-600 rounded-xl shadow-lg shadow-blue-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
       <div className="bg-blue-600/20 p-3 flex items-center justify-between border-b border-blue-900/50">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-1.5 rounded-lg">
-            {isFileSource ? <Film size={16} className="text-white" /> : <Camera size={16} className="text-white" />}
+            {isFileSource ? <Film size={16} className="text-fg" /> : <Camera size={16} className="text-fg" />}
           </div>
           <div className="font-semibold text-sm">Input Source</div>
         </div>
@@ -57,13 +57,13 @@ export default function InputNode({ id, data }) {
       </div>
       
       <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           {isFileSource ? 'Video File' : 'Camera Entity'}
           {loading ? (
-            <div className="text-sm text-gray-500 py-1">Loading...</div>
+            <div className="text-sm text-fg-subtle py-1">Loading...</div>
           ) : (
             <select 
-              className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-blue-500 nodrag"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-blue-500 nodrag"
               value={data?.entityId || ''}
               onChange={handleEntityChange}
             >
@@ -92,26 +92,26 @@ export default function InputNode({ id, data }) {
         
         {/* Preview */}
         {selectedCam && (
-          <div className="text-[10px] text-gray-500 bg-gray-800 p-2 rounded-md break-all">
-            <span className="text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
+          <div className="text-[10px] text-fg-subtle bg-surface-2 p-2 rounded-md break-all">
+            <span className="text-blue-600 dark:text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
             <span className="truncate">{selectedCam.path?.split('/').pop() || selectedCam.path}</span>
           </div>
         )}
 
         {/* Disabled Warning */}
         {selectedCam && selectedCam.is_enabled === false && (
-          <div className="flex items-center gap-1.5 text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2 rounded-md">
-            <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+          <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2 rounded-md">
+            <AlertTriangle size={14} className="shrink-0 text-amber-700 dark:text-amber-400" />
             <span>Camera is <strong>disabled</strong> in Settings.</span>
           </div>
         )}
 
         {/* File-only options */}
         {isFileSource && (
-          <div className="border border-gray-700/50 rounded-lg p-2 bg-gray-800/30 flex flex-col gap-2">
-            <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Playback Options</div>
+          <div className="border border-line-strong/50 rounded-lg p-2 bg-surface-2/30 flex flex-col gap-2">
+            <div className="text-[10px] text-fg-subtle uppercase font-bold tracking-wider">Playback Options</div>
 
-            <label className="text-xs text-gray-400 flex items-center justify-between">
+            <label className="text-xs text-fg-muted flex items-center justify-between">
               <span>Loop (repeat)</span>
               <input
                 type="checkbox"
@@ -121,10 +121,10 @@ export default function InputNode({ id, data }) {
               />
             </label>
 
-            <label className="text-xs text-gray-400 flex items-center justify-between">
+            <label className="text-xs text-fg-muted flex items-center justify-between">
               <span>Speed</span>
               <select
-                className="bg-gray-900 border border-gray-700 rounded p-1 text-xs focus:border-blue-500 outline-none nodrag"
+                className="bg-surface border border-line-strong rounded p-1 text-xs focus:border-blue-500 outline-none nodrag"
                 value={data?.speed ?? '1.0'}
                 onChange={(e) => updateNodeData(id, { speed: e.target.value })}
               >
@@ -144,7 +144,7 @@ export default function InputNode({ id, data }) {
       <Handle 
         type="source" 
         position={Position.Right} 
-        className="w-3 h-3 bg-blue-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-blue-500 border-2 border-line-subtle"
       />
     </div>
   );

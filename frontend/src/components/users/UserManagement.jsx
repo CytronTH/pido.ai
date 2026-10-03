@@ -92,11 +92,11 @@ const UserManagement = () => {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3 dark:text-white">
-            <Users className="w-8 h-8 text-blue-400" />
+          <h1 className="text-3xl font-bold flex items-center gap-3 text-fg">
+            <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             User Management
           </h1>
-          <p className="text-zinc-400 mt-2">Manage team members, roles, and access permissions.</p>
+          <p className="text-fg-muted mt-2">Manage team members, roles, and access permissions.</p>
         </div>
         <button 
           onClick={() => setShowInvite(true)}
@@ -109,38 +109,38 @@ const UserManagement = () => {
 
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
-            <button onClick={() => setShowInvite(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-gray-900 transition-colors dark:hover:text-white">
+          <div className="bg-surface border border-fg/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <button onClick={() => setShowInvite(false)} className="absolute top-4 right-4 text-fg-muted transition-colors hover:text-fg">
                <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold text-gray-900 mb-6 dark:text-white">Invite New User</h2>
+            <h2 className="text-xl font-bold mb-6 text-fg">Invite New User</h2>
             <form onSubmit={handleInvite} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">Username</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">Username</label>
                 <input 
                   type="text" 
                   value={inviteData.username}
                   onChange={e => setInviteData({...inviteData, username: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  className="w-full bg-black/50 border border-fg/10 rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                   required 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">Temporary Password</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">Temporary Password</label>
                 <input 
                   type="password" 
                   value={inviteData.password}
                   onChange={e => setInviteData({...inviteData, password: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  className="w-full bg-black/50 border border-fg/10 rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                   required 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">Role</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">Role</label>
                 <select 
                   value={inviteData.role}
                   onChange={e => setInviteData({...inviteData, role: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [&>option]:bg-zinc-900"
+                  className="w-full bg-black/50 border border-fg/10 rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [&>option]:bg-surface"
                 >
                   <option value="admin">Admin</option>
                   <option value="editor">Editor</option>
@@ -155,10 +155,10 @@ const UserManagement = () => {
         </div>
       )}
 
-      <div className="bg-zinc-900/50 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+      <div className="bg-surface/50 border border-fg/5 rounded-2xl overflow-hidden backdrop-blur-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-300">
-            <thead className="bg-zinc-800/50 text-zinc-400 border-b border-white/5">
+          <table className="w-full text-left text-sm text-fg-secondary">
+            <thead className="bg-surface-2/50 text-fg-muted border-b border-fg/5">
               <tr>
                 <th className="px-6 py-4 font-medium">Username</th>
                 <th className="px-6 py-4 font-medium">Role</th>
@@ -167,32 +167,32 @@ const UserManagement = () => {
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-fg/5">
               {isLoading ? (
                  <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-zinc-500">
+                    <td colSpan="5" className="px-6 py-8 text-center text-fg-subtle">
                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                        Loading users...
                     </td>
                  </tr>
               ) : users.length === 0 ? (
-                 <tr><td colSpan="5" className="px-6 py-8 text-center text-zinc-500">No users found.</td></tr>
+                 <tr><td colSpan="5" className="px-6 py-8 text-center text-fg-subtle">No users found.</td></tr>
               ) : (
                 users.map(user => (
-                  <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr key={user.id} className="hover:bg-fg/[0.02] transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-gray-900 font-bold uppercase dark:text-white">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center font-bold uppercase text-fg">
                           {user.username.charAt(0)}
                         </div>
-                        <span className="font-medium text-gray-900 dark:text-white">{user.username}</span>
+                        <span className="font-medium text-fg">{user.username}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <select 
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        className="bg-zinc-800 border border-white/10 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:border-blue-500"
+                        className="bg-surface-2 border border-fg/10 rounded-lg px-2 py-1 text-xs font-medium focus:outline-none focus:border-blue-500"
                       >
                         <option value="admin">Admin</option>
                         <option value="editor">Editor</option>
@@ -200,15 +200,15 @@ const UserManagement = () => {
                       </select>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${user.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${user.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'}`}>
                         {user.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-zinc-500">
+                    <td className="px-6 py-4 text-fg-subtle">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleDelete(user.id)} className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User">
+                      <button onClick={() => handleDelete(user.id)} className="p-2 text-fg-subtle hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </td>

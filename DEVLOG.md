@@ -25,6 +25,43 @@
 - 
 -->
 
+## [2026-10-04] - ยกเครื่องระบบ Theme เป็น Semantic Design Tokens (Light/Dark/System) และจัดระเบียบ Git Remote / Repository
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ระบบ theme ให้ light/dark ทำงานถูกต้องและสอดคล้องกันทั้ง platform
+- [x] วางรากฐานให้ฟีเจอร์ใหม่ออกแบบตาม theme ได้ง่าย (single source of truth)
+- [x] จัดระเบียบ remote ให้ใช้ `CytronTH/pido.ai` เป็นหลัก และแยก Model Studio ออกไป
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Bug หลักที่พบ:** Tailwind v4 `dark:` ผูกกับ `prefers-color-scheme` ของ OS (ไม่ใช่ class `.dark`) + มี gray-scale inversion ซ้อน ทำให้ผู้ใช้ที่ OS เป็น Light เห็น UI กลับด้าน/ปนกัน
+- เพิ่ม `@custom-variant dark` และ semantic tokens ใน `frontend/src/index.css`: `canvas`, `surface-*`, `line-*`, `fg-*`, `primary`, status, `chart-*`, `shadow-well`
+- Codemod ~3,200 class (100 ไฟล์) จาก gray/slate + `dark:` pairs → tokens พร้อมซ่อม class ที่ script `fix_*.py` เดิมทำพัง (~120 จุด)
+- Accent pass: `text-X-400` → `text-X-600 dark:text-X-400`, tints `bg-X-900/40` → `bg-X-100 dark:bg-X-900/40`
+- `store/useThemeStore.js` (Zustand): light/dark/system, persist, cross-tab sync, ตาม OS แบบ live; inline script ใน `index.html` กัน flash
+- Recharts (`chartTheme`), ReactFlow (`colorMode`), SVG Gauge, ROI Editor inline styles → CSS variables
+- ลบ `App.css`, `getAdaptiveColor`, และ `fix_*.py`/`refactor_theme.py` 13 ไฟล์
+- เอกสาร: `frontend/docs/THEME_GUIDE.md` + rule `.agents/rules/08_theme_rules.md`
+- **Git:** `origin` → `CytronTH/pido.ai` (เดิม `iriv-vision-studio`), ย้าย version tags 44 ตัว (`v1.0.9`–`v1.0.54`) มา pido.ai, ย้าย branch `model-studio` ไป repo ใหม่ `CytronTH/pido.ai-model-studio` (`main`)
+- **Security:** ลบ PAT ที่ฝังใน remote URL, revoke token เดิม, ใช้ fine-grained PAT (เฉพาะ repo) ผ่าน `credential.helper store`
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ใช้ semantic tokens แทน `dark:` pairs สำหรับสี neutral ทั้งหมด
+- **เหตุผล:** เขียน class เดียวใช้ได้ทั้งสองโหมด ลดความผิดพลาด สลับธีมด้วย CSS variables ไม่ต้อง re-render
+- **เรื่องที่ตัดสินใจ:** Codemod เลือก token จากค่า dark-mode เดิม
+- **เหตุผล:** เป็นค่าที่ผ่านการทดสอบจริงมาแล้ว (ผู้พัฒนาใช้ OS dark)
+- **เรื่องที่ตัดสินใจ:** Model Studio แยก repo
+- **เหตุผล:** เป็นคนละโปรเจกต์ (Electron/Windows) ไม่มีประวัติ commit ร่วมกับ PiDo.AI
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- Browser subagent ใช้ไม่ได้บน ARM64 (Playwright driver 404) — ทดสอบ theme ด้วยมือแทน (ผ่าน)
+- ยังไม่มี branch `dev` ก่อนหน้านี้ (สร้างในรอบนี้)
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- Code review → PR `feature/theme-tokens` → `dev`
+- ลบ branch ที่ไม่ใช้: `bugfix/general-fixes`, `feature/pipeline-redesign`
+- พิจารณา Archive repo `iriv-vision-studio` บน GitHub
+- เก็บกวาดไฟล์ทดสอบ/ชั่วคราวที่ root (`test_*.py`, `fix_iscompact.py`, `patch_nodes.py`, `*.log`)
+
 ## [2026-09-11] - พัฒนาระบบ AI Model Registry ป้องกันการอัปโหลดไฟล์โมเดลชื่อชนกัน (Unique Storage, SHA-256 Checksum, Versioning) และยกเครื่อง UX/UI Model Upload
 
 ### 🎯 เป้าหมาย (Goals)

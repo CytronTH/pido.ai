@@ -29,15 +29,15 @@ export default function NodeMenu({ id }) {
     <div className="relative" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-1 rounded-md hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
+        className="p-1 rounded-md hover:bg-fg/10 text-fg-secondary hover:text-fg transition-colors"
       >
         <MoreVertical size={16} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 w-40 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden nodrag">
+        <div className="absolute right-0 top-full mt-1 w-40 bg-surface-2 border border-line-strong rounded-lg shadow-xl z-50 overflow-hidden nodrag">
           <button 
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-fg-secondary hover:bg-surface-3 hover:text-fg transition-colors text-left"
             onClick={() => setIsOpen(false)}
           >
             <Settings size={14} />
@@ -52,7 +52,7 @@ export default function NodeMenu({ id }) {
             {isDisabled ? 'Enable Node' : 'Disable Node'}
           </button>
           
-          <div className="h-px bg-gray-700 w-full" />
+          <div className="h-px bg-surface-3 w-full" />
           
           <button 
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-950 hover:text-red-300 transition-colors text-left"

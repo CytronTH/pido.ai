@@ -17,9 +17,9 @@ import usePipelineStore from '../../../store/usePipelineStore';
 import PolygonZoneEditorModal from './PolygonZoneEditorModal';
 
 const TYPE_COLORS = {
-  danger: { hex: '#f43f5e', border: '#e11d48', bg: 'bg-rose-950/60 text-rose-300' },
-  caution: { hex: '#f59e0b', border: '#d97706', bg: 'bg-amber-950/60 text-amber-300' },
-  pedestrian: { hex: '#06b6d4', border: '#0891b2', bg: 'bg-cyan-950/60 text-cyan-300' },
+  danger: { hex: '#f43f5e', border: '#e11d48', bg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300' },
+  caution: { hex: '#f59e0b', border: '#d97706', bg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300' },
+  pedestrian: { hex: '#06b6d4', border: '#0891b2', bg: 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300' },
 };
 
 export default function ForkliftZoneNode({ id, data }) {
@@ -131,7 +131,7 @@ export default function ForkliftZoneNode({ id, data }) {
   };
 
   return (
-    <div className="bg-gray-900 border-2 border-rose-500/80 rounded-xl shadow-xl shadow-rose-950/30 w-84 text-white flex flex-col select-none">
+    <div className="bg-surface border-2 border-rose-500/80 rounded-xl shadow-xl shadow-rose-950/30 w-84 text-fg flex flex-col select-none">
       {/* Target Handle from AINode */}
       <Handle
         type="target"
@@ -140,16 +140,16 @@ export default function ForkliftZoneNode({ id, data }) {
       />
 
       {/* Header */}
-      <div className="bg-rose-950/40 p-3 flex items-center justify-between border-b border-rose-900/50">
+      <div className="bg-rose-50 dark:bg-rose-950/40 p-3 flex items-center justify-between border-b border-rose-900/50">
         <div className="flex items-center gap-2.5">
           <div className="bg-rose-600 p-1.5 rounded-lg text-white shadow-sm shadow-rose-900/50">
             <ShieldAlert size={16} />
           </div>
           <div>
-            <div className="font-semibold text-sm leading-tight text-rose-200">
+            <div className="font-semibold text-sm leading-tight text-rose-800 dark:text-rose-200">
               {data?.label || 'Forklift Safety Monitor'}
             </div>
-            <div className="text-[10px] text-rose-400/80 font-mono">Intersection & Danger Zones</div>
+            <div className="text-[10px] text-rose-600/80 dark:text-rose-400/80 font-mono">Intersection & Danger Zones</div>
           </div>
         </div>
         {!isCompact && <NodeMenu id={id} />}
@@ -158,12 +158,12 @@ export default function ForkliftZoneNode({ id, data }) {
       <div className={`p-3.5 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         {/* Real-Time Status Banner */}
         {isCritical ? (
-          <div className="bg-red-950/90 border-2 border-red-500 rounded-lg p-2.5 flex items-center justify-between text-xs text-red-100 animate-pulse shadow-lg shadow-red-950/60">
+          <div className="bg-red-50 dark:bg-red-950/90 border-2 border-red-500 rounded-lg p-2.5 flex items-center justify-between text-xs text-red-800 dark:text-red-100 animate-pulse shadow-lg shadow-red-950/60">
             <div className="flex items-center gap-2">
-              <AlertOctagon size={18} className="text-red-400 animate-bounce" />
+              <AlertOctagon size={18} className="text-red-600 dark:text-red-400 animate-bounce" />
               <div>
                 <span className="font-bold block leading-none">CRITICAL COLLISION RISK!</span>
-                <span className="text-[9px] text-red-300">Forklift + Pedestrian / Intersection conflict</span>
+                <span className="text-[9px] text-red-700 dark:text-red-300">Forklift + Pedestrian / Intersection conflict</span>
               </div>
             </div>
             <span className="text-[10px] bg-red-800 px-2 py-1 rounded text-white font-mono font-black tracking-wider">
@@ -171,64 +171,64 @@ export default function ForkliftZoneNode({ id, data }) {
             </span>
           </div>
         ) : isDanger ? (
-          <div className="bg-amber-950/80 border border-amber-500/80 rounded-lg p-2 flex items-center justify-between text-xs text-amber-200">
+          <div className="bg-amber-50 dark:bg-amber-950/80 border border-amber-500/80 rounded-lg p-2 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200">
             <div className="flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-400" />
+              <AlertTriangle size={16} className="text-amber-700 dark:text-amber-400" />
               <div>
                 <span className="font-semibold block leading-none">Caution: Forklift in Zone</span>
-                <span className="text-[9px] text-amber-300/80">Active warning beacon recommended</span>
+                <span className="text-[9px] text-amber-700/80 dark:text-amber-300/80">Active warning beacon recommended</span>
               </div>
             </div>
-            <span className="text-[10px] bg-amber-800/80 px-1.5 py-0.5 rounded text-amber-200 font-mono font-bold">
+            <span className="text-[10px] bg-amber-800/80 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-200 font-mono font-bold">
               WARN
             </span>
           </div>
         ) : (
-          <div className="bg-emerald-950/60 border border-emerald-700/60 rounded-lg p-2 flex items-center justify-between text-xs text-emerald-200">
+          <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-700/60 rounded-lg p-2 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-200">
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-emerald-400" />
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
               <span className="font-medium">Intersection All Clear</span>
             </div>
-            <span className="text-[10px] bg-emerald-900/80 px-1.5 py-0.5 rounded text-emerald-300 font-mono">
+            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/80 px-1.5 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono">
               SAFE
             </span>
           </div>
         )}
 
         {/* Real-time Metric Counts */}
-        <div className="grid grid-cols-3 gap-1.5 bg-gray-950 p-2 rounded-lg border border-gray-800 text-center">
+        <div className="grid grid-cols-3 gap-1.5 bg-canvas p-2 rounded-lg border border-line text-center">
           <div>
-            <div className="text-[10px] text-gray-400">Forklifts</div>
-            <div className="text-sm font-bold font-mono text-rose-400">{forkliftCount}</div>
+            <div className="text-[10px] text-fg-muted">Forklifts</div>
+            <div className="text-sm font-bold font-mono text-rose-600 dark:text-rose-400">{forkliftCount}</div>
           </div>
           <div>
-            <div className="text-[10px] text-gray-400">Persons</div>
-            <div className="text-sm font-bold font-mono text-cyan-400">{personCount}</div>
+            <div className="text-[10px] text-fg-muted">Persons</div>
+            <div className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">{personCount}</div>
           </div>
           <div>
-            <div className="text-[10px] text-gray-400">Near-Miss</div>
-            <div className="text-sm font-bold font-mono text-amber-400">{nearMissCount}</div>
+            <div className="text-[10px] text-fg-muted">Near-Miss</div>
+            <div className="text-sm font-bold font-mono text-amber-700 dark:text-amber-400">{nearMissCount}</div>
           </div>
         </div>
 
         {/* Global Output Source Handles */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-fg-muted">
             Global Action Outputs
           </span>
 
           {/* 1. Critical Siren Handle */}
-          <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950/80 border border-red-900/50 text-xs">
+          <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas/80 border border-red-900/50 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${isCritical ? 'bg-red-500 animate-ping' : 'bg-gray-700'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${isCritical ? 'bg-red-500 animate-ping' : 'bg-surface-3'}`} />
               <div>
-                <span className="font-semibold text-red-200 block leading-tight">Critical Collision Alert</span>
-                <span className="text-[9px] text-gray-500">Forklift+Person / Conflict</span>
+                <span className="font-semibold text-red-800 dark:text-red-200 block leading-tight">Critical Collision Alert</span>
+                <span className="text-[9px] text-fg-subtle">Forklift+Person / Conflict</span>
               </div>
             </div>
             <span
               className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 ${
-                isCritical ? 'bg-red-900 text-red-200' : 'bg-gray-800 text-gray-500'
+                isCritical ? 'bg-red-900 text-red-200' : 'bg-surface-2 text-fg-subtle'
               }`}
             >
               {isCritical ? 'TRUE' : 'FALSE'}
@@ -243,17 +243,17 @@ export default function ForkliftZoneNode({ id, data }) {
           </div>
 
           {/* 2. Caution / Danger Handle */}
-          <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950/80 border border-amber-900/50 text-xs">
+          <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas/80 border border-amber-900/50 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${isDanger ? 'bg-amber-400' : 'bg-gray-700'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${isDanger ? 'bg-amber-400' : 'bg-surface-3'}`} />
               <div>
-                <span className="font-semibold text-amber-200 block leading-tight">Any Forklift Warning</span>
-                <span className="text-[9px] text-gray-500">Approaching or in intersection</span>
+                <span className="font-semibold text-amber-800 dark:text-amber-200 block leading-tight">Any Forklift Warning</span>
+                <span className="text-[9px] text-fg-subtle">Approaching or in intersection</span>
               </div>
             </div>
             <span
               className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 ${
-                isDanger ? 'bg-amber-900/80 text-amber-200' : 'bg-gray-800 text-gray-500'
+                isDanger ? 'bg-amber-100 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200' : 'bg-surface-2 text-fg-subtle'
               }`}
             >
               {isDanger ? 'TRUE' : 'FALSE'}
@@ -268,15 +268,15 @@ export default function ForkliftZoneNode({ id, data }) {
           </div>
 
           {/* 3. Debug & Telemetry Stream Handle */}
-          <div className="relative flex items-center justify-between p-2 rounded-lg bg-gray-950/80 border border-purple-900/60 text-xs">
+          <div className="relative flex items-center justify-between p-2 rounded-lg bg-canvas/80 border border-purple-900/60 text-xs">
             <div className="flex items-center gap-1.5">
-              <Bug size={13} className="text-purple-400" />
+              <Bug size={13} className="text-purple-600 dark:text-purple-400" />
               <div>
-                <span className="font-semibold text-purple-200 block leading-tight">Debug & Telemetry Stream</span>
-                <span className="text-[9px] text-gray-500">Connect to Debug Node</span>
+                <span className="font-semibold text-purple-800 dark:text-purple-200 block leading-tight">Debug & Telemetry Stream</span>
+                <span className="text-[9px] text-fg-subtle">Connect to Debug Node</span>
               </div>
             </div>
-            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 bg-purple-950/80 border border-purple-800/80 text-purple-300">
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold mr-2 bg-purple-50 dark:bg-purple-950/80 border border-purple-800/80 text-purple-700 dark:text-purple-300">
               DEBUG
             </span>
             <Handle
@@ -291,7 +291,7 @@ export default function ForkliftZoneNode({ id, data }) {
 
         {/* Configured Zones List with Per-Zone Output Handles */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-fg-muted">
             Configured Zones ({zones.length})
           </span>
 
@@ -309,8 +309,8 @@ export default function ForkliftZoneNode({ id, data }) {
                   key={zone.id}
                   className={`relative flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
                     isOccupied
-                      ? 'bg-rose-950/50 border-rose-700'
-                      : 'bg-gray-950/70 border-gray-800 hover:border-gray-700'
+                      ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-700'
+                      : 'bg-canvas/70 border-line hover:border-line-strong'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -319,10 +319,10 @@ export default function ForkliftZoneNode({ id, data }) {
                       style={{ backgroundColor: color }}
                     />
                     <div className="truncate">
-                      <p className="font-medium text-gray-200 text-xs truncate leading-tight">
+                      <p className="font-medium text-fg text-xs truncate leading-tight">
                         {zone.name}
                       </p>
-                      <p className="text-[9px] text-gray-500 font-mono">
+                      <p className="text-[9px] text-fg-subtle font-mono">
                         Forklifts: {fkCount} • Persons: {pCount}
                       </p>
                     </div>
@@ -330,7 +330,7 @@ export default function ForkliftZoneNode({ id, data }) {
 
                   <span
                     className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 mr-2 ${
-                      isOccupied ? 'bg-rose-900/80 text-rose-200' : 'bg-gray-800 text-gray-400'
+                      isOccupied ? 'bg-rose-100 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200' : 'bg-surface-2 text-fg-muted'
                     }`}
                   >
                     {isOccupied ? 'OCCUPIED' : 'CLEAR'}
@@ -354,16 +354,16 @@ export default function ForkliftZoneNode({ id, data }) {
         {/* Edit Button */}
         <button
           onClick={() => setShowEditor(true)}
-          className="w-full mt-1 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-600/50 rounded-lg py-2 px-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm active:scale-95"
+          className="w-full mt-1 bg-rose-600/20 hover:bg-rose-600/30 text-rose-700 dark:text-rose-300 border border-rose-600/50 rounded-lg py-2 px-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm active:scale-95"
         >
           <Crosshair size={14} /> 📐 Edit Danger Zones (Polygon)
         </button>
       </div>
 
       {/* Footer Info */}
-      <div className="px-3.5 py-2 bg-gray-950/80 border-t border-gray-800 flex items-center justify-between text-[10px] text-gray-400">
+      <div className="px-3.5 py-2 bg-canvas/80 border-t border-line flex items-center justify-between text-[10px] text-fg-muted">
         <span className="flex items-center gap-1">
-          <Activity size={12} className="text-emerald-400" />
+          <Activity size={12} className="text-emerald-600 dark:text-emerald-400" />
           Anchor: {data?.anchorMode === 'centroid' ? 'Centroid' : 'Ground Footprint (45°)'}
         </span>
         <span title="Forklift Conf / IoU Deduplication">

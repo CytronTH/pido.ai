@@ -131,11 +131,11 @@ export default function DashboardMetricNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-gray-900 border-2 border-pink-600 rounded-xl shadow-lg shadow-pink-900/20 ${isCompact ? 'w-48' : 'w-64'} text-white overflow-hidden`}>
+    <div className={`bg-surface border-2 border-pink-600 rounded-xl shadow-lg shadow-pink-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
       <div className="bg-pink-600/20 p-3 flex items-center justify-between border-b border-pink-900/50">
         <div className="flex items-center gap-3">
           <div className="bg-pink-600 p-1.5 rounded-lg">
-            <Hash size={16} className="text-white" />
+            <Hash size={16} className="text-fg" />
           </div>
           <div className="font-semibold text-sm">Dashboard Metric</div>
         </div>
@@ -143,11 +143,11 @@ export default function DashboardMetricNode({ id, data }) {
       </div>
       
       <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Output Label (For Dashboard)
           <input 
             type="text"
-            className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag text-white"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag text-fg"
             value={data?.label || ''}
             onChange={handleLabelChange}
             placeholder="e.g. Total People Count"
@@ -156,12 +156,12 @@ export default function DashboardMetricNode({ id, data }) {
         
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">Property</span>
+            <span className="text-xs text-fg-muted">Property</span>
             {upstreamNode && (
               <button
                 type="button"
                 onClick={() => setIsCustomMode(!showCustomInput)}
-                className="text-[10px] text-pink-400 hover:text-pink-300 flex items-center gap-1 transition-colors nodrag cursor-pointer"
+                className="text-[10px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 flex items-center gap-1 transition-colors nodrag cursor-pointer"
                 title={showCustomInput ? "Choose from property list" : "Enter custom path manually"}
               >
                 {showCustomInput ? (
@@ -182,7 +182,7 @@ export default function DashboardMetricNode({ id, data }) {
           {!upstreamNode ? (
             <input
               type="text"
-              className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm text-gray-500 nodrag disabled:opacity-50 cursor-not-allowed"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm text-fg-subtle nodrag disabled:opacity-50 cursor-not-allowed"
               value=""
               placeholder="Connect a node first..."
               disabled
@@ -190,7 +190,7 @@ export default function DashboardMetricNode({ id, data }) {
           ) : showCustomInput ? (
             <input
               type="text"
-              className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag text-white font-mono text-xs"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag text-fg font-mono text-xs"
               value={data?.sourcePath || ''}
               onChange={handleCustomInputChange}
               placeholder="e.g. msg.payload.counts.Performance"
@@ -198,24 +198,24 @@ export default function DashboardMetricNode({ id, data }) {
             />
           ) : (
             <select
-              className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag text-white cursor-pointer"
+              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag text-fg cursor-pointer"
               value={data?.sourcePath || ''}
               onChange={handleSelectChange}
             >
               <option value="" disabled>-- Select Property --</option>
               {availableProperties.map(prop => (
-                <option key={prop.value} value={prop.value} className="bg-gray-900 text-white">
+                <option key={prop.value} value={prop.value} className="bg-surface text-fg">
                   {prop.label}
                 </option>
               ))}
-              <option value="__custom__" className="bg-gray-900 text-pink-400">
+              <option value="__custom__" className="bg-surface text-pink-600 dark:text-pink-400">
                 ✏️ Custom Path...
               </option>
             </select>
           )}
         </div>
 
-        <div className="text-[10px] text-gray-500 mt-1">
+        <div className="text-[10px] text-fg-subtle mt-1">
           Provides numeric data to Metric or Chart widgets.
         </div>
       </div>
@@ -223,7 +223,7 @@ export default function DashboardMetricNode({ id, data }) {
       <Handle 
         type="target" 
         position={Position.Left} 
-        className="w-3 h-3 bg-pink-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-pink-500 border-2 border-line-subtle"
       />
     </div>
   );

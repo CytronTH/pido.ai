@@ -1,48 +1,43 @@
-import { useState, useEffect } from 'react';
+import useThemeStore from '../store/useThemeStore';
 
-export const useTheme = () => {
-  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+/**
+ * Theme helpers for code that cannot use Tailwind classes directly
+ * (Recharts props, SVG attributes, inline styles, third-party widgets).
+ *
+ * Prefer CSS variables (`var(--fg-muted)`) over JS-resolved hex values: they
+ * switch automatically with the theme and need no re-render.
+ */
 
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains('dark'));
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
+/** @returns {boolean} true when the dark theme is active. */
+export const useTheme = () => useThemeStore((s) => s.resolved === 'dark');
 
-  return isDark;
-};
+/** @returns {'light' | 'dark'} the active theme — e.g. for ReactFlow `colorMode`. */
+export const useResolvedTheme = () => useThemeStore((s) => s.resolved);
 
-export const getAdaptiveColor = (hex, isDark) => {
-  if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return hex;
-  const hexStr = hex.replace('#', '');
-  if (hexStr.length !== 6 && hexStr.length !== 3) return hex;
-  
-  let r, g, b;
-  if (hexStr.length === 3) {
-    r = parseInt(hexStr[0] + hexStr[0], 16);
-    g = parseInt(hexStr[1] + hexStr[1], 16);
-    b = parseInt(hexStr[2] + hexStr[2], 16);
-  } else {
-    r = parseInt(hexStr.substring(0, 2), 16);
-    g = parseInt(hexStr.substring(2, 4), 16);
-    b = parseInt(hexStr.substring(4, 6), 16);
-  }
-  
-  // Calculate relative luminance
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  const isColorLight = luminance > 0.5;
-  
-  // Invert the color if it conflicts with the theme's background
-  // Light theme + Light color -> Invert to dark
-  if (!isDark && isColorLight) {
-    return `#${(255 - r).toString(16).padStart(2, '0')}${(255 - g).toString(16).padStart(2, '0')}${(255 - b).toString(16).padStart(2, '0')}`;
-  }
-  // Dark theme + Dark color -> Invert to light
-  if (isDark && !isColorLight) {
-    return `#${(255 - r).toString(16).padStart(2, '0')}${(255 - g).toString(16).padStart(2, '0')}${(255 - b).toString(16).padStart(2, '0')}`;
-  }
-  
-  return hex;
+/** CSS variable reference for a theme token, e.g. themeVar('fg-muted') -> 'var(--fg-muted)'. */
+export const themeVar = (token) => `var(--${token})`;
+
+/**
+ * Read the computed value of a token (hex/rgb string). Only needed for APIs that
+ * cannot take CSS variables, e.g. <canvas> fillStyle. Call it during draw, not at
+ * module load, so it reflects the current theme.
+ */
+export const readThemeColor = (token) =>
+  getComputedStyle(document.documentElement).getPropertyValue(`--${token}`).trim();
+
+/** Shared Recharts styling — spread these into chart components. */
+export const chartTheme = {
+  grid: themeVar('chart-grid'),
+  axis: themeVar('chart-axis'),
+  tooltip: {
+    contentStyle: {
+      backgroundColor: themeVar('surface'),
+      borderColor: themeVar('line-strong'),
+      borderRadius: '0.5rem',
+      color: themeVar('fg'),
+    },
+    itemStyle: { color: themeVar('fg') },
+    labelStyle: { color: themeVar('fg-muted'), marginBottom: '4px' },
+    cursor: { fill: themeVar('surface-3'), opacity: 0.4 },
+  },
 };

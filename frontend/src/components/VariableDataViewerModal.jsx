@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, Terminal, Activity, Table as TableIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
+import { chartTheme } from '../utils/theme';
 
 export default function VariableDataViewerModal({ isOpen, onClose, projectId, variable, nodeMap = {} }) {
   const [history, setHistory] = useState([]);
@@ -86,30 +87,30 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="bg-gray-50 dark:bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-surface border border-line rounded-2xl shadow-2xl max-w-4xl w-full h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-line">
           <div>
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 dark:text-white">
-              <Activity size={20} className="text-indigo-400" />
+            <h3 className="text-lg font-bold flex items-center gap-2 text-fg">
+              <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
               {variable.variable_name}
             </h3>
-            <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
-              <span className="font-semibold text-slate-300">{nodeInfo.label}</span> ({nodeInfo.type}) &bull; <Terminal size={12} className="ml-1" /> <span className="font-mono text-[10px]">{variable.node_id}</span> &bull; Latest: {typeof variable.value === 'number' ? variable.value.toFixed(2) : variable.value}
+            <p className="text-xs text-fg-muted flex items-center gap-2 mt-1">
+              <span className="font-semibold text-fg-secondary">{nodeInfo.label}</span> ({nodeInfo.type}) &bull; <Terminal size={12} className="ml-1" /> <span className="font-mono text-[10px]">{variable.node_id}</span> &bull; Latest: {typeof variable.value === 'number' ? variable.value.toFixed(2) : variable.value}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={fetchHistory}
               disabled={loading}
-              className="p-2 text-slate-400 hover:text-gray-900 hover:bg-gray-100 dark:bg-slate-800 rounded-lg transition-colors dark:hover:text-white"
+              className="p-2 text-fg-muted hover:bg-surface-2 rounded-lg transition-colors hover:text-fg"
               title="Refresh"
             >
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+              className="p-2 text-fg-muted hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
             >
               <X size={20} />
             </button>
@@ -117,12 +118,12 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 p-4 sm:p-6 flex flex-col gap-6">
+        <div className="flex-1 overflow-auto bg-canvas p-4 sm:p-6 flex flex-col gap-6">
           {/* Chart Section */}
-          <div className="bg-gray-50 dark:bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm h-72 flex flex-col">
+          <div className="bg-surface border border-line rounded-xl p-4 shadow-sm h-72 flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Trend (Last 100 points)</h4>
-              <div className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full">
+              <h4 className="text-xs font-bold text-fg-muted uppercase tracking-wider">Trend (Last 100 points)</h4>
+              <div className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
                 Data Span: {spanText}
               </div>
             </div>
@@ -132,7 +133,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
                 </div>
               ) : history.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-slate-600 text-sm">
+                <div className="h-full flex items-center justify-center text-fg-faint text-sm">
                   No historical data available.
                 </div>
               ) : (
@@ -144,17 +145,17 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
                         <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                     <XAxis 
                       dataKey="timestamp" 
-                      stroke="#475569" 
+                      stroke={chartTheme.axis} 
                       fontSize={10}
                       tickFormatter={(unix) => new Date(unix + 'Z').toLocaleTimeString()}
                       minTickGap={30}
                     />
-                    <YAxis stroke="#475569" fontSize={10} domain={['auto', 'auto']} />
+                    <YAxis stroke={chartTheme.axis} fontSize={10} domain={['auto', 'auto']} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#fff', fontSize: '12px' }}
+                      contentStyle={{ ...chartTheme.tooltip.contentStyle, fontSize: '12px' }}
                       labelFormatter={(unix) => new Date(unix + 'Z').toLocaleString()}
                     />
                     <Area type="monotone" dataKey="value" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
@@ -165,31 +166,31 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
           </div>
 
           {/* Action/Retention Section */}
-          <div className="bg-gray-50 dark:bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-center gap-4 justify-between">
+          <div className="bg-surface border border-line rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-center gap-4 justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Retention:</span>
-              <button onClick={() => handleCleanup(7)} className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700">Keep 7 Days</button>
-              <button onClick={() => handleCleanup(15)} className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700">Keep 15 Days</button>
-              <button onClick={() => handleCleanup(30)} className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700">Keep 30 Days</button>
+              <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Retention:</span>
+              <button onClick={() => handleCleanup(7)} className="text-xs px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-fg-secondary rounded-lg transition-colors border border-line-strong">Keep 7 Days</button>
+              <button onClick={() => handleCleanup(15)} className="text-xs px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-fg-secondary rounded-lg transition-colors border border-line-strong">Keep 15 Days</button>
+              <button onClick={() => handleCleanup(30)} className="text-xs px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-fg-secondary rounded-lg transition-colors border border-line-strong">Keep 30 Days</button>
             </div>
             <button 
               onClick={handleDeleteVariable}
-              className="text-xs px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition-colors font-medium flex items-center gap-2 w-full sm:w-auto justify-center"
+              className="text-xs px-4 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg transition-colors font-medium flex items-center gap-2 w-full sm:w-auto justify-center"
             >
               Delete Variable Entirely
             </button>
           </div>
 
           {/* Table Section */}
-          <div className="flex-1 bg-gray-50 dark:bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col min-h-[250px]">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+          <div className="flex-1 bg-surface border border-line rounded-xl overflow-hidden flex flex-col min-h-[250px]">
+            <div className="p-4 border-b border-line flex items-center justify-between">
+               <h4 className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-2">
                  <TableIcon size={14} /> Raw Data
                </h4>
             </div>
             <div className="flex-1 overflow-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-white dark:bg-slate-950 text-xs uppercase text-slate-500 sticky top-0 z-10 shadow-sm border-b border-slate-800">
+              <table className="w-full text-left text-sm text-fg-secondary">
+                <thead className="bg-canvas text-xs uppercase text-fg-subtle sticky top-0 z-10 shadow-sm border-b border-line">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Timestamp</th>
                     <th className="px-4 py-3 font-semibold">Value</th>
@@ -197,19 +198,19 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
                     <th className="px-4 py-3 font-semibold text-right">Log ID</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-line/50">
                   {/* Map history in descending order for table (newest first) */}
                   {[...history].reverse().map((row) => (
-                    <tr key={row.id} className="hover:bg-gray-100 dark:bg-slate-800/30 transition-colors">
+                    <tr key={row.id} className="hover:bg-surface-2/30 transition-colors">
                       <td className="px-4 py-2 font-mono text-xs">{new Date(row.timestamp + 'Z').toLocaleString()}</td>
-                      <td className="px-4 py-2 font-mono text-indigo-400 font-semibold">{row.value}</td>
-                      <td className="px-4 py-2 text-slate-400 text-xs">{row.node_id}</td>
-                      <td className="px-4 py-2 text-slate-500 text-xs text-right">{row.id}</td>
+                      <td className="px-4 py-2 font-mono text-indigo-600 dark:text-indigo-400 font-semibold">{row.value}</td>
+                      <td className="px-4 py-2 text-fg-muted text-xs">{row.node_id}</td>
+                      <td className="px-4 py-2 text-fg-subtle text-xs text-right">{row.id}</td>
                     </tr>
                   ))}
                   {history.length === 0 && !loading && (
                     <tr>
-                      <td colSpan="4" className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan="4" className="px-4 py-8 text-center text-fg-subtle">
                         No records found.
                       </td>
                     </tr>
