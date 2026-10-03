@@ -298,6 +298,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                     title={config.title} 
                     value={getNestedValue(metadata, config.dataPath)} 
                     unit={config.unit} 
+                    config={config}
                   />
                 )}
                 {type === 'text' && (
@@ -307,11 +308,45 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                     unit={config.unit} 
                   />
                 )}
-                {type === 'gauge' && <GaugeWidget title={config.title} config={config} metadata={metadata} />}
-                {type === 'trafficLight' && <TrafficLightWidget title={config.title} config={config} metadata={metadata} />}
-                {type === 'radialDonut' && <RadialDonutWidget title={config.title} config={config} metadata={metadata} />}
-                {type === 'capacityBar' && <CapacityBarWidget title={config.title} config={config} metadata={metadata} />}
-                {type === 'targetTracker' && <TargetTrackerWidget title={config.title} config={config} metadata={metadata} />}
+                {type === 'gauge' && (
+                  <GaugeWidget 
+                    title={config.title} 
+                    value={getNestedValue(metadata, config.dataPath)} 
+                    unit={config.unit} 
+                    config={config} 
+                  />
+                )}
+                {type === 'trafficLight' && (
+                  <TrafficLightWidget 
+                    title={config.title} 
+                    value={getNestedValue(metadata, config.dataPath)} 
+                    config={config} 
+                  />
+                )}
+                {type === 'radialDonut' && (
+                  <RadialDonutWidget 
+                    title={config.title} 
+                    value={getNestedValue(metadata, config.dataPath)} 
+                    unit={config.unit} 
+                    config={config} 
+                  />
+                )}
+                {type === 'capacityBar' && (
+                  <CapacityBarWidget 
+                    title={config.title} 
+                    value={getNestedValue(metadata, config.dataPath)} 
+                    unit={config.unit} 
+                    config={config} 
+                  />
+                )}
+                {type === 'targetTracker' && (
+                  <TargetTrackerWidget 
+                    title={config.title} 
+                    data={getNestedValue(metadata, config.dataPath)} 
+                    config={config} 
+                    projectId={projectId} 
+                  />
+                )}
                 {type === 'textFeed' && (
                   <TextFeedWidget 
                     title={config.title} 
@@ -393,6 +428,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         onSave={handleSaveWidgetSettings}
         widgetItem={editingWidget}
         projectId={projectId}
+        metadata={metadata}
       />
     </div>
   );

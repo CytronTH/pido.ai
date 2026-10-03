@@ -25,10 +25,31 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     const parts = path.split('.');
     let current = obj;
     for (let part of parts) {
-      if (current[part] === undefined) return null;
-      current = current[part];
+      if (current === undefined || current === null) return null;
+      if (part === 'length' && Array.isArray(current)) {
+        current = current.length;
+      } else {
+        current = current[part];
+      }
     }
     return current;
+  };
+
+  const formatDisplayVal = (val) => {
+    if (val === null || val === undefined) return 'N/A';
+    if (typeof val === 'number') {
+      return val % 1 !== 0 ? val.toFixed(2) : String(val);
+    }
+    if (typeof val === 'boolean') {
+      return val ? 'true' : 'false';
+    }
+    if (typeof val === 'object') {
+      if (val.value !== undefined) return formatDisplayVal(val.value);
+      if (val.actual !== undefined && val.target !== undefined) return `${val.actual}/${val.target}`;
+      if (Array.isArray(val)) return `[${val.length}]`;
+      return 'Object';
+    }
+    return String(val);
   };
   const [formData, setFormData] = useState({ title: '', dataPath: '', unit: '', nodeId: '' });
   const [dataSources, setDataSources] = useState([]);
@@ -216,6 +237,9 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     // Retrieve real value if dataPath exists, else fallback to dummy
     const dsId = formData.dataPath || (formData.dataPaths && formData.dataPaths[0]) || widgetItem?.dataSourceId;
     let realValue = getNestedValue(metadata, dsId);
+    if (realValue !== null && typeof realValue === 'object' && realValue.value !== undefined) {
+      realValue = realValue.value;
+    }
     
     switch(widgetItem?.type) {
       case 'gauge':
@@ -342,7 +366,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         }
                         return allToRender.map(ds => {
                           const val = getNestedValue(metadata, ds.id);
-                          const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
+                          const displayVal = formatDisplayVal(val);
                           return (
                           <label key={ds.id} className={`flex items-center gap-3 p-2 rounded-md hover:bg-surface-2 cursor-pointer transition-colors ${ds.isDangling ? 'text-red-600/80 dark:text-red-400/80' : ''}`}>
                             <input 
@@ -374,7 +398,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       <option value="">-- Select Data Source --</option>
                       {filteredSources.map(ds => {
                         const val = getNestedValue(metadata, ds.id);
-                        const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
+                        const displayVal = formatDisplayVal(val);
                         return (
                           <option key={ds.id} value={ds.id}>{ds.name} [{displayVal}]</option>
                         );
