@@ -90,6 +90,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         iconName: widgetItem.config.iconName || 'Activity',
         decimals: widgetItem.config.decimals !== undefined ? widgetItem.config.decimals : '',
         unitPosition: widgetItem.config.unitPosition || 'inline',
+        compactNotation: widgetItem.config.compactNotation || false,
+        showTrend: widgetItem.config.showTrend || false,
+        trendMode: widgetItem.config.trendMode || 'percent',
+        trendPositiveColor: widgetItem.config.trendPositiveColor || 'green',
+        alertGlow: widgetItem.config.alertGlow ?? true,
         timeframe: widgetItem.config.timeframe || '5m',
         lockTimeframe: widgetItem.config.lockTimeframe || false,
         yMin: widgetItem.config.yMin || '',
@@ -232,7 +237,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
   const renderPreview = () => {
     const previewProps = {
       title: formData.title || 'Preview Title',
-      config: formData,
+      config: { ...formData, __isPreview: true },
     };
     
     // Retrieve real value if dataPath exists, else fallback to dummy
@@ -459,6 +464,67 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         min="0" max="10"
                       />
                     </div>
+                  )}
+
+                  {widgetItem?.type === 'metric' && (
+                    <>
+                      <div className="col-span-2 pt-2 border-t border-line">
+                        <ToggleSwitch 
+                          label={
+                            <div>
+                              <span className="text-sm font-semibold text-fg">Compact Notation (K, M, B)</span>
+                              <p className="text-xs text-fg-subtle font-normal">ย่อตัวเลขจำนวนมาก เช่น 1.5K, 2.4M, 1.1B</p>
+                            </div>
+                          } 
+                          checked={formData.compactNotation || false} 
+                          onChange={(e) => setFormData({ ...formData, compactNotation: e.target.checked })} 
+                          className="mb-0"
+                        />
+                      </div>
+
+                      <div className="col-span-2 p-4 rounded-xl border border-line-strong bg-surface-2/40 space-y-3">
+                        <ToggleSwitch 
+                          label={
+                            <div>
+                              <span className="text-sm font-semibold text-fg">Trend Indicator (ลูกศรความเปลี่ยนแปลง)</span>
+                              <p className="text-xs text-fg-subtle font-normal">แสดงทิศทางการเปลี่ยนแปลงเทียบกับค่าก่อนหน้า (▲ / ▼)</p>
+                            </div>
+                          } 
+                          checked={formData.showTrend || false} 
+                          onChange={(e) => setFormData({ ...formData, showTrend: e.target.checked })} 
+                          className="mb-0"
+                        />
+
+                        {formData.showTrend && (
+                          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-line-strong/60 animate-in fade-in duration-200">
+                            <div>
+                              <label className="block text-xs font-medium text-fg-secondary mb-1">Display Mode</label>
+                              <select 
+                                name="trendMode"
+                                value={formData.trendMode || 'percent'}
+                                onChange={handleChange}
+                                className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-fg text-xs focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                              >
+                                <option value="percent">Percentage (+5.4%)</option>
+                                <option value="value">Difference Value (+12)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-fg-secondary mb-1">Positive Direction (▲ ขึ้น)</label>
+                              <select 
+                                name="trendPositiveColor"
+                                value={formData.trendPositiveColor || 'green'}
+                                onChange={handleChange}
+                                className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-fg text-xs focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                              >
+                                <option value="green">เขียว (Green = Good / Positive)</option>
+                                <option value="red">แดง (Red = Alert / Bad)</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -935,6 +1001,22 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 </div>
                 )}
               </div>
+
+              {widgetItem.type === 'metric' && (
+                <div className="p-4 rounded-xl border border-line-strong bg-surface-2/40">
+                  <ToggleSwitch 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Card Neon Glow on Alert</span>
+                        <p className="text-xs text-fg-subtle font-normal">เพิ่มเอฟเฟกต์แสงเรืองรอบการ์ด (Neon Glow) เมื่อค่าเกินเกณฑ์ Alert</p>
+                      </div>
+                    } 
+                    checked={formData.alertGlow ?? true} 
+                    onChange={(e) => setFormData({ ...formData, alertGlow: e.target.checked })} 
+                    className="mb-0"
+                  />
+                </div>
+              )}
               
               {(widgetItem.type === 'gauge' || widgetItem.type === 'capacityBar') && (
                 <div className={`p-4 rounded-xl border transition-colors ${formData.enableDisplayScale ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>

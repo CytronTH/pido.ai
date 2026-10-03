@@ -25,6 +25,29 @@
 - 
 -->
 
+## [2026-10-04] - เพิ่มฟีเจอร์ Trend Indicator, Compact Notation และ Card Alert Glow ให้กับ Number Widget
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ฟีเจอร์ที่ 1: Trend / Delta Indicator (ลูกศรขึ้น/ลง ▲/▼ พร้อม % หรือค่าความต่างเมื่อเทียบกับค่าก่อนหน้า)
+- [x] ฟีเจอร์ที่ 4: Compact Notation (ตัวย่อ K, M, B เช่น 1.5K, 2.3M, 1.2B)
+- [x] ฟีเจอร์ที่ 5: Background Card Glow on Alert (แสงนีออนเรืองเตือนรอบขอบการ์ดเมื่อค่าเกินเกณฑ์/Trigger Alert)
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Trend / Delta Indicator (ฟีเจอร์ที่ 1):**
+  - ใน `MetricWidget.jsx`: ใช้ `useRef` และ `useEffect` ตรวจสอบความเปลี่ยนแปลงของค่า scalar แบบเรียลไทม์ คำนวณความต่าง (`diff`) และเปอร์เซ็นต์ (`pct`)
+  - รองรับการปรับ `trendMode` ทั้งแบบ Percentage (`+5.4%`) และแบบ Difference Value (`+12`)
+  - รองรับการตั้งค่าสีทิศทางบวก `trendPositiveColor`: เลือกได้ว่าจะให้ลูกศรขึ้นเป็นสีเขียว (Green = Good) หรือสีแดง (Red = Alert/Bad เช่น วัดความร้อนหรือ error)
+  - จัดวาง badge ร่วมกับ unit ได้ทั้งโหมด `inline` (วางไว้ใต้ตัวเลขอย่างสวยงาม) และโหมด `below` (วางเคียงข้าง unit)
+  - รองรับ Mock Trend Preview ใน `WidgetSettingsModal.jsx` เมื่อเปิดใช้งาน ให้ผู้ใช้เห็นตัวอย่างผลลัพธ์ทันทีขณะตั้งค่า
+- **Compact Notation (ฟีเจอร์ที่ 4):**
+  - เพิ่มฟังก์ชัน `formatCompact(num, decimals)` ย่อตัวเลขขนาดใหญ่ (≥1K -> K, ≥1M -> M, ≥1B -> B) พร้อมจัดการทศนิยมและเครื่องหมายลบ
+  - เพิ่ม toggle สวิตช์ในแท็บ General ของ Settings Modal
+- **Background Card Glow on Alert (ฟีเจอร์ที่ 5):**
+  - ออกแบบเอฟเฟกต์แสงนีออนเรือง (Neon Card Glow) เมื่อ Widget อยู่ในสถานะ Alert ด้วย `border-2 border-red-500 bg-gradient-to-b from-red-500/15 via-red-950/20 to-surface shadow-[0_0_30px_rgba(239,68,68,0.45)] animate-pulse`
+  - เพิ่มตัวเลือกเปิด/ปิด Card Neon Glow ในแท็บ Limits & Alerts ของ Settings Modal
+
+---
+
 ## [2026-10-04] - พัฒนาฟีเจอร์ Number Widget (อัปเกรดจาก Metric) บน Dashboard
 
 ### 🎯 เป้าหมาย (Goals)
