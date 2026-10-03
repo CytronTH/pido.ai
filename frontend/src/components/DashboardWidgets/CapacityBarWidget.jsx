@@ -65,7 +65,7 @@ export default function CapacityBarWidget({ title, value, unit, config = {} }) {
   const activeColor = getActiveColor(percentage, sortedStops);
 
   const displayColor = activeColor;
-  const SelectedIcon = config.iconName ? ICON_MAP[config.iconName] : null;
+  const SelectedIcon = (config.iconName && ICON_MAP[config.iconName]) ? ICON_MAP[config.iconName] : Activity;
 
   let bgStyle = activeColor;
   let shadowStyle = `0 0 15px ${activeColor}80`;
@@ -91,15 +91,19 @@ export default function CapacityBarWidget({ title, value, unit, config = {} }) {
   }
   
   return (
-    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden p-4 shadow-well transition-colors duration-300 relative ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line-strong/50'}`} style={{ containerType: 'size' }}>
-      {title && config.showTitle !== false && (
-        <div className="absolute top-4 left-4 flex items-center gap-2 text-blue-600 dark:text-blue-400 opacity-80 z-10">
-          {SelectedIcon && <SelectedIcon size={14} />}
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ fontSize: `calc(0.75rem * ${unitScale})` }}>{title}</span>
+    <div className={`flex flex-col h-full w-full rounded-xl overflow-hidden shadow-xl transition-colors duration-300 relative ${isAlert ? 'bg-red-50 dark:bg-red-950/40 border-2 border-red-500 animate-pulse' : 'bg-surface border border-line'}`} style={{ containerType: 'size' }}>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0 w-full z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            {SelectedIcon && <SelectedIcon size={16} className={`shrink-0 ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`} />}
+            <span className={`text-xs sm:text-sm font-semibold truncate ${isAlert ? 'text-red-600 dark:text-red-400' : 'text-fg'}`}>
+              {title || config?.title || 'Capacity Bar'}
+            </span>
+          </div>
         </div>
       )}
       
-      <div className={`flex-1 flex items-center justify-center gap-[6cqw] mt-4 ${isHorizontal ? 'flex-col' : 'flex-row'}`}>
+      <div className={`flex-1 flex items-center justify-center gap-[6cqw] p-4 ${isHorizontal ? 'flex-col' : 'flex-row'}`}>
         {/* Tube Holder/Backdrop */}
         <div className={`relative p-[2cqw] bg-surface-2 rounded-3xl border-[max(1px,0.2cqw)] border-line-strong/50 shadow-xl ${isHorizontal ? 'rounded-l-none' : 'rounded-t-none'}`}>
             {/* The Glass Tube */}

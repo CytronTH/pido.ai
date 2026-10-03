@@ -25,10 +25,31 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     const parts = path.split('.');
     let current = obj;
     for (let part of parts) {
-      if (current[part] === undefined) return null;
-      current = current[part];
+      if (current === undefined || current === null) return null;
+      if (part === 'length' && Array.isArray(current)) {
+        current = current.length;
+      } else {
+        current = current[part];
+      }
     }
     return current;
+  };
+
+  const formatDisplayVal = (val) => {
+    if (val === null || val === undefined) return 'N/A';
+    if (typeof val === 'number') {
+      return val % 1 !== 0 ? val.toFixed(2) : String(val);
+    }
+    if (typeof val === 'boolean') {
+      return val ? 'true' : 'false';
+    }
+    if (typeof val === 'object') {
+      if (val.value !== undefined) return formatDisplayVal(val.value);
+      if (val.actual !== undefined && val.target !== undefined) return `${val.actual}/${val.target}`;
+      if (Array.isArray(val)) return `[${val.length}]`;
+      return 'Object';
+    }
+    return String(val);
   };
   const [formData, setFormData] = useState({ title: '', dataPath: '', unit: '', nodeId: '' });
   const [dataSources, setDataSources] = useState([]);
@@ -216,6 +237,9 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     // Retrieve real value if dataPath exists, else fallback to dummy
     const dsId = formData.dataPath || (formData.dataPaths && formData.dataPaths[0]) || widgetItem?.dataSourceId;
     let realValue = getNestedValue(metadata, dsId);
+    if (realValue !== null && typeof realValue === 'object' && realValue.value !== undefined) {
+      realValue = realValue.value;
+    }
     
     switch(widgetItem?.type) {
       case 'gauge':
@@ -342,7 +366,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         }
                         return allToRender.map(ds => {
                           const val = getNestedValue(metadata, ds.id);
-                          const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
+                          const displayVal = formatDisplayVal(val);
                           return (
                           <label key={ds.id} className={`flex items-center gap-3 p-2 rounded-md hover:bg-surface-2 cursor-pointer transition-colors ${ds.isDangling ? 'text-red-600/80 dark:text-red-400/80' : ''}`}>
                             <input 
@@ -372,11 +396,15 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
                     >
                       <option value="">-- Select Data Source --</option>
+                      {formData.dataPath && !filteredSources.some(ds => ds.id === formData.dataPath) && (
+                        <option value={formData.dataPath}>⚠️ Deleted Source ({formData.dataPath})</option>
+                      )}
                       {filteredSources.map(ds => {
-                        const val = getNestedValue(metadata, ds.id);
-                        const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
+                        const isVideo = ds.dataType === 'video' || widgetItem?.type === 'video';
+                        const val = isVideo ? null : getNestedValue(metadata, ds.id);
+                        const displayVal = isVideo ? '' : ` [${formatDisplayVal(val)}]`;
                         return (
-                          <option key={ds.id} value={ds.id}>{ds.name} [{displayVal}]</option>
+                          <option key={ds.id} value={ds.id}>{ds.name}{displayVal}</option>
                         );
                       })}
                     </select>
@@ -390,33 +418,35 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
-                  <input 
-                    type="text" 
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                    placeholder="e.g. %, kg, pcs"
-                  />
-                </div>
-                {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem.type) && (
+              {['metric', 'gauge', 'capacityBar', 'radialDonut', 'text', 'targetTracker'].includes(widgetItem?.type) && (
+                <div className={['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) ? "grid grid-cols-2 gap-4" : "w-full"}>
                   <div>
-                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
                     <input 
-                      type="number" 
-                      name="decimals"
-                      value={formData.decimals}
+                      type="text" 
+                      name="unit"
+                      value={formData.unit}
                       onChange={handleChange}
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                      placeholder="e.g. 0, 1, 2"
-                      min="0" max="10"
+                      placeholder="e.g. %, kg, pcs"
                     />
                   </div>
-                )}
-              </div>
+                  {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
+                      <input 
+                        type="number" 
+                        name="decimals"
+                        value={formData.decimals}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
+                        placeholder="e.g. 0, 1, 2"
+                        min="0" max="10"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

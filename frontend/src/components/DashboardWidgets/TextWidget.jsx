@@ -1,16 +1,22 @@
 import React from 'react';
 import { AlignLeft } from 'lucide-react';
 
-export default function TextWidget({ title, value, unit, icon: Icon = AlignLeft }) {
+export default function TextWidget({ title, value, unit, config = {}, icon: Icon = AlignLeft }) {
   const isBoolean = typeof value === 'boolean';
   
   return (
-    <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={20} className="text-pink-600 dark:text-pink-400" />
-        <h3 className="text-fg-muted font-semibold text-sm uppercase tracking-wider">{title}</h3>
-      </div>
-      <div className="flex-1 flex items-center justify-center p-2 text-center">
+    <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon size={16} className="text-pink-600 dark:text-pink-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-fg truncate">
+              {title || config?.title || 'Text'}
+            </span>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 flex items-center justify-center p-4 text-center">
         <div className={`font-black tracking-tight break-words ${isBoolean ? 'text-5xl' : 'text-3xl'}`}>
           {value !== undefined && value !== null ? (
             isBoolean ? (

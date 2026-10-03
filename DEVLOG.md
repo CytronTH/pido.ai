@@ -25,6 +25,44 @@
 - 
 -->
 
+## [2026-10-04] - แก้บั๊ก Dashboard Widgets (Data Source Binding N/A, Video Widget Data Path ผีหลอก, และ ROI / AI FPS Overlay หาย)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ปัญหา dropdown Data Source Binding ใน Widget Settings Modal ขึ้น `[N/A]` ทั้งที่ pipeline ส่งค่าแบบเรียลไทม์
+- [x] แก้ปัญหา Video Widget เล่นวิดีโอแม้ dataPath ไม่มีอยู่จริงบน pipeline (หรือถูกลบ/ไม่ได้เชื่อมต่อ)
+- [x] แก้ปัญหา Video Widget ไม่วาด ROI Zone, AI FPS (มุมขวาบน) และ Bounding Box บนหน้า Dashboard
+- [x] ตรวจสอบและแก้ไขการส่งค่า props ให้ Dashboard widgets ทั้งหมดบน Live Dashboard
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **บั๊ก Data Source Binding N/A:** ใน `LiveDashboard.jsx` ลืมส่ง prop `metadata={metadata}` ให้ `<WidgetSettingsModal>` ทำให้ metadata เป็น `{}` เสมอ แก้โดยส่ง metadata เข้าไป และปรับปรุง `getNestedValue` กับ `formatDisplayVal` ใน `WidgetSettingsModal.jsx`
+- **บั๊ก Video เล่นแม้ไม่มี dataPath จริงบน pipeline:** 
+  - เดิมที `VideoWidget.jsx` มี fallback ต่อตรงไปหา raw camera `shared_${config.camera_id}` หรือใช้ `config.stream_id` เก่าที่ค้างอยู่ใน widget config ทำให้ยังคงดึงสตรีมขึ้นมาเล่นได้แม้ node ใน pipeline ถูกลบไปแล้ว
+  - แก้โดยให้ `LiveDashboard.jsx` ส่ง `dataSources` (สตรีมวิดีโอที่ pipeline expose ออกมาจริง) ให้ `VideoWidget.jsx`
+  - หาก `dataPath` ไม่ได้เชื่อมต่อหรือไม่อยู่บน pipeline อีกต่อไป (`isDanglingPath`) จะตัดการเชื่อมต่อ WHEP ทันที และแสดง UI แจ้งเตือน "Data path not found on pipeline" ป้องกันการเล่นวิดีโอผีหลอก
+- **บั๊ก ROI และ AI FPS ไม่แสดงบน Video Widget:**
+  - ใน `App.jsx` มีการดักจับข้อความ high-frequency metadata (`ai_metadata`) แล้ว dispatch ออกไปเป็น CustomEvent ที่ระดับ window เพื่อหลีกเลี่ยงการ re-render React DOM ที่ 30fps แต่ใน `VideoWidget.jsx` ยังคงรอรับค่าจาก React prop `metadata` อย่างเดียว ทำให้ canvas loop ไม่เคยได้รับข้อมูล AI ล่าสุด
+  - เพิ่ม Event Listener `ai_metadata` ใน `VideoWidget.jsx` อัปเดต `latestMetadataRef` แบบ zero-copy ไม่กระตุก React
+  - แก้ไขใน `backend/ai_engine/hailo_worker.py` ให้แนบ `metadata["roi"]` เสมอเมื่อมีการเปิดใช้งาน ROI (`roi_enabled` หรือ `show_roi`)
+  - วาด ROI Zone (กรอบเส้นประสีส้มพร้อมป้าย ROI ZONE), AI FPS สีเขียว/เหลือง/แดงที่มุมขวาบน และ Bounding Box บน Canvas ได้อย่างสมบูรณ์
+- **บั๊ก Video Widget showTitle ปิดแล้วไม่หาย:**
+  - เดิมใน `VideoWidget.jsx` แสดง icon กล้องและ title text เสมอโดยไม่ได้เช็ค `config?.showTitle`
+  - ครอบด้วย `{config?.showTitle !== false && (...)}` ซ่อน title และ icon กล้องอย่างถูกต้องเมื่อผู้ใช้ปิด Show Title ใน settings
+- **ปรับปรุง Data Source Dropdown สำหรับ Video:**
+  - วิดีโอสตรีมไม่มีค่าตัวเลขแบบ realtime ค่า `[${displayVal}]` จึงแสดงเป็น `[N/A]` หรือค่าว่างซึ่งทำให้สับสน
+  - ปรับใน `WidgetSettingsModal.jsx` ไม่ให้แสดงวงเล็บค่า realtime สำหรับ source ที่เป็น `video` แสดงเฉพาะชื่อ data path สะอาดตา
+- **ปรับปรุง Title Style ของทุก Dashboard Widget ให้เป็นมาตรฐานเดียวกัน:**
+  - กำหนดมาตรฐาน Header Bar ทุก Widget เป็น `bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0`
+  - ไอคอนขนาด 16px (`shrink-0`) พร้อมสี accent ตามประเภท widget
+  - ข้อความ Title ใช้ `text-xs sm:text-sm font-semibold text-fg truncate` แทน uppercase และสีจางเดิม
+  - รองรับการปิด Show Title (`config.showTitle === false`) สอดคล้องกันทุกตัว (`GaugeWidget`, `MetricWidget`, `ChartWidget`, `CapacityBarWidget`, `RadialDonutWidget`, `TrafficLightWidget`, `TextWidget`, `TextFeedWidget`, `TargetTrackerWidget`, `HistoricalChartWidget`, `ActionButtonsWidget`, `AlertsFeedWidget`, `PipelineStatusWidget`, `SystemResourceWidget`, `SnapshotsWidget`, `LogWidget`, `HeatmapWidget`)
+- **แก้ปัญหา Gauge Widget มี Inner Shadow ที่กรอบ:**
+  - ตรวจพบว่า `GaugeWidget.jsx` มีการใส่คลาส `shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]` แบบ hardcoded บนการ์ดด้านนอก ทำให้เกิดเงามืดวงในรอบขอบกรอบ
+  - แก้ไขโดยเอา inset shadow ออก แล้วเปลี่ยนมาใช้เงา `shadow-xl` และ `border-line` มาตรฐานเหมือน widget อื่นๆ
+- **Widget Props อื่นๆ:** เชื่อมต่อ props `value`, `unit`, `config` ให้ `GaugeWidget`, `TrafficLightWidget`, `RadialDonutWidget`, `CapacityBarWidget`, `TargetTrackerWidget`, และ `MetricWidget` บน `LiveDashboard.jsx`
+- ทดสอบ build ด้วย Vite ผ่านฉลุย 100% และ oxlint 0 errors
+
+---
+
 ## [2026-10-04] - ยกเครื่องระบบ Theme เป็น Semantic Design Tokens (Light/Dark/System) และจัดระเบียบ Git Remote / Repository
 
 ### 🎯 เป้าหมาย (Goals)

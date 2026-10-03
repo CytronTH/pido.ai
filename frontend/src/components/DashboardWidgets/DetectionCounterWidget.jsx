@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Focus } from 'lucide-react';
 
-export default function DetectionCounterWidget({ metadata }) {
+export default function DetectionCounterWidget({ metadata, config = {} }) {
   
   const counts = useMemo(() => {
     if (!metadata || !metadata.detections) return {};
@@ -17,11 +17,13 @@ export default function DetectionCounterWidget({ metadata }) {
   }, [counts]);
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-surface to-surface-2 border border-line-strong rounded-xl overflow-hidden shadow-xl">
-      <div className="bg-surface-2/50 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
-        <Focus size={16} className="text-blue-600 dark:text-blue-400" />
-        <span className="text-sm font-semibold text-fg">Live Detections</span>
-      </div>
+    <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
+          <Focus size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="text-xs sm:text-sm font-semibold text-fg truncate">{config?.title || 'Live Detections'}</span>
+        </div>
+      )}
       <div className="flex-1 p-4 flex flex-col items-center justify-center">
         <div className="text-6xl font-bold text-fg mb-2 tracking-tighter shadow-sm">
           {total}

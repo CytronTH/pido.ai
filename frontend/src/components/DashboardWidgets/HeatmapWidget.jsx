@@ -1,13 +1,15 @@
 import React from 'react';
 import { Map, Lock } from 'lucide-react';
 
-export default function HeatmapWidget() {
+export default function HeatmapWidget({ config = {} }) {
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl relative group">
-      <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
-        <Map size={16} className="text-yellow-700 dark:text-yellow-400" />
-        <span className="text-sm font-semibold text-fg">Zone Heatmap</span>
-      </div>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
+          <Map size={16} className="text-yellow-700 dark:text-yellow-400 shrink-0" />
+          <span className="text-xs sm:text-sm font-semibold text-fg truncate">{config?.title || 'Zone Heatmap'}</span>
+        </div>
+      )}
       
       {/* Blurred background mock */}
       <div className="flex-1 p-3 opacity-20 blur-sm pointer-events-none flex items-center justify-center">
