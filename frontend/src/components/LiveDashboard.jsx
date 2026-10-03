@@ -78,6 +78,8 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dataSources, setDataSources] = useState([]);
+  const [dataSourcesLoaded, setDataSourcesLoaded] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -85,14 +87,18 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
       .then(res => res.json())
       .then(projects => {
         const project = projects.find(p => p.id === projectId);
-        if (project && project.dashboard_layout) {
-          // Backward compatibility check
-          const updatedLayout = project.dashboard_layout.lg ? project.dashboard_layout.lg : project.dashboard_layout;
-          const hasTypes = updatedLayout.length === 0 || updatedLayout.some(i => i.type);
-          if (!hasTypes) {
-             setLayouts({ lg: defaultLayout }); // Overwrite with new generic layout if old format
-          } else {
-             setLayouts({ lg: updatedLayout });
+        if (project) {
+          setDataSources(project.exposed_data_sources || []);
+          setDataSourcesLoaded(true);
+          if (project.dashboard_layout) {
+            // Backward compatibility check
+            const updatedLayout = project.dashboard_layout.lg ? project.dashboard_layout.lg : project.dashboard_layout;
+            const hasTypes = updatedLayout.length === 0 || updatedLayout.some(i => i.type);
+            if (!hasTypes) {
+               setLayouts({ lg: defaultLayout }); // Overwrite with new generic layout if old format
+            } else {
+               setLayouts({ lg: updatedLayout });
+            }
           }
         }
       })
@@ -285,7 +291,15 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                     </button>
                   </React.Fragment>
                 )}
-                {type === 'video' && <VideoWidget metadata={config?.stream_id ? (metadata && metadata[config.stream_id]) : metadata} projectId={projectId} config={config} />}
+                {type === 'video' && (
+                  <VideoWidget 
+                    metadata={config?.stream_id ? (metadata && metadata[config.stream_id]) : metadata} 
+                    projectId={projectId} 
+                    config={config} 
+                    dataSources={dataSources}
+                    dataSourcesLoaded={dataSourcesLoaded}
+                  />
+                )}
                 {type === 'pipelineStatus' && <PipelineStatusWidget connected={connected} metadata={metadata} config={config} />}
                 {type === 'actionButtons' && <ActionButtonsWidget config={config} />}
                 {type === 'heatmap' && <HeatmapWidget config={config} />}
