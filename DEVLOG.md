@@ -25,6 +25,25 @@
 - 
 -->
 
+## [2026-10-04] - แก้บั๊ก Data Source Binding ใน Widget Settings Modal แสดง N/A และเชื่อม props ให้ Dashboard Widgets
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ปัญหา dropdown Data Source Binding ใน Widget Settings Modal ขึ้น `[N/A]` ทั้งที่ pipeline ส่งค่าแบบเรียลไทม์
+- [x] ตรวจสอบและแก้ไขการส่งค่า props ให้ Dashboard widgets ทั้งหมดบน Live Dashboard
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **สาเหตุของปัญหา:** ใน `LiveDashboard.jsx` มีการเรียก `<WidgetSettingsModal>` โดยไม่ได้ส่ง prop `metadata={metadata}` เข้าไป ทำให้ภายใน modal ค่า metadata เริ่มต้นเป็น `{}` เสมอ ฟังก์ชัน `getNestedValue` จึงได้ `null` และแสดงผลเป็น `[N/A]`
+- ส่ง `metadata={metadata}` ให้ `WidgetSettingsModal` ใน `LiveDashboard.jsx`
+- ปรับปรุงฟังก์ชัน `getNestedValue` ใน `WidgetSettingsModal.jsx` ให้ปลอดภัยต่อค่า null/undefined และรองรับ array length
+- เพิ่มฟังก์ชัน `formatDisplayVal` ใน `WidgetSettingsModal.jsx` รองรับการแปลงตัวเลข ทศนิยม boolean object (`.value` / `.actual`) ให้แสดงผลใน dropdown และ multi-source checkboxes ได้อย่างแม่นยำ
+- ปรับปรุงการส่ง props ให้ Dashboard widgets บน `LiveDashboard.jsx`:
+  - `MetricWidget`: ส่ง `config={config}` (ทำให้ icon, thresholds, font size แสดงผลตามการตั้งค่า)
+  - `GaugeWidget`, `TrafficLightWidget`, `RadialDonutWidget`, `CapacityBarWidget`: ส่ง `value={getNestedValue(metadata, config.dataPath)}`, `unit={config.unit}`, `config={config}` จากเดิมที่ส่งเพียง `metadata` ทำให้ widget ไม่ได้รับค่า value
+  - `TargetTrackerWidget`: ส่ง `data={getNestedValue(metadata, config.dataPath)}`, `config={config}`, `projectId={projectId}`
+- ทดสอบ build ด้วย Vite ผ่านฉลุย 100%
+
+---
+
 ## [2026-10-04] - ยกเครื่องระบบ Theme เป็น Semantic Design Tokens (Light/Dark/System) และจัดระเบียบ Git Remote / Repository
 
 ### 🎯 เป้าหมาย (Goals)
