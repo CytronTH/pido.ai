@@ -506,28 +506,28 @@ export default function PolygonZoneEditorModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-surface border border-line-strong rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-950/60">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line bg-canvas/60">
           <div className="flex items-center gap-3">
-            <div className="bg-rose-600/30 border border-rose-500/50 p-2 rounded-xl text-rose-400">
+            <div className="bg-rose-600/30 border border-rose-500/50 p-2 rounded-xl text-rose-600 dark:text-rose-400">
               <ShieldAlert size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-100 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
                 Intersection Danger Zone & Forklift Monitor Editor
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-rose-950/80 border border-rose-700 text-rose-300">
+                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/80 border border-rose-700 text-rose-700 dark:text-rose-300">
                   Warehouse Safety
                 </span>
               </h2>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-fg-muted">
                 วาดพื้นที่อันตราย (Polygon ROI) สำหรับกล้องติดมุมเฉียง 45° และกำหนดตรรกะเตือนภัยอุบัติเหตุทางแยก
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
+            className="text-fg-muted hover:text-fg p-2 rounded-lg hover:bg-surface-2 transition-colors"
           >
             <X size={20} />
           </button>
@@ -536,14 +536,14 @@ export default function PolygonZoneEditorModal({
         {/* Main Content Body */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Canvas Preview Area */}
-          <div className="flex-1 flex flex-col bg-black/90 p-4 border-r border-gray-800 overflow-hidden">
+          <div className="flex-1 flex flex-col bg-black/90 p-4 border-r border-line overflow-hidden">
             {/* Toolbar */}
-            <div className="flex items-center justify-between mb-3 text-xs text-gray-300">
+            <div className="flex items-center justify-between mb-3 text-xs text-fg-secondary">
               <div className="flex items-center gap-2">
                 <button
                   onClick={fetchSnapshot}
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg transition-colors border border-gray-700 disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-fg rounded-lg transition-colors border border-line-strong disabled:opacity-50"
                 >
                   <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
                   <span>Refresh Snapshot</span>
@@ -552,8 +552,8 @@ export default function PolygonZoneEditorModal({
                   onClick={() => setShowGroundGuide(!showGroundGuide)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors ${
                     showGroundGuide
-                      ? 'bg-emerald-950/80 border-emerald-700 text-emerald-300'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-surface-2 border-line-strong text-fg-muted hover:text-fg'
                   }`}
                   title="แสดงไกด์จุดสัมผัสพื้นฐานล้อ (Footprint Anchor)"
                 >
@@ -564,24 +564,24 @@ export default function PolygonZoneEditorModal({
 
               {/* Preset Shape Buttons */}
               <div className="flex items-center gap-1.5">
-                <span className="text-gray-400 text-[11px]">Presets:</span>
+                <span className="text-fg-muted text-[11px]">Presets:</span>
                 <button
                   onClick={() => handleApplyPreset('trapezoid_45')}
-                  className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-gray-200 hover:border-gray-600 transition-colors"
+                  className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-line-strong rounded text-fg hover:border-line-stronger transition-colors"
                   title="คางหมูสำหรับมุมเฉียง 45 องศา"
                 >
                   📐 45° Trapezoid
                 </button>
                 <button
                   onClick={() => handleApplyPreset('t_junction')}
-                  className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-gray-200 hover:border-gray-600 transition-colors"
+                  className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-line-strong rounded text-fg hover:border-line-stronger transition-colors"
                   title="ทางแยกตัว T"
                 >
                   T-Junction
                 </button>
                 <button
                   onClick={() => handleApplyPreset('crossroad')}
-                  className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-gray-200 hover:border-gray-600 transition-colors"
+                  className="px-2.5 py-1 bg-surface-2 hover:bg-surface-3 border border-line-strong rounded text-fg hover:border-line-stronger transition-colors"
                   title="สี่แยกทางตัด"
                 >
                   Crossroad
@@ -592,11 +592,11 @@ export default function PolygonZoneEditorModal({
             {/* Interactive Canvas Container */}
             <div
               ref={containerRef}
-              className="relative flex-1 bg-gray-950 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center select-none"
+              className="relative flex-1 bg-canvas rounded-xl overflow-hidden border border-line flex items-center justify-center select-none"
             >
               {loading && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 text-gray-300 gap-2">
-                  <RefreshCw className="animate-spin text-rose-400" size={24} />
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 text-fg-secondary gap-2">
+                  <RefreshCw className="animate-spin text-rose-600 dark:text-rose-400" size={24} />
                   <span>Capturing camera frame...</span>
                 </div>
               )}
@@ -607,7 +607,7 @@ export default function PolygonZoneEditorModal({
                   <p className="font-semibold text-sm">{error}</p>
                   <button
                     onClick={fetchSnapshot}
-                    className="mt-2 px-3 py-1.5 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500 rounded-lg text-white text-xs"
+                    className="mt-2 px-3 py-1.5 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500 rounded-lg text-fg text-xs"
                   >
                     Retry
                   </button>
@@ -640,29 +640,29 @@ export default function PolygonZoneEditorModal({
                   />
                 </div>
               ) : (
-                <div className="text-gray-500 text-xs flex flex-col items-center gap-2">
-                  <Camera size={36} className="text-gray-600" />
+                <div className="text-fg-subtle text-xs flex flex-col items-center gap-2">
+                  <Camera size={36} className="text-fg-faint" />
                   <span>Waiting for camera snapshot...</span>
                 </div>
               )}
             </div>
 
             {/* Instructions Footer */}
-            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400 bg-gray-950/60 px-3 py-2 rounded-lg border border-gray-800">
+            <div className="mt-2 flex items-center justify-between text-[11px] text-fg-muted bg-canvas/60 px-3 py-2 rounded-lg border border-line">
               <span className="flex items-center gap-1.5">
-                <Info size={13} className="text-rose-400" />
+                <Info size={13} className="text-rose-600 dark:text-rose-400" />
                 <span>คลิกและลากที่จุดมุม (Vertex Circle 1, 2, 3...) เพื่อปรับองศาให้แนบกับแนวเส้นพื้นทางแยก</span>
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleAddVertex}
-                  className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 text-[10px]"
+                  className="px-2 py-0.5 bg-surface-2 hover:bg-surface-3 text-fg-secondary rounded border border-line-strong text-[10px]"
                 >
                   + Add Point
                 </button>
                 <button
                   onClick={handleDeleteLastVertex}
-                  className="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 text-[10px]"
+                  className="px-2 py-0.5 bg-surface-2 hover:bg-surface-3 text-fg-secondary rounded border border-line-strong text-[10px]"
                 >
                   - Remove Point
                 </button>
@@ -671,25 +671,25 @@ export default function PolygonZoneEditorModal({
           </div>
 
           {/* Right Configuration Sidebar */}
-          <div className="w-88 bg-gray-950/80 p-5 flex flex-col gap-4 overflow-y-auto border-l border-gray-800">
+          <div className="w-88 bg-canvas/80 p-5 flex flex-col gap-4 overflow-y-auto border-l border-line">
             {/* Zones List */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
-                  <Layers size={14} className="text-rose-400" />
+                <label className="text-xs font-bold uppercase tracking-wider text-fg-secondary flex items-center gap-1.5">
+                  <Layers size={14} className="text-rose-600 dark:text-rose-400" />
                   Safety Zones ({zones.length})
                 </label>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleAddZone('danger')}
-                    className="px-2 py-1 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 border border-rose-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
+                    className="px-2 py-1 bg-rose-600/30 hover:bg-rose-600/50 text-rose-700 dark:text-rose-300 border border-rose-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
                     title="เพิ่มพื้นที่อันตรายวิกฤต"
                   >
                     <Plus size={12} /> Danger
                   </button>
                   <button
                     onClick={() => handleAddZone('caution')}
-                    className="px-2 py-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
+                    className="px-2 py-1 bg-amber-600/30 hover:bg-amber-600/50 text-amber-700 dark:text-amber-300 border border-amber-600/60 rounded text-[10px] font-semibold flex items-center gap-1"
                     title="เพิ่มพื้นที่เตือนระวังเข้าใกล้"
                   >
                     <Plus size={12} /> Caution
@@ -707,8 +707,8 @@ export default function PolygonZoneEditorModal({
                       onClick={() => setSelectedZoneId(zone.id)}
                       className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
                         isSel
-                          ? 'bg-gray-800/90 border-rose-500 shadow-md ring-1 ring-rose-500/50'
-                          : 'bg-gray-900/60 border-gray-800 hover:border-gray-700'
+                          ? 'bg-surface-2/90 border-rose-500 shadow-md ring-1 ring-rose-500/50'
+                          : 'bg-surface/60 border-line hover:border-line-strong'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -717,8 +717,8 @@ export default function PolygonZoneEditorModal({
                           style={{ backgroundColor: zone.color || typeInfo.color }}
                         />
                         <div className="truncate">
-                          <p className="font-semibold text-gray-200 truncate">{zone.name}</p>
-                          <p className="text-[10px] text-gray-400 font-mono">
+                          <p className="font-semibold text-fg truncate">{zone.name}</p>
+                          <p className="text-[10px] text-fg-muted font-mono">
                             {typeInfo.name.split(' ')[0]} • {zone.polygon?.length || 0} vertices
                           </p>
                         </div>
@@ -730,7 +730,7 @@ export default function PolygonZoneEditorModal({
                             e.stopPropagation();
                             handleDeleteZone(zone.id);
                           }}
-                          className="text-gray-500 hover:text-rose-400 p-1 rounded hover:bg-gray-800 transition-colors"
+                          className="text-fg-subtle hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded hover:bg-surface-2 transition-colors"
                           title="ลบโซนนี้"
                         >
                           <Trash2 size={13} />
@@ -744,13 +744,13 @@ export default function PolygonZoneEditorModal({
 
             {/* Selected Zone Edit Card */}
             {selectedZone && (
-              <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-3 flex flex-col gap-2.5">
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wide">
+              <div className="bg-surface/90 border border-line rounded-xl p-3 flex flex-col gap-2.5">
+                <span className="text-[11px] font-bold text-fg-secondary uppercase tracking-wide">
                   Edit Zone: {selectedZone.name}
                 </span>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-gray-400">Zone Name</label>
+                  <label className="text-[10px] text-fg-muted">Zone Name</label>
                   <input
                     type="text"
                     value={selectedZone.name}
@@ -760,13 +760,13 @@ export default function PolygonZoneEditorModal({
                         prev.map((z) => (z.id === selectedZone.id ? { ...z, name: val } : z))
                       );
                     }}
-                    className="bg-gray-950 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-rose-500"
+                    className="bg-canvas border border-line-strong rounded-lg px-2.5 py-1.5 text-xs text-fg focus:outline-none focus:border-rose-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-gray-400">Hazard Type</label>
+                    <label className="text-[10px] text-fg-muted">Hazard Type</label>
                     <select
                       value={selectedZone.type}
                       onChange={(e) => {
@@ -780,7 +780,7 @@ export default function PolygonZoneEditorModal({
                           )
                         );
                       }}
-                      className="w-full bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-rose-500"
+                      className="w-full bg-canvas border border-line-strong rounded-lg px-2 py-1.5 text-xs text-fg focus:outline-none focus:border-rose-500"
                     >
                       <option value="danger">Critical Danger (แดง)</option>
                       <option value="caution">Caution / Approach (เหลือง)</option>
@@ -789,7 +789,7 @@ export default function PolygonZoneEditorModal({
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-gray-400">Color</label>
+                    <label className="text-[10px] text-fg-muted">Color</label>
                     <input
                       type="color"
                       value={selectedZone.color || '#f43f5e'}
@@ -799,7 +799,7 @@ export default function PolygonZoneEditorModal({
                           prev.map((z) => (z.id === selectedZone.id ? { ...z, color: val } : z))
                         );
                       }}
-                      className="w-full h-8 bg-gray-950 border border-gray-700 rounded-lg p-1 cursor-pointer"
+                      className="w-full h-8 bg-canvas border border-line-strong rounded-lg p-1 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -807,22 +807,22 @@ export default function PolygonZoneEditorModal({
             )}
 
             {/* Warehouse Safety & Model Rules */}
-            <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-3 flex flex-col gap-3">
-              <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
-                <Sliders size={13} className="text-rose-400" />
+            <div className="bg-surface/90 border border-line rounded-xl p-3 flex flex-col gap-3">
+              <span className="text-[11px] font-bold text-fg-secondary uppercase tracking-wide flex items-center gap-1.5">
+                <Sliders size={13} className="text-rose-600 dark:text-rose-400" />
                 AI Model & Collision Logic
               </span>
 
               {/* Forklift Configuration Section */}
-              <div className="bg-gray-950/60 border border-rose-950/60 rounded-lg p-2.5 flex flex-col gap-2">
+              <div className="bg-canvas/60 border border-rose-950/60 rounded-lg p-2.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wide">
                     🚜 Forklift Settings
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-gray-400">
+                  <label className="text-[10px] text-fg-muted">
                     Target Forklift Class (เช่น forklift, truck)
                   </label>
                   <input
@@ -830,14 +830,14 @@ export default function PolygonZoneEditorModal({
                     value={forkliftClassesStr}
                     onChange={(e) => setForkliftClassesStr(e.target.value)}
                     placeholder="forklift, truck"
-                    className="bg-gray-950 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-rose-500 font-mono"
+                    className="bg-canvas border border-line-strong rounded-lg px-2.5 py-1.5 text-xs text-fg focus:outline-none focus:border-rose-500 font-mono"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] text-gray-400">
+                  <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Forklift Min Confidence:</span>
-                    <span className="font-mono text-rose-300 font-bold">{Math.round(forkliftConfidence * 100)}% ({Number(forkliftConfidence).toFixed(2)})</span>
+                    <span className="font-mono text-rose-700 dark:text-rose-300 font-bold">{Math.round(forkliftConfidence * 100)}% ({Number(forkliftConfidence).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -851,9 +851,9 @@ export default function PolygonZoneEditorModal({
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] text-gray-400">
+                  <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Forklift NMS / Duplicate IoU:</span>
-                    <span className="font-mono text-amber-300 font-bold">{Math.round(forkliftIou * 100)}% ({Number(forkliftIou).toFixed(2)})</span>
+                    <span className="font-mono text-amber-700 dark:text-amber-300 font-bold">{Math.round(forkliftIou * 100)}% ({Number(forkliftIou).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -864,22 +864,22 @@ export default function PolygonZoneEditorModal({
                     onChange={(e) => setForkliftIou(parseFloat(e.target.value))}
                     className="w-full accent-amber-500"
                   />
-                  <span className="text-[9px] text-gray-400 leading-tight">
+                  <span className="text-[9px] text-fg-muted leading-tight">
                     💡 ตัด BBox ซ้อนคันเดียวกัน (ยิ่งค่าน้อย ยิ่งตัดกรอบซ้อนเข้มงวดขึ้น)
                   </span>
                 </div>
               </div>
 
               {/* Person Configuration Section */}
-              <div className="bg-gray-950/60 border border-cyan-950/60 rounded-lg p-2.5 flex flex-col gap-2">
+              <div className="bg-canvas/60 border border-cyan-950/60 rounded-lg p-2.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">
                     🚶 Person / Pedestrian Settings
                   </span>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-gray-400">
+                  <label className="text-[10px] text-fg-muted">
                     Person Class (เช่น person, human)
                   </label>
                   <input
@@ -887,14 +887,14 @@ export default function PolygonZoneEditorModal({
                     value={personClassesStr}
                     onChange={(e) => setPersonClassesStr(e.target.value)}
                     placeholder="person"
-                    className="bg-gray-950 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-cyan-500 font-mono"
+                    className="bg-canvas border border-line-strong rounded-lg px-2.5 py-1.5 text-xs text-fg focus:outline-none focus:border-cyan-500 font-mono"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] text-gray-400">
+                  <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Person Min Confidence:</span>
-                    <span className="font-mono text-cyan-300 font-bold">{Math.round(personConfidence * 100)}% ({Number(personConfidence).toFixed(2)})</span>
+                    <span className="font-mono text-cyan-700 dark:text-cyan-300 font-bold">{Math.round(personConfidence * 100)}% ({Number(personConfidence).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -908,9 +908,9 @@ export default function PolygonZoneEditorModal({
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] text-gray-400">
+                  <div className="flex justify-between text-[10px] text-fg-muted">
                     <span>Person NMS / Duplicate IoU:</span>
-                    <span className="font-mono text-amber-300 font-bold">{Math.round(personIou * 100)}% ({Number(personIou).toFixed(2)})</span>
+                    <span className="font-mono text-amber-700 dark:text-amber-300 font-bold">{Math.round(personIou * 100)}% ({Number(personIou).toFixed(2)})</span>
                   </div>
                   <input
                     type="range"
@@ -926,20 +926,20 @@ export default function PolygonZoneEditorModal({
 
               {/* Anchor Mode Selection (Crucial for 45-degree angle) */}
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-gray-400">
+                <label className="text-[10px] text-fg-muted">
                   Detection Anchor Point (จุดคำนวณบนตัวรถ)
                 </label>
                 <select
                   value={anchorMode}
                   onChange={(e) => setAnchorMode(e.target.value)}
-                  className="bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-rose-500 font-medium"
+                  className="bg-canvas border border-line-strong rounded-lg px-2 py-1.5 text-xs text-fg focus:outline-none focus:border-rose-500 font-medium"
                 >
                   <option value="bottom_center">
                     ⭐ Bottom-Center (จุดสัมผัสพื้นล้อ - แนะนำสำหรับมุมเฉียง 45°)
                   </option>
                   <option value="centroid">Centroid (จุดกึ่งกลาง BBox รวมเสา)</option>
                 </select>
-                <span className="text-[9px] text-emerald-400 leading-tight">
+                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 leading-tight">
                   ✓ ป้องกันยอดเสา Forklift ลอยเข้าไปในโซนแล้วเกิด False Alarm
                 </span>
               </div>
@@ -947,36 +947,36 @@ export default function PolygonZoneEditorModal({
               {/* Co-Presence Critical Alarm Toggle */}
               <div className="flex items-center justify-between pt-1">
                 <div>
-                  <p className="text-xs text-gray-200 font-medium">Forklift + Person Hazard</p>
-                  <p className="text-[10px] text-gray-400">ไซเรนเตือนวิกฤตเมื่อมีคนและรถพร้อมกัน</p>
+                  <p className="text-xs text-fg font-medium">Forklift + Person Hazard</p>
+                  <p className="text-[10px] text-fg-muted">ไซเรนเตือนวิกฤตเมื่อมีคนและรถพร้อมกัน</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={criticalOnCoPresence}
                   onChange={(e) => setCriticalOnCoPresence(e.target.checked)}
-                  className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-rose-600 focus:ring-rose-500"
+                  className="w-4 h-4 rounded bg-canvas border-line-strong text-rose-600 focus:ring-rose-500"
                 />
               </div>
 
               {/* Multi-Forklift Intersection Conflict Toggle */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-200 font-medium">Multi-Forklift Conflict</p>
-                  <p className="text-[10px] text-gray-400">เตือนวิกฤตเมื่อรถ 2 คันเข้าตัดหน้ากัน</p>
+                  <p className="text-xs text-fg font-medium">Multi-Forklift Conflict</p>
+                  <p className="text-[10px] text-fg-muted">เตือนวิกฤตเมื่อรถ 2 คันเข้าตัดหน้ากัน</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={criticalOnMultiForklift}
                   onChange={(e) => setCriticalOnMultiForklift(e.target.checked)}
-                  className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-rose-600 focus:ring-rose-500"
+                  className="w-4 h-4 rounded bg-canvas border-line-strong text-rose-600 focus:ring-rose-500"
                 />
               </div>
 
               {/* Debounce Filter */}
               <div className="flex flex-col gap-1 pt-1">
-                <div className="flex justify-between text-[10px] text-gray-400">
+                <div className="flex justify-between text-[10px] text-fg-muted">
                   <span>Debounce Verification:</span>
-                  <span className="font-mono text-gray-200">{debounceMs} ms</span>
+                  <span className="font-mono text-fg">{debounceMs} ms</span>
                 </div>
                 <input
                   type="range"
@@ -994,7 +994,7 @@ export default function PolygonZoneEditorModal({
             <div className="mt-auto pt-2 flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 py-2 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-semibold transition-colors"
+                className="flex-1 py-2 px-3 bg-surface-2 hover:bg-surface-3 text-fg-secondary rounded-xl text-xs font-semibold transition-colors"
               >
                 Cancel
               </button>

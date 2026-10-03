@@ -3,8 +3,10 @@ import { ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge,
 import '@xyflow/react/dist/style.css';
 import { Camera, BrainCircuit, Filter, Bell, Tv, List } from 'lucide-react';
 import { nodeTypes, edgeTypes } from '../PipelineBuilder/nodeTypes';
+import { useResolvedTheme } from '../../utils/theme';
 
 const MiniPipelineDiagram = forwardRef(({ nodeType, supportedInputs = [], supportedOutputs = [], nodeTutorials, onReady }, ref) => {
+  const resolvedTheme = useResolvedTheme();
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
 
@@ -102,7 +104,7 @@ const MiniPipelineDiagram = forwardRef(({ nodeType, supportedInputs = [], suppor
         target: 'center_node',
         type: 'buttonEdge',
         animated: true,
-        style: { stroke: '#6b7280', strokeWidth: 2 }
+        style: { stroke: 'var(--fg-subtle)', strokeWidth: 2 }
       });
     });
 
@@ -127,7 +129,7 @@ const MiniPipelineDiagram = forwardRef(({ nodeType, supportedInputs = [], suppor
         target: id,
         type: 'buttonEdge',
         animated: true,
-        style: { stroke: '#6b7280', strokeWidth: 2 }
+        style: { stroke: 'var(--fg-subtle)', strokeWidth: 2 }
       });
     });
 
@@ -157,13 +159,14 @@ const MiniPipelineDiagram = forwardRef(({ nodeType, supportedInputs = [], suppor
   );
   
   const onConnect = useCallback(
-    (connection) => setEdges((eds) => addEdge({ ...connection, type: 'buttonEdge', animated: true, style: { stroke: '#6b7280', strokeWidth: 2 } }, eds)),
+    (connection) => setEdges((eds) => addEdge({ ...connection, type: 'buttonEdge', animated: true, style: { stroke: 'var(--fg-subtle)', strokeWidth: 2 } }, eds)),
     []
   );
 
   return (
-    <div style={{ width: '100%', height: '600px' }} className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/80 shadow-inner relative">
+    <div style={{ width: '100%', height: '600px' }} className="rounded-xl overflow-hidden border border-line bg-canvas/80 shadow-inner relative">
       <ReactFlow 
+        colorMode={resolvedTheme}
         nodes={wrappedNodes} 
         edges={edges} 
         onNodesChange={onNodesChange}
@@ -175,12 +178,12 @@ const MiniPipelineDiagram = forwardRef(({ nodeType, supportedInputs = [], suppor
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#374151" gap={16} />
-        <Controls className="bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 fill-gray-300" />
+        <Background color="var(--line-strong)" gap={16} />
+        <Controls className="bg-surface-2 border-line-strong fill-fg-secondary" />
       </ReactFlow>
       
       {/* Legend / Tip */}
-      <div className="absolute bottom-3 left-3 bg-gray-50 dark:bg-gray-900/80 border border-gray-300 dark:border-gray-700 px-3 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-400 backdrop-blur pointer-events-none">
+      <div className="absolute bottom-3 left-3 bg-surface/80 border border-line-strong px-3 py-1.5 rounded-lg text-xs text-fg-muted backdrop-blur pointer-events-none">
         ลากเส้นเชื่อม หรือกดลบโหนดได้ (ยกเว้นโหนดหลัก)
       </div>
     </div>

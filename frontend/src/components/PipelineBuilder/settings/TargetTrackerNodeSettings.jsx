@@ -22,10 +22,10 @@ export default function TargetTrackerNodeSettings({ nodeId, data, onChange, isSi
     <div className="flex flex-col gap-4">
       {/* Target Count */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Target Count</label>
+        <label className="text-sm font-semibold text-fg-secondary">Target Count</label>
         <input 
           type="number"
-          className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-amber-500 w-full dark:text-white"
+          className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-amber-500 w-full text-fg"
           value={data?.targetCount || 100}
           onChange={(e) => onChange({ targetCount: parseInt(e.target.value) || 1 })}
           min="1"
@@ -34,10 +34,10 @@ export default function TargetTrackerNodeSettings({ nodeId, data, onChange, isSi
 
       {/* Unit Name */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Unit Name</label>
+        <label className="text-sm font-semibold text-fg-secondary">Unit Name</label>
         <input 
           type="text"
-          className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-amber-500 w-full dark:text-white"
+          className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-amber-500 w-full text-fg"
           value={data?.unitName || 'items'}
           onChange={(e) => onChange({ unitName: e.target.value })}
           placeholder="e.g. items, cars, boxes"
@@ -46,9 +46,9 @@ export default function TargetTrackerNodeSettings({ nodeId, data, onChange, isSi
       
       {/* Trigger Condition */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Counting Mode</label>
+        <label className="text-sm font-semibold text-fg-secondary">Counting Mode</label>
         <select 
-          className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-amber-500 w-full dark:text-white"
+          className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-amber-500 w-full text-fg"
           value={data?.edgeType || 'rising'}
           onChange={(e) => onChange({ edgeType: e.target.value })}
         >
@@ -58,17 +58,17 @@ export default function TargetTrackerNodeSettings({ nodeId, data, onChange, isSi
       </div>
 
       {/* Reset Controls */}
-      <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-between mt-2">
+      <div className="bg-canvas p-3 rounded-lg border border-line flex items-center justify-between mt-2">
         <div className="flex items-center gap-2">
-          <Target size={16} className="text-amber-400" />
-          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400">Current:</span>
+          <Target size={16} className="text-amber-700 dark:text-amber-400" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current:</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold font-mono text-amber-400">{liveCount}</span>
+          <span className="text-lg font-bold font-mono text-amber-700 dark:text-amber-400">{liveCount}</span>
           <button
             type="button"
             onClick={handleReset}
-            className="text-gray-600 hover:text-red-400 p-1 rounded transition-colors dark:text-gray-400"
+            className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
             title="Reset Tracker to 0"
           >
             <RotateCcw size={14} />

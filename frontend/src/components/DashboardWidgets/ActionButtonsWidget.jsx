@@ -8,43 +8,43 @@ export default function ActionButtonsWidget() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-xl">
-      <div className="bg-gray-100 dark:bg-gray-800/80 px-3 py-2 flex items-center gap-2 border-b border-gray-300 dark:border-gray-700 shrink-0">
-        <ToggleRight size={16} className="text-cyan-400" />
-        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Manual Triggers</span>
+    <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-surface-2/80 px-3 py-2 flex items-center gap-2 border-b border-line-strong shrink-0">
+        <ToggleRight size={16} className="text-cyan-600 dark:text-cyan-400" />
+        <span className="text-sm font-semibold text-fg">Manual Triggers</span>
       </div>
       
       <div className="flex-1 p-3 grid grid-cols-2 gap-3">
         <button 
           onClick={() => triggerAction('Alarm')}
-          className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-gray-600"
+          className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <Siren size={24} className="text-red-400" />
-          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">Trigger Alarm</span>
+          <Siren size={24} className="text-red-600 dark:text-red-400" />
+          <span className="text-xs text-fg-secondary font-medium">Trigger Alarm</span>
         </button>
 
         <button 
           onClick={() => triggerAction('Door')}
-          className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-gray-600"
+          className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <DoorOpen size={24} className="text-green-400" />
-          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">Open Door</span>
+          <DoorOpen size={24} className="text-green-600 dark:text-green-400" />
+          <span className="text-xs text-fg-secondary font-medium">Open Door</span>
         </button>
 
         <button 
           onClick={() => triggerAction('Lights')}
-          className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-gray-600"
+          className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <Lightbulb size={24} className="text-yellow-400" />
-          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">Toggle Lights</span>
+          <Lightbulb size={24} className="text-yellow-700 dark:text-yellow-400" />
+          <span className="text-xs text-fg-secondary font-medium">Toggle Lights</span>
         </button>
 
         <button 
           onClick={() => triggerAction('Reset')}
-          className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-gray-600"
+          className="bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg flex flex-col items-center justify-center p-2 gap-2 transition-colors active:bg-surface-4"
         >
-          <ToggleRight size={24} className="text-gray-500 dark:text-gray-400 dark:text-gray-400" />
-          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">System Reset</span>
+          <ToggleRight size={24} className="text-fg-muted" />
+          <span className="text-xs text-fg-secondary font-medium">System Reset</span>
         </button>
       </div>
     </div>

@@ -14,14 +14,14 @@ export default function DatabaseWriterNode({ id, data, selected }) {
   };
 
   return (
-    <div className={`bg-gray-100 dark:bg-gray-900 border-2 rounded-xl shadow-xl overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-64'} ${selected ? 'border-teal-500' : 'border-teal-500/30'}`}>
-      <div className="bg-gradient-to-r from-teal-900/50 to-teal-800/50 p-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+    <div className={`bg-surface border-2 rounded-xl shadow-xl overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-64'} ${selected ? 'border-teal-500' : 'border-teal-500/30'}`}>
+      <div className="bg-gradient-to-r from-teal-900/50 to-teal-800/50 p-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Database size={18} className="text-teal-400" />
+          <Database size={18} className="text-teal-600 dark:text-teal-400" />
           <div className="flex flex-col justify-center">
-            <span className="font-semibold text-gray-800 text-sm tracking-wide truncate max-w-[120px] leading-tight dark:text-gray-200">{data?.label || 'Database Writer'}</span>
+            <span className="font-semibold text-sm tracking-wide truncate max-w-[120px] leading-tight text-fg">{data?.label || 'Database Writer'}</span>
             {data?.label && data.label !== 'Database Writer' && (
-              <span className="text-[10px] text-gray-900 font-mono leading-none truncate mt-0.5 dark:text-white/50">Database Writer</span>
+              <span className="text-[10px] font-mono leading-none truncate mt-0.5 text-fg/50">Database Writer</span>
             )}
           </div>
         </div>
@@ -34,8 +34,8 @@ export default function DatabaseWriterNode({ id, data, selected }) {
         </div>
       )}
 
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-teal-500 border-2 border-gray-100 dark:border-gray-900" />
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-teal-500 border-2 border-gray-100 dark:border-gray-900" />
+      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-teal-500 border-2 border-line-subtle" />
+      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-teal-500 border-2 border-line-subtle" />
     </div>
   );
 }

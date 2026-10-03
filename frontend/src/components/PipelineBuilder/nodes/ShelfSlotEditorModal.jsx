@@ -353,21 +353,21 @@ export default function ShelfSlotEditorModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 sm:p-6 select-none animate-in fade-in duration-150">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden text-gray-100">
+      <div className="bg-surface border border-line-strong rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden text-fg">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between bg-gray-950/70">
+        <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-canvas/70">
           <div className="flex items-center gap-3">
-            <div className="bg-amber-500/20 border border-amber-500/40 p-2 rounded-xl text-amber-400">
+            <div className="bg-amber-500/20 border border-amber-500/40 p-2 rounded-xl text-amber-700 dark:text-amber-400">
               <Layers size={20} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-fg flex items-center gap-2">
                 Shelf Slot & Zone Configuration
-                <span className="text-xs font-normal text-amber-400 bg-amber-950/80 border border-amber-800 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-normal text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/80 border border-amber-800 px-2 py-0.5 rounded-full">
                   {slots.length} Slots
                 </span>
               </h2>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-fg-muted">
                 ลากกรอบสี่เหลี่ยมแบ่งช่องวางสินค้าบนชั้นวาง กำหนดเงื่อนไข และระบบตรวจจับคนเพื่อระงับการแจ้งเตือน
               </p>
             </div>
@@ -378,16 +378,16 @@ export default function ShelfSlotEditorModal({
               <button
                 onClick={fetchSnapshot}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-xs font-medium text-gray-200 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 hover:bg-surface-3 border border-line-strong rounded-lg text-xs font-medium text-fg transition-colors"
                 title="Refresh Camera Frame"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin text-amber-400' : ''} />
+                <RefreshCw size={14} className={loading ? 'animate-spin text-amber-700 dark:text-amber-400' : ''} />
                 Snapshot
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white border border-gray-700 transition-colors"
+              className="p-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg border border-line-strong transition-colors"
             >
               <X size={18} />
             </button>
@@ -397,21 +397,21 @@ export default function ShelfSlotEditorModal({
         {/* Modal Body */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0">
           {/* Main Visual Canvas (8 cols) */}
-          <div className="lg:col-span-8 bg-black/90 p-4 flex flex-col items-center justify-center relative overflow-auto border-b lg:border-b-0 lg:border-r border-gray-800 min-h-[350px]">
+          <div className="lg:col-span-8 bg-black/90 p-4 flex flex-col items-center justify-center relative overflow-auto border-b lg:border-b-0 lg:border-r border-line min-h-[350px]">
             {loading && !imageSrc && (
-              <div className="flex flex-col items-center gap-2 text-gray-400">
-                <RefreshCw size={28} className="animate-spin text-amber-400" />
+              <div className="flex flex-col items-center gap-2 text-fg-muted">
+                <RefreshCw size={28} className="animate-spin text-amber-700 dark:text-amber-400" />
                 <span className="text-sm">Capturing frame from camera...</span>
               </div>
             )}
 
             {error && (
-              <div className="bg-red-950/60 border border-red-800 text-red-300 p-4 rounded-xl text-center max-w-md">
+              <div className="bg-red-50 dark:bg-red-950/60 border border-red-800 text-red-700 dark:text-red-300 p-4 rounded-xl text-center max-w-md">
                 <p className="font-semibold text-sm">Failed to grab camera snapshot</p>
-                <p className="text-xs text-red-400/80 mt-1">{error}</p>
+                <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">{error}</p>
                 <button
                   onClick={fetchSnapshot}
-                  className="mt-3 px-3 py-1.5 bg-red-900/60 hover:bg-red-800/80 border border-red-700 rounded-lg text-xs font-medium text-white"
+                  className="mt-3 px-3 py-1.5 bg-red-100 dark:bg-red-900/60 hover:bg-red-800/80 border border-red-700 rounded-lg text-xs font-medium text-fg"
                 >
                   Retry Snapshot
                 </button>
@@ -421,7 +421,7 @@ export default function ShelfSlotEditorModal({
             {imageSrc && (
               <div
                 ref={containerRef}
-                className="relative inline-block border border-gray-800 rounded-lg overflow-hidden shadow-2xl"
+                className="relative inline-block border border-line rounded-lg overflow-hidden shadow-2xl"
               >
                 <img
                   src={imageSrc}
@@ -456,18 +456,18 @@ export default function ShelfSlotEditorModal({
               />
             )}
 
-            <div className="absolute bottom-2 left-4 text-[11px] text-gray-500 bg-gray-950/80 px-2.5 py-1 rounded-md border border-gray-800">
+            <div className="absolute bottom-2 left-4 text-[11px] text-fg-subtle bg-canvas/80 px-2.5 py-1 rounded-md border border-line">
               💡 คลิกและลากบนภาพเพื่อตีกรอบช่องวางที่เลือก | คลิกลากข้างในเพื่อย้ายตำแหน่ง
             </div>
           </div>
 
           {/* Right Control & Slot Management Panel (4 cols) */}
-          <div className="lg:col-span-4 bg-gray-900/95 flex flex-col h-full overflow-y-auto custom-scrollbar p-5 gap-5">
+          <div className="lg:col-span-4 bg-surface/95 flex flex-col h-full overflow-y-auto custom-scrollbar p-5 gap-5">
             {/* Slot List Section */}
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Layers size={14} className="text-amber-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-fg-muted flex items-center gap-1.5">
+                  <Layers size={14} className="text-amber-700 dark:text-amber-400" />
                   Shelf Slots ({slots.length})
                 </span>
                 <button
@@ -490,18 +490,18 @@ export default function ShelfSlotEditorModal({
                       onClick={() => setSelectedSlotId(slot.id)}
                       className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                         isSelected
-                          ? 'bg-gray-800 border-amber-500 shadow-md'
-                          : 'bg-gray-950/60 border-gray-800 hover:border-gray-700'
+                          ? 'bg-surface-2 border-amber-500 shadow-md'
+                          : 'bg-canvas/60 border-line hover:border-line-strong'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span
-                          className="w-3.5 h-3.5 rounded-full shrink-0 border border-white/20"
+                          className="w-3.5 h-3.5 rounded-full shrink-0 border border-fg/20"
                           style={{ backgroundColor: color.hex }}
                         />
                         <div className="truncate">
-                          <p className="text-xs font-semibold text-gray-200 truncate">{slot.name}</p>
-                          <p className="text-[10px] text-gray-500">
+                          <p className="text-xs font-semibold text-fg truncate">{slot.name}</p>
+                          <p className="text-[10px] text-fg-subtle">
                             Min: {slot.minCount || 1} |{' '}
                             {slot.targetClasses?.length > 0 ? slot.targetClasses.join(', ') : 'All Products'}
                           </p>
@@ -512,7 +512,7 @@ export default function ShelfSlotEditorModal({
                         {slots.length > 1 && (
                           <button
                             onClick={(e) => handleDeleteSlot(slot.id, e)}
-                            className="text-gray-500 hover:text-red-400 p-1 rounded transition-colors"
+                            className="text-fg-subtle hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors"
                             title="Delete Slot"
                           >
                             <Trash2 size={14} />
@@ -527,25 +527,25 @@ export default function ShelfSlotEditorModal({
 
             {/* Active Slot Settings */}
             {selectedSlot && (
-              <div className="bg-gray-950 p-3.5 rounded-xl border border-gray-800 flex flex-col gap-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              <div className="bg-canvas p-3.5 rounded-xl border border-line flex flex-col gap-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                   Edit: {selectedSlot.name}
                 </span>
 
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Slot Name / Label</label>
+                  <label className="text-xs text-fg-muted block mb-1">Slot Name / Label</label>
                   <input
                     type="text"
                     value={selectedSlot.name || ''}
                     onChange={(e) => handleUpdateSlotField(selectedSlot.id, 'name', e.target.value)}
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500"
+                    className="w-full bg-surface border border-line-strong rounded-lg px-2.5 py-1.5 text-xs text-fg outline-none focus:border-amber-500"
                     placeholder="e.g. Eco 5W-30 (Left)"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs text-gray-400 block mb-1">Target Class</label>
+                    <label className="text-xs text-fg-muted block mb-1">Target Class</label>
                     <input
                       type="text"
                       value={selectedSlot.targetClasses?.join(', ') || ''}
@@ -554,13 +554,13 @@ export default function ShelfSlotEditorModal({
                         const arr = raw.split(',').map((s) => s.trim()).filter(Boolean);
                         handleUpdateSlotField(selectedSlot.id, 'targetClasses', arr);
                       }}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500 placeholder:text-gray-600"
+                      className="w-full bg-surface border border-line-strong rounded-lg px-2.5 py-1.5 text-xs text-fg outline-none focus:border-amber-500 placeholder:text-fg-faint"
                       placeholder="e.g. Eco"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-gray-400 block mb-1">Min In-Stock Count</label>
+                    <label className="text-xs text-fg-muted block mb-1">Min In-Stock Count</label>
                     <input
                       type="number"
                       min="1"
@@ -568,7 +568,7 @@ export default function ShelfSlotEditorModal({
                       onChange={(e) =>
                         handleUpdateSlotField(selectedSlot.id, 'minCount', Math.max(1, parseInt(e.target.value) || 1))
                       }
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500"
+                      className="w-full bg-surface border border-line-strong rounded-lg px-2.5 py-1.5 text-xs text-fg outline-none focus:border-amber-500"
                     />
                   </div>
                 </div>
@@ -576,54 +576,54 @@ export default function ShelfSlotEditorModal({
             )}
 
             {/* Occlusion & Person Suppression Settings */}
-            <div className="bg-gray-950 p-3.5 rounded-xl border border-gray-800 flex flex-col gap-3">
+            <div className="bg-canvas p-3.5 rounded-xl border border-line flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-200 flex items-center gap-1.5">
-                  <ShieldAlert size={14} className="text-cyan-400" />
+                <span className="text-xs font-bold text-fg flex items-center gap-1.5">
+                  <ShieldAlert size={14} className="text-cyan-600 dark:text-cyan-400" />
                   Person Occlusion Suppression
                 </span>
                 <input
                   type="checkbox"
                   checked={personSuppression}
                   onChange={(e) => setPersonSuppression(e.target.checked)}
-                  className="rounded bg-gray-800 border-gray-700 text-amber-500 focus:ring-0 cursor-pointer"
+                  className="rounded bg-surface-2 border-line-strong text-amber-500 focus:ring-0 cursor-pointer"
                 />
               </div>
 
               {personSuppression && (
                 <div className="space-y-2.5 pt-1">
                   <div>
-                    <label className="text-[11px] text-gray-400 block mb-0.5">Person Class Name</label>
+                    <label className="text-[11px] text-fg-muted block mb-0.5">Person Class Name</label>
                     <input
                       type="text"
                       value={personClass}
                       onChange={(e) => setPersonClass(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-500"
+                      className="w-full bg-surface border border-line-strong rounded px-2 py-1 text-xs text-fg outline-none focus:border-cyan-500"
                       placeholder="person"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div>
-                      <label className="text-gray-400 block mb-0.5">Empty Debounce (s)</label>
+                      <label className="text-fg-muted block mb-0.5">Empty Debounce (s)</label>
                       <input
                         type="number"
                         step="0.5"
                         min="0"
                         value={debounceSec}
                         onChange={(e) => setDebounceSec(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none"
+                        className="w-full bg-surface border border-line-strong rounded px-2 py-1 text-xs text-fg outline-none"
                       />
                     </div>
                     <div>
-                      <label className="text-gray-400 block mb-0.5">Person Cooldown (s)</label>
+                      <label className="text-fg-muted block mb-0.5">Person Cooldown (s)</label>
                       <input
                         type="number"
                         step="0.5"
                         min="0"
                         value={cooldownSec}
                         onChange={(e) => setCooldownSec(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none"
+                        className="w-full bg-surface border border-line-strong rounded px-2 py-1 text-xs text-fg outline-none"
                       />
                     </div>
                   </div>
@@ -632,16 +632,16 @@ export default function ShelfSlotEditorModal({
             </div>
 
             {/* Action Buttons */}
-            <div className="mt-auto pt-4 border-t border-gray-800 flex items-center justify-end gap-2.5">
+            <div className="mt-auto pt-4 border-t border-line flex items-center justify-end gap-2.5">
               <button
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-semibold text-gray-300 transition-colors"
+                className="px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface-3 text-xs font-semibold text-fg-secondary transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-900/30 flex items-center gap-1.5 transition-all active:scale-95"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-fg text-xs font-bold shadow-lg shadow-amber-900/30 flex items-center gap-1.5 transition-all active:scale-95"
               >
                 <Check size={14} /> Save & Apply
               </button>

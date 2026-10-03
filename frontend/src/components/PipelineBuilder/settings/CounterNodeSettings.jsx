@@ -22,9 +22,9 @@ export default function CounterNodeSettings({ nodeId, data, onChange, isSidebar 
     <div className="flex flex-col gap-4">
       {/* Trigger Condition */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Trigger Condition (Edge)</label>
+        <label className="text-sm font-semibold text-fg-secondary">Trigger Condition (Edge)</label>
         <select 
-          className="bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-500 w-full dark:text-white"
+          className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-emerald-500 w-full text-fg"
           value={data?.edgeType || 'rising'}
           onChange={(e) => onChange({ edgeType: e.target.value })}
         >
@@ -34,24 +34,24 @@ export default function CounterNodeSettings({ nodeId, data, onChange, isSidebar 
       </div>
 
       {/* Explanation Box */}
-      <div className="text-xs text-gray-600 bg-gray-50/80 dark:bg-gray-950/80 p-3 rounded-lg border border-gray-200 dark:border-gray-800 leading-relaxed dark:text-gray-400">
+      <div className="text-xs bg-canvas/80 p-3 rounded-lg border border-line leading-relaxed text-fg-muted">
         {data?.edgeType === 'falling' 
           ? "Counts +1 whenever the incoming signal changes from True to False (e.g. an object departs or condition clears)." 
           : "Counts +1 whenever the incoming signal changes from False to True (e.g. an object arrives or alarm activates)."}
       </div>
 
       {/* Live Counter Display */}
-      <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-between">
+      <div className="bg-canvas p-3 rounded-lg border border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-emerald-400" />
-          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400">Current Count:</span>
+          <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current Count:</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold font-mono text-emerald-400">{liveCount}</span>
+          <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">{liveCount}</span>
           <button
             type="button"
             onClick={handleReset}
-            className="text-gray-600 hover:text-red-400 p-1 rounded transition-colors dark:text-gray-400"
+            className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
             title="Reset Counter to 0"
           >
             <RotateCcw size={14} />

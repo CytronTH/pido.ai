@@ -179,19 +179,19 @@ export default function LogsViewer({ projectId }) {
   const getBadgeInfo = (log) => {
     const label = log.payload?.label?.toUpperCase();
     if (label === 'OK') {
-      return { text: 'OK', bg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: CheckCircle2 };
+      return { text: 'OK', bg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', icon: CheckCircle2 };
     }
     if (label === 'NG') {
-      return { text: 'NG', bg: 'bg-rose-500/15 text-rose-400 border-rose-500/30 animate-pulse', icon: AlertTriangle };
+      return { text: 'NG', bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse', icon: AlertTriangle };
     }
     const lowerType = (log.event_type || '').toLowerCase();
     if (lowerType.includes('snapshot')) {
-      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30', icon: ImageIcon };
+      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', icon: ImageIcon };
     }
     if (lowerType.includes('alert') || lowerType.includes('error')) {
-      return { text: log.event_type, bg: 'bg-rose-500/15 text-rose-400 border-rose-500/30', icon: AlertTriangle };
+      return { text: log.event_type, bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', icon: AlertTriangle };
     }
-    return { text: log.event_type, bg: 'bg-blue-500/15 text-blue-400 border-blue-500/30', icon: Sparkles };
+    return { text: log.event_type, bg: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30', icon: Sparkles };
   };
 
   const totalPages = Math.ceil(total / perPage);
@@ -248,7 +248,7 @@ export default function LogsViewer({ projectId }) {
   }, [selectedLogIndex, filteredLogs.length]);
 
   return (
-    <div className="h-full flex flex-col p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 overflow-y-auto bg-white dark:bg-slate-950 text-slate-100 font-sans">
+    <div className="h-full flex flex-col p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 overflow-y-auto bg-canvas text-fg font-sans">
       
       {/* ── Top Header & Stats Cards ─────────────────────────────────────── */}
       <div className="flex flex-col gap-4">
@@ -259,15 +259,15 @@ export default function LogsViewer({ projectId }) {
             </div>
             <div>
               <div className="flex items-center gap-2 sm:gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Database & Event Logs</h1>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Database & Event Logs</h1>
                 {autoRefresh && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     LIVE
                   </span>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-fg-muted mt-0.5">
                 Search, filter, and inspect AI inference events, OK/NG snapshots, and edge storage.
               </p>
             </div>
@@ -276,7 +276,7 @@ export default function LogsViewer({ projectId }) {
           {/* Quick Global Actions */}
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">            <button 
               onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800 text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-700 transition-all shadow-sm active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line hover:border-line-strong transition-all shadow-sm active:scale-95"
             >
               <Download size={14} />
               <span>Export</span>
@@ -286,18 +286,18 @@ export default function LogsViewer({ projectId }) {
               onClick={() => setAutoRefresh(!autoRefresh)}
               className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
                 autoRefresh 
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
-                  : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-700'
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
+                  : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
               }`}
             >
-              {autoRefresh ? <Pause size={14} className="text-emerald-400" /> : <Play size={14} />}
+              {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
               <span>{autoRefresh ? 'Live' : 'Auto'}</span>
             </button>
 
             <button 
               onClick={() => { fetchLogs(page, filters); fetchDbStats(); }}
               disabled={loading}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-fg px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
             >
               <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
               <span>Refresh</span>
@@ -308,40 +308,40 @@ export default function LogsViewer({ projectId }) {
         {/* Metric Cards Banner */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
           {/* Total Events */}
-          <div className="bg-slate-50 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div className="bg-surface/80 backdrop-blur-md border border-line/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Event Logs</p>
-              <h3 className="text-2xl font-extrabold text-white mt-1 font-mono tracking-tight">
+              <p className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Total Event Logs</p>
+              <h3 className="text-2xl font-extrabold text-fg mt-1 font-mono tracking-tight">
                 {total.toLocaleString()}
               </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">Inference triggers & alerts</p>
+              <p className="text-[11px] text-fg-subtle mt-0.5">Inference triggers & alerts</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
               <Database size={20} />
             </div>
           </div>
 
           {/* Snapshots on Disk */}
-          <div className="bg-slate-50 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div className="bg-surface/80 backdrop-blur-md border border-line/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Snapshots Stored</p>
-              <h3 className="text-2xl font-extrabold text-white mt-1 font-mono tracking-tight">
+              <p className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Snapshots Stored</p>
+              <h3 className="text-2xl font-extrabold text-fg mt-1 font-mono tracking-tight">
                 {dbStats?.snapshot_count ? dbStats.snapshot_count.toLocaleString() : '-'}
               </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[11px] text-fg-subtle mt-0.5">
                 {dbStats?.snapshot_size_mb ? `${(dbStats.snapshot_size_mb / 1024).toFixed(2)} GB on disk` : 'Calculating...'}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <ImageIcon size={20} />
             </div>
           </div>
 
           {/* Inspection Result Ratio or View Switcher Card */}
-          <div className="bg-slate-50 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+          <div className="bg-surface/80 backdrop-blur-md border border-line/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Display Mode</span>
-              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700">
+              <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Display Mode</span>
+              <span className="text-[10px] bg-surface-2 text-fg-secondary px-2 py-0.5 rounded-md border border-line-strong">
                 {viewMode === 'gallery' ? 'Visual Grid' : 'Data Table'}
               </span>
             </div>
@@ -351,7 +351,7 @@ export default function LogsViewer({ projectId }) {
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === 'gallery'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200'
+                    : 'bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg'
                 }`}
               >
                 <Grid size={14} /> Gallery
@@ -361,7 +361,7 @@ export default function LogsViewer({ projectId }) {
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === 'table'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200'
+                    : 'bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg'
                 }`}
               >
                 <List size={14} /> Table
@@ -372,10 +372,10 @@ export default function LogsViewer({ projectId }) {
       </div>
 
       {/* ── Filter Toolbar & Quick Filter Pills ─────────────────────────── */}
-      <div className="bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+      <div className="bg-surface/90 border border-line/90 rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         {/* Quick Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1 max-w-full scrollbar-none">
-          <span className="text-xs font-medium text-slate-400 mr-1 flex items-center gap-1 shrink-0">
+          <span className="text-xs font-medium text-fg-muted mr-1 flex items-center gap-1 shrink-0">
             <Filter size={14} /> Filter:
           </span>
           {[
@@ -389,8 +389,8 @@ export default function LogsViewer({ projectId }) {
               onClick={() => handleQuickFilter(pill.key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 active:scale-95 ${
                 filters.quick === pill.key
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
-                  : 'bg-white dark:bg-slate-950/60 hover:bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-800/80'
+                  ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/40 shadow-sm'
+                  : 'bg-canvas/60 hover:bg-surface-2 text-fg-muted border border-line/80'
               }`}
             >
               {pill.label}
@@ -408,7 +408,7 @@ export default function LogsViewer({ projectId }) {
                 setFilters(prev => ({ ...prev, camera_id: e.target.value }));
                 setPage(1);
               }}
-              className="w-full sm:w-auto bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer sm:max-w-[180px] truncate"
+              className="w-full sm:w-auto bg-canvas border border-line rounded-xl px-3 py-1.5 text-xs text-fg focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer sm:max-w-[180px] truncate"
             >
               <option value="">All Cameras</option>
               {cameras.map(c => (
@@ -417,18 +417,18 @@ export default function LogsViewer({ projectId }) {
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
           </div>
 
           {/* Keyword Search Input */}
           <div className="relative flex-1 sm:max-w-[240px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
             <input
               type="text"
               placeholder="Search payload / node..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 placeholder-slate-500"
+              className="w-full bg-canvas border border-line rounded-xl pl-8 pr-3 py-1.5 text-xs text-fg focus:outline-none focus:border-blue-500 placeholder-fg-subtle"
             />
           </div>
 
@@ -439,7 +439,7 @@ export default function LogsViewer({ projectId }) {
                 setFilters({ event_type: '', camera_id: '', node_id: '', quick: 'all', search: '' });
                 setPage(1);
               }}
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-700/60 transition-colors active:scale-95"
+              className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg px-2.5 py-1.5 bg-surface-2/80 hover:bg-surface-2 rounded-xl border border-line-strong/60 transition-colors active:scale-95"
             >
               <X size={13} /> Reset
             </button>
@@ -450,17 +450,17 @@ export default function LogsViewer({ projectId }) {
       {/* ── Main Content Area (Gallery or Table) ────────────────────────── */}
       {viewMode === 'gallery' ? (
         /* ── Visual Gallery View ───────────────────────────────────────── */
-        <div className="flex-1 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 shadow-xl flex flex-col">
+        <div className="flex-1 bg-surface/60 border border-line/80 rounded-2xl p-5 shadow-xl flex flex-col">
           {loading && logs.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
+            <div className="flex-1 flex flex-col items-center justify-center py-20 text-fg-subtle gap-3">
               <RefreshCw size={28} className="animate-spin text-blue-500" />
               <p className="text-sm">Loading snapshots from database...</p>
             </div>
           ) : filteredLogs.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
-              <ImageIcon size={38} className="text-slate-700" />
-              <p className="text-base font-semibold text-slate-300">No snapshot events found</p>
-              <p className="text-xs text-slate-500 max-w-sm text-center">
+            <div className="flex-1 flex flex-col items-center justify-center py-20 text-fg-subtle gap-3">
+              <ImageIcon size={38} className="text-fg-faint" />
+              <p className="text-base font-semibold text-fg-secondary">No snapshot events found</p>
+              <p className="text-xs text-fg-subtle max-w-sm text-center">
                 Try switching quick filters or wait for the AI inspection node to capture frames.
               </p>
             </div>
@@ -478,10 +478,10 @@ export default function LogsViewer({ projectId }) {
                   <div 
                     key={log.id}
                     onClick={() => setSelectedLogIndex(index)}
-                    className="group relative bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 hover:border-blue-500/50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 cursor-pointer flex flex-col"
+                    className="group relative bg-canvas/80 border border-line/80 hover:border-blue-500/50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 cursor-pointer flex flex-col"
                   >
                     {/* Image Preview Container */}
-                    <div className="relative aspect-video bg-slate-50 dark:bg-slate-900 overflow-hidden flex items-center justify-center">
+                    <div className="relative aspect-video bg-surface overflow-hidden flex items-center justify-center">
                       {snapUrl ? (
                         <img 
                           src={snapUrl} 
@@ -495,7 +495,7 @@ export default function LogsViewer({ projectId }) {
                         />
                       ) : null}
 
-                      <div className={`${snapUrl ? 'hidden' : 'flex'} flex-col items-center justify-center text-slate-600 gap-1 p-2 text-center`}>
+                      <div className={`${snapUrl ? 'hidden' : 'flex'} flex-col items-center justify-center text-fg-faint gap-1 p-2 text-center`}>
                         <ImageIcon size={24} />
                         <span className="text-[10px]">No image</span>
                       </div>
@@ -509,30 +509,30 @@ export default function LogsViewer({ projectId }) {
                       </div>
 
                       {/* Time Badge Overlay */}
-                      <div className="absolute bottom-2 right-2 z-10 bg-black/60 backdrop-blur-md border border-white/10 px-1.5 py-0.5 rounded-md text-[10px] font-mono text-slate-300">
+                      <div className="absolute bottom-2 right-2 z-10 bg-black/60 backdrop-blur-md border border-fg/10 px-1.5 py-0.5 rounded-md text-[10px] font-mono text-fg-secondary">
                         {timeStr}
                       </div>
 
                       {/* Zoom Indicator on Hover */}
                       <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center text-white shadow-lg">
+                        <div className="w-8 h-8 rounded-full bg-surface/80 backdrop-blur-sm flex items-center justify-center text-fg shadow-lg">
                           <Maximize2 size={14} />
                         </div>
                       </div>
                     </div>
 
                     {/* Meta Footer */}
-                    <div className="p-3 flex flex-col justify-between flex-1 bg-white dark:bg-slate-950">
+                    <div className="p-3 flex flex-col justify-between flex-1 bg-canvas">
                       <div className="flex items-center justify-between gap-1 text-[11px]">
-                        <span className="font-semibold text-slate-300 truncate" title={camName}>
+                        <span className="font-semibold text-fg-secondary truncate" title={camName}>
                           {camName}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-mono">
+                        <span className="text-[10px] text-fg-subtle font-mono">
                           {dateStr}
                         </span>
                       </div>
 
-                      <div className="mt-1.5 text-[10px] font-mono text-slate-400 bg-slate-50 dark:bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800/60 truncate">
+                      <div className="mt-1.5 text-[10px] font-mono text-fg-muted bg-surface/80 px-2 py-1 rounded-lg border border-line/60 truncate">
                         {log.payload ? JSON.stringify(log.payload) : log.event_type}
                       </div>
                     </div>
@@ -544,10 +544,10 @@ export default function LogsViewer({ projectId }) {
         </div>
       ) : (
         /* ── Enhanced Table View ────────────────────────────────────────── */
-        <div className="flex-1 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col shadow-xl">
+        <div className="flex-1 bg-surface/60 border border-line/80 rounded-2xl overflow-hidden flex flex-col shadow-xl">
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="text-[11px] font-semibold text-slate-400 uppercase bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 sticky top-0 backdrop-blur-md z-10">
+            <table className="w-full text-left text-xs text-fg-secondary">
+              <thead className="text-[11px] font-semibold text-fg-muted uppercase bg-surface/90 border-b border-line sticky top-0 backdrop-blur-md z-10">
                 <tr>
                   <th className="px-4 py-3.5 w-10 text-center"></th>
                   <th className="px-4 py-3.5">Snapshot</th>
@@ -558,10 +558,10 @@ export default function LogsViewer({ projectId }) {
                   <th className="px-5 py-3.5">Payload Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-sans">
+              <tbody className="divide-y divide-line/60 font-sans">
                 {loading && logs.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-16 text-center text-slate-500">
+                    <td colSpan="7" className="px-6 py-16 text-center text-fg-subtle">
                       <div className="flex flex-col items-center gap-2">
                         <RefreshCw size={24} className="animate-spin text-blue-500" />
                         <p className="text-sm">Loading event logs...</p>
@@ -570,11 +570,11 @@ export default function LogsViewer({ projectId }) {
                   </tr>
                 ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-16 text-center text-slate-500">
+                    <td colSpan="7" className="px-6 py-16 text-center text-fg-subtle">
                       <div className="flex flex-col items-center gap-2">
-                        <Database size={32} className="text-slate-700" />
-                        <p className="text-sm font-semibold text-slate-300">No logs found</p>
-                        <p className="text-xs text-slate-500">Try adjusting your filters or keyword query.</p>
+                        <Database size={32} className="text-fg-faint" />
+                        <p className="text-sm font-semibold text-fg-secondary">No logs found</p>
+                        <p className="text-xs text-fg-subtle">Try adjusting your filters or keyword query.</p>
                       </div>
                     </td>
                   </tr>
@@ -588,13 +588,13 @@ export default function LogsViewer({ projectId }) {
 
                     return (
                       <React.Fragment key={log.id}>
-                        <tr className="hover:bg-slate-100 dark:bg-slate-800/40 transition-colors group">
+                        <tr className="hover:bg-surface-2/40 transition-colors group">
                           {/* Expand Button */}
                           <td className="px-3 py-3 text-center">
                             {log.payload && (
                               <button 
                                 onClick={() => toggleRowExpanded(log.id)}
-                                className="text-slate-500 hover:text-white p-1 rounded-lg transition-colors hover:bg-slate-100 dark:bg-slate-800"
+                                className="text-fg-subtle hover:text-fg p-1 rounded-lg transition-colors hover:bg-surface-2"
                               >
                                 {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
@@ -606,7 +606,7 @@ export default function LogsViewer({ projectId }) {
                             {snapUrl ? (
                               <div 
                                 onClick={() => setSelectedLogIndex(index)}
-                                className="w-14 h-9 rounded-lg overflow-hidden bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 cursor-pointer relative group/thumb hover:border-blue-500 transition-colors"
+                                className="w-14 h-9 rounded-lg overflow-hidden bg-canvas border border-line cursor-pointer relative group/thumb hover:border-blue-500 transition-colors"
                               >
                                 <img 
                                   src={snapUrl} 
@@ -614,16 +614,16 @@ export default function LogsViewer({ projectId }) {
                                   className="w-full h-full object-cover" 
                                 />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
-                                  <Maximize2 size={12} className="text-white" />
+                                  <Maximize2 size={12} className="text-fg" />
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-slate-600 font-mono text-[11px]">-</span>
+                              <span className="text-fg-faint font-mono text-[11px]">-</span>
                             )}
                           </td>
 
                           {/* Timestamp */}
-                          <td className="px-5 py-3 whitespace-nowrap font-mono text-[11px] text-slate-300">
+                          <td className="px-5 py-3 whitespace-nowrap font-mono text-[11px] text-fg-secondary">
                             {new Date(log.timestamp + 'Z').toLocaleString()}
                           </td>
 
@@ -636,28 +636,28 @@ export default function LogsViewer({ projectId }) {
                           </td>
 
                           {/* Camera Name */}
-                          <td className="px-5 py-3 text-slate-200 font-medium">
+                          <td className="px-5 py-3 text-fg font-medium">
                             {camName}
                           </td>
 
                           {/* Node ID */}
-                          <td className="px-5 py-3 font-mono text-[11px] text-slate-400">
+                          <td className="px-5 py-3 font-mono text-[11px] text-fg-muted">
                             {log.node_id}
                           </td>
 
                           {/* Payload Summary */}
-                          <td className="px-5 py-3 font-mono text-[11px] text-slate-400 max-w-[280px] truncate">
+                          <td className="px-5 py-3 font-mono text-[11px] text-fg-muted max-w-[280px] truncate">
                             {log.payload ? JSON.stringify(log.payload) : '-'}
                           </td>
                         </tr>
 
                         {/* Expanded Payload Code Block */}
                         {isExpanded && log.payload && (
-                          <tr className="bg-white dark:bg-slate-950/70">
+                          <tr className="bg-canvas/70">
                             <td colSpan="7" className="px-6 py-4 border-l-2 border-l-blue-500">
-                              <div className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 shadow-inner">
+                              <div className="bg-canvas p-4 rounded-xl border border-line/80 shadow-inner">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                                  <span className="text-[11px] text-fg-muted font-bold uppercase tracking-wider">
                                     Structured Payload Data
                                   </span>
                                   <button
@@ -666,13 +666,13 @@ export default function LogsViewer({ projectId }) {
                                       setCopied(true);
                                       setTimeout(() => setCopied(false), 2000);
                                     }}
-                                    className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-colors"
+                                    className="flex items-center gap-1.5 text-[11px] text-fg-muted hover:text-fg px-2.5 py-1 rounded-lg bg-surface border border-line transition-colors"
                                   >
-                                    {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                                    {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={12} />}
                                     <span>{copied ? 'Copied' : 'Copy JSON'}</span>
                                   </button>
                                 </div>
-                                <pre className="text-xs text-blue-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
+                                <pre className="text-xs text-blue-700 dark:text-blue-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
                                   {JSON.stringify(log.payload, null, 2)}
                                 </pre>
                               </div>
@@ -690,7 +690,7 @@ export default function LogsViewer({ projectId }) {
       )}
 
       {/* ── Pagination Bar ─────────────────────────────────────────────── */}
-      <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 shadow-sm">
+      <div className="bg-surface/80 border border-line rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-fg-muted shadow-sm">
         <div>
           Showing {Math.min((page - 1) * perPage + 1, total)} to {Math.min(page * perPage, total)} of {total.toLocaleString()} records
         </div>
@@ -701,7 +701,7 @@ export default function LogsViewer({ projectId }) {
             <select 
               value={perPage} 
               onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-              className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-canvas border border-line rounded-lg px-2.5 py-1 text-fg focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="20">20</option>
               <option value="30">30</option>
@@ -714,17 +714,17 @@ export default function LogsViewer({ projectId }) {
             <button 
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
-              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors text-slate-300 flex items-center gap-1 font-medium"
+              className="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors text-fg-secondary flex items-center gap-1 font-medium"
             >
               <ChevronLeft size={14} /> Prev
             </button>
-            <div className="px-3 py-1 font-semibold text-white bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+            <div className="px-3 py-1 font-semibold text-fg bg-canvas border border-line rounded-xl">
               {page} / {totalPages || 1}
             </div>
             <button 
               disabled={page >= totalPages}
               onClick={() => setPage(page + 1)}
-              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors text-slate-300 flex items-center gap-1 font-medium"
+              className="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors text-fg-secondary flex items-center gap-1 font-medium"
             >
               Next <ChevronRight size={14} />
             </button>
@@ -735,22 +735,22 @@ export default function LogsViewer({ projectId }) {
       {/* ── Lightbox Image Inspector Modal ─────────────────────────────── */}
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="relative max-w-5xl w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+          <div className="relative max-w-5xl w-full bg-surface border border-line rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-line bg-surface/90 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
                   <ImageIcon size={18} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-fg flex items-center gap-2">
                     Snapshot Inspector
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getBadgeInfo(selectedLog).bg}`}>
                       {getBadgeInfo(selectedLog).text}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-fg-muted">
                     {cameraMap[selectedLog.camera_id] || selectedLog.camera_id || 'Camera'} • {new Date(selectedLog.timestamp + 'Z').toLocaleString()}
                   </p>
                 </div>
@@ -761,7 +761,7 @@ export default function LogsViewer({ projectId }) {
                   <a 
                     href={`/api/snapshots/${selectedLog.snapshot_path.split('/').pop()}`}
                     download
-                    className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-colors border border-slate-700/80 text-xs flex items-center gap-1.5"
+                    className="p-2 bg-surface-2 hover:bg-surface-3 text-fg-secondary hover:text-fg rounded-xl transition-colors border border-line-strong/80 text-xs flex items-center gap-1.5"
                     title="Download high-resolution image"
                   >
                     <Download size={15} />
@@ -770,7 +770,7 @@ export default function LogsViewer({ projectId }) {
                 )}
                 <button 
                   onClick={() => setSelectedLogIndex(null)}
-                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors border border-slate-700/80"
+                  className="p-2 bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg rounded-xl transition-colors border border-line-strong/80"
                 >
                   <X size={18} />
                 </button>
@@ -778,7 +778,7 @@ export default function LogsViewer({ projectId }) {
             </div>
 
             {/* Modal Body: Image + Metadata */}
-            <div className="flex-1 overflow-y-auto flex flex-col md:flex-row bg-white dark:bg-slate-950">
+            <div className="flex-1 overflow-y-auto flex flex-col md:flex-row bg-canvas">
               
               {/* Image View with Navigation Arrows */}
               <div className="relative flex-1 bg-black flex items-center justify-center p-4 min-h-[360px] max-h-[65vh]">
@@ -789,7 +789,7 @@ export default function LogsViewer({ projectId }) {
                     className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-lg"
                   />
                 ) : (
-                  <div className="text-slate-600 flex flex-col items-center gap-2">
+                  <div className="text-fg-faint flex flex-col items-center gap-2">
                     <ImageIcon size={48} />
                     <span>No snapshot image file available</span>
                   </div>
@@ -799,7 +799,7 @@ export default function LogsViewer({ projectId }) {
                 {selectedLogIndex > 0 && (
                   <button 
                     onClick={handlePrevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100 dark:bg-slate-800 text-white border border-slate-700/80 shadow-lg backdrop-blur-md transition-all active:scale-95"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-surface/80 hover:bg-surface-2 text-fg border border-line-strong/80 shadow-lg backdrop-blur-md transition-all active:scale-95"
                     title="Previous Snapshot (Arrow Left)"
                   >
                     <ChevronLeft size={20} />
@@ -809,7 +809,7 @@ export default function LogsViewer({ projectId }) {
                 {selectedLogIndex < filteredLogs.length - 1 && (
                   <button 
                     onClick={handleNextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100 dark:bg-slate-800 text-white border border-slate-700/80 shadow-lg backdrop-blur-md transition-all active:scale-95"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-surface/80 hover:bg-surface-2 text-fg border border-line-strong/80 shadow-lg backdrop-blur-md transition-all active:scale-95"
                     title="Next Snapshot (Arrow Right)"
                   >
                     <ChevronRight size={20} />
@@ -818,28 +818,28 @@ export default function LogsViewer({ projectId }) {
               </div>
 
               {/* Sidebar Metadata */}
-              <div className="w-full md:w-80 bg-slate-50 dark:bg-slate-900/80 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between overflow-y-auto">
+              <div className="w-full md:w-80 bg-surface/80 border-t md:border-t-0 md:border-l border-line p-5 flex flex-col justify-between overflow-y-auto">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Event Information</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-fg-muted mb-2">Event Information</h4>
                     <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800/80">
-                        <span className="text-slate-500">Log ID</span>
-                        <span className="font-mono text-slate-300">{selectedLog.id}</span>
+                      <div className="flex justify-between py-1 border-b border-line/80">
+                        <span className="text-fg-subtle">Log ID</span>
+                        <span className="font-mono text-fg-secondary">{selectedLog.id}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800/80">
-                        <span className="text-slate-500">Event Type</span>
-                        <span className="text-slate-200 font-semibold">{selectedLog.event_type}</span>
+                      <div className="flex justify-between py-1 border-b border-line/80">
+                        <span className="text-fg-subtle">Event Type</span>
+                        <span className="text-fg font-semibold">{selectedLog.event_type}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800/80">
-                        <span className="text-slate-500">Camera</span>
-                        <span className="text-slate-200 font-medium truncate max-w-[150px]" title={cameraMap[selectedLog.camera_id]}>
+                      <div className="flex justify-between py-1 border-b border-line/80">
+                        <span className="text-fg-subtle">Camera</span>
+                        <span className="text-fg font-medium truncate max-w-[150px]" title={cameraMap[selectedLog.camera_id]}>
                           {cameraMap[selectedLog.camera_id] || selectedLog.camera_id}
                         </span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-800/80">
-                        <span className="text-slate-500">Pipeline Node</span>
-                        <span className="font-mono text-[11px] text-slate-300 truncate max-w-[140px]" title={selectedLog.node_id}>
+                      <div className="flex justify-between py-1 border-b border-line/80">
+                        <span className="text-fg-subtle">Pipeline Node</span>
+                        <span className="font-mono text-[11px] text-fg-secondary truncate max-w-[140px]" title={selectedLog.node_id}>
                           {selectedLog.node_id}
                         </span>
                       </div>
@@ -850,20 +850,20 @@ export default function LogsViewer({ projectId }) {
                   {selectedLog.payload && (
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Payload JSON</h4>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-fg-muted">Payload JSON</h4>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(JSON.stringify(selectedLog.payload, null, 2));
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
                         >
-                          {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                          {copied ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                           {copied ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                      <pre className="bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] text-blue-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-blue-800 dark:text-blue-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
                         {JSON.stringify(selectedLog.payload, null, 2)}
                       </pre>
                     </div>
@@ -871,7 +871,7 @@ export default function LogsViewer({ projectId }) {
                 </div>
 
                 <div className="pt-4 text-center">
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-fg-subtle">
                     Item {selectedLogIndex + 1} of {filteredLogs.length} on this page
                   </span>
                 </div>

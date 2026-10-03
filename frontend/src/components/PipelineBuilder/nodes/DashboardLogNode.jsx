@@ -44,11 +44,11 @@ export default function DashboardLogNode({ id, data }) {
   const availableProperties = getAvailableProperties();
 
   return (
-    <div className={`bg-gray-900 border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 ${isCompact ? 'w-48' : 'w-64'} text-white overflow-hidden`}>
+    <div className={`bg-surface border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
       <div className="bg-indigo-600/20 p-3 flex items-center justify-between border-b border-indigo-900/50">
         <div className="flex items-center gap-3">
           <div className="bg-indigo-600 p-1.5 rounded-lg">
-            <List size={16} className="text-white" />
+            <List size={16} className="text-fg" />
           </div>
           <div className="font-semibold text-sm">Dashboard Log</div>
         </div>
@@ -56,22 +56,22 @@ export default function DashboardLogNode({ id, data }) {
       </div>
       
       <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Output Label (For Dashboard)
           <input 
             type="text"
-            className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-indigo-500 nodrag"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-indigo-500 nodrag"
             value={data?.label || ''}
             onChange={handleLabelChange}
             placeholder="e.g. Alert History"
           />
         </label>
         
-        <label className="text-xs text-gray-400 flex flex-col gap-1">
+        <label className="text-xs text-fg-muted flex flex-col gap-1">
           Property
           <input
             list={`properties-${id}`}
-            className="bg-gray-800 border border-gray-700 rounded-md p-1.5 text-sm focus:outline-none focus:border-indigo-500 nodrag disabled:opacity-50"
+            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-indigo-500 nodrag disabled:opacity-50"
             value={data?.sourcePath || ''}
             onChange={handleSourceChange}
             placeholder={upstreamNode ? "e.g. msg.payload" : "Connect a node first..."}
@@ -84,7 +84,7 @@ export default function DashboardLogNode({ id, data }) {
           </datalist>
         </label>
 
-        <div className="text-[10px] text-gray-500 mt-1">
+        <div className="text-[10px] text-fg-subtle mt-1">
           Provides historical feed data to Log widgets.
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function DashboardLogNode({ id, data }) {
       <Handle 
         type="target" 
         position={Position.Left} 
-        className="w-3 h-3 bg-indigo-500 border-2 border-gray-900"
+        className="w-3 h-3 bg-indigo-500 border-2 border-line-subtle"
       />
     </div>
   );

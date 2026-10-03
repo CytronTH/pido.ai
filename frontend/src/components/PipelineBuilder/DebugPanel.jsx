@@ -4,18 +4,18 @@ import usePipelineStore from '../../store/usePipelineStore';
 
 const getNodeBadgeColors = (type) => {
   switch(type) {
-    case 'inputNode': return 'bg-gray-50 dark:bg-slate-900/40 text-slate-300 border-slate-700/50';
-    case 'aiNode': return 'bg-purple-900/40 text-purple-300 border-purple-700/50';
-    case 'logicNode': return 'bg-orange-900/40 text-orange-400 border-orange-700/50';
-    case 'counterNode': return 'bg-emerald-900/40 text-emerald-400 border-emerald-700/50';
-    case 'flowCounterNode': return 'bg-teal-900/40 text-teal-400 border-teal-700/50';
-    case 'forkliftZoneNode': return 'bg-rose-900/40 text-rose-400 border-rose-700/50';
-    case 'shelfSlotMonitorNode': return 'bg-amber-900/40 text-amber-400 border-amber-700/50';
-    case 'rateLimitNode': return 'bg-yellow-900/40 text-yellow-400 border-yellow-700/50';
-    case 'functionNode': return 'bg-pink-900/40 text-pink-400 border-pink-700/50';
-    case 'actionNode': return 'bg-indigo-900/40 text-indigo-400 border-indigo-700/50';
-    case 'snapshotNode': return 'bg-cyan-900/40 text-cyan-400 border-cyan-700/50';
-    default: return 'bg-gray-50 dark:bg-gray-900/40 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700/50';
+    case 'inputNode': return 'bg-surface/40 text-fg-secondary border-line-strong/50';
+    case 'aiNode': return 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-700/50';
+    case 'logicNode': return 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-700/50';
+    case 'counterNode': return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border-emerald-700/50';
+    case 'flowCounterNode': return 'bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 border-teal-700/50';
+    case 'forkliftZoneNode': return 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 border-rose-700/50';
+    case 'shelfSlotMonitorNode': return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-700/50';
+    case 'rateLimitNode': return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400 border-yellow-700/50';
+    case 'functionNode': return 'bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 border-pink-700/50';
+    case 'actionNode': return 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border-indigo-700/50';
+    case 'snapshotNode': return 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 border-cyan-700/50';
+    default: return 'bg-surface/40 text-fg-secondary border-line-strong/50';
   }
 };
 
@@ -154,17 +154,17 @@ export default function DebugPanel({ isOpen, onClose }) {
   };
 
   return (
-    <aside className={`bg-gray-50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col h-full transition-all duration-300 ease-in-out shrink-0 overflow-hidden ${isOpen ? 'w-full md:w-[340px]' : 'w-0 border-l-0'}`}>
+    <aside className={`bg-surface border-l border-line flex flex-col h-full transition-all duration-300 ease-in-out shrink-0 overflow-hidden ${isOpen ? 'w-full md:w-[340px]' : 'w-0 border-l-0'}`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-2.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950/50 shrink-0">
-        <div className="flex items-center gap-2 text-gray-800 dark:text-gray-200">
-          <Terminal size={16} className="text-purple-400" />
+      <div className="flex items-center justify-between p-2.5 border-b border-line bg-canvas/50 shrink-0">
+        <div className="flex items-center gap-2 text-fg">
+          <Terminal size={16} className="text-purple-600 dark:text-purple-400" />
           <span className="font-semibold text-[13px] tracking-wide">Debug Panel</span>
         </div>
         <div className="flex items-center gap-1">
           <button 
             onClick={handleClear}
-            className="p-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-rose-400 transition-colors"
+            className="p-1 rounded bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
             title="Clear Debug History"
           >
             <Trash2 size={14} />
@@ -172,7 +172,7 @@ export default function DebugPanel({ isOpen, onClose }) {
           {onClose && (
             <button 
               onClick={onClose}
-              className="p-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-white transition-colors md:hidden"
+              className="p-1 rounded bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg transition-colors md:hidden"
             >
               <X size={14} />
             </button>
@@ -183,8 +183,8 @@ export default function DebugPanel({ isOpen, onClose }) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2">
         {messageHistory.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-500 gap-3">
-            <AlertCircle size={24} className="text-gray-700" />
+          <div className="flex flex-col items-center justify-center h-40 text-fg-subtle gap-3">
+            <AlertCircle size={24} className="text-fg-faint" />
             <p className="text-xs text-center leading-relaxed">
               No messages recorded yet.<br/>
               Switch a Debug Node to "Code Mode"<br/>to collect history here.
@@ -197,27 +197,27 @@ export default function DebugPanel({ isOpen, onClose }) {
             return (
               <div 
                 key={msg.msgId} 
-                className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden shadow-sm hover:border-blue-500/50 transition-colors group flex flex-col shrink-0"
+                className="bg-canvas border border-line rounded-md overflow-hidden shadow-sm hover:border-blue-500/50 transition-colors group flex flex-col shrink-0"
                 onMouseEnter={() => handleMouseEnter(msg.nodeId)}
                 onMouseLeave={handleMouseLeave}
               >
                 <div 
-                  className="bg-gray-100 dark:bg-gray-800/40 hover:bg-gray-200 dark:bg-gray-700/50 px-2 py-1.5 border-b border-gray-200 dark:border-gray-800/80 flex items-center justify-between cursor-pointer transition-colors"
+                  className="bg-surface-2/40 hover:bg-surface-3/50 px-2 py-1.5 border-b border-line/80 flex items-center justify-between cursor-pointer transition-colors"
                   onClick={() => toggleExpand(msg.msgId)}
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
-                    {isExpanded ? <ChevronUp size={13} className="text-gray-600 dark:text-gray-400 shrink-0" /> : <ChevronDown size={13} className="text-gray-600 dark:text-gray-400 shrink-0" />}
-                    <span className="text-[10px] font-mono text-gray-600 dark:text-gray-400 truncate">
+                    {isExpanded ? <ChevronUp size={13} className="text-fg-muted shrink-0" /> : <ChevronDown size={13} className="text-fg-muted shrink-0" />}
+                    <span className="text-[10px] font-mono text-fg-muted truncate">
                       {msg.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={(e) => handleCopy(e, msg)}
-                      className="text-gray-500 hover:text-gray-700 dark:text-gray-300 transition-colors p-0.5 rounded flex items-center justify-center w-4 h-4"
+                      className="text-fg-subtle hover:text-fg-secondary transition-colors p-0.5 rounded flex items-center justify-center w-4 h-4"
                       title="Copy payload"
                     >
-                      {copiedId === msg.msgId ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                      {copiedId === msg.msgId ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                     </button>
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border max-w-[85px] truncate ${getNodeBadgeColors(msg.sourceName)}`} title={`src: ${msg.sourceName}`}>
                       {msg.sourceName}
@@ -225,13 +225,13 @@ export default function DebugPanel({ isOpen, onClose }) {
                   </div>
                 </div>
                 <div className={`relative px-2 py-1.5 overflow-x-auto custom-scrollbar transition-all duration-200 ${isExpanded ? 'max-h-[400px]' : 'max-h-12 overflow-hidden'}`}>
-                  <pre className="text-[9px] font-mono text-emerald-400 m-0 whitespace-pre-wrap break-all leading-tight">
+                  <pre className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 m-0 whitespace-pre-wrap break-all leading-tight">
                     {typeof msg.payload === 'object' 
                       ? JSON.stringify(msg.payload, null, 2) 
                       : String(msg.payload)}
                   </pre>
                   {!isExpanded && (
-                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-gray-950 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
                   )}
                 </div>
               </div>
