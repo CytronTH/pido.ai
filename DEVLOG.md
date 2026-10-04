@@ -25,6 +25,13 @@
 - 
 -->
 
+## [2026-10-05] - แก้บั๊ก Pipeline Builder crash (`isCompact is not defined` ใน SnapshotNode)
+
+### 🐛 สาเหตุ & การแก้ไข
+- `SnapshotNode.jsx` อ้างอิงตัวแปร `isCompact` แต่ไม่ได้ประกาศไว้ (โหนดอื่นประกาศ `const isCompact = data?.viewMode === 'compact'`) ทำให้หน้า Pipeline Builder ล่มทั้งหน้าเมื่อมี Snapshot Node อยู่ใน graph
+- เพิ่มการประกาศตัวแปรตามแบบโหนดอื่น และปรับความกว้างโหมด compact (`w-48`) ให้สอดคล้องกัน
+- ตรวจโหนดทั้งหมดในโฟลเดอร์ `nodes/` แล้ว ไม่มีไฟล์อื่นที่มีปัญหาเดียวกัน
+
 ## [2026-10-05] - Dashboard Version History (บันทึกเป็นเวอร์ชันพร้อมหมายเหตุ + กู้คืน)
 
 ### 🎯 เป้าหมาย (Goals)
