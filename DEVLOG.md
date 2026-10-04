@@ -25,6 +25,34 @@
 - 
 -->
 
+## [2026-10-05] - Duplicate Widget และ Grid แบบ Grafana (Auto-arrange / Free placement)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] Duplicate widget พร้อมการตั้งค่าทั้งหมด
+- [x] Grid ละเอียดแบบ Grafana และสลับโหมด Auto-arrange / Free placement ได้
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Duplicate (`LiveDashboard.jsx`):** ปุ่ม Copy ในแถบเครื่องมือของ widget (Edit Mode) คัดลอก config ด้วย `structuredClone`, ต่อท้ายชื่อ "(Copy)" และวางไว้ทางขวาถ้ามีที่ว่าง ไม่งั้นวางใต้ตัวต้นฉบับ (`findDuplicatePosition`)
+- **Grid v2:** 24 คอลัมน์ / แถว 30px / ระยะห่าง 8px (เดิม 12 คอลัมน์ / 75px / 12px) และแสดงเส้นไกด์ grid จางๆ ตอน Edit Mode
+- **โหมดจัดวาง:** ปุ่มสลับใน toolbar → `compactType` = `'vertical'` (Auto-arrange) หรือ `null` (Free placement)
+- **บันทึก:** `dashboard_layout._grid = { version: 2, compact }`
+- **Migration:** layout ที่ไม่มี `_grid` (v1) จะถูกแปลงตอนโหลด (`migrateItemV1toV2`: x/w ×2, y/h ×87/38) และ `minW/minH` ของ widget ใหม่ถูกแปลงจากค่าเดิม
+- แถบปุ่ม widget ใช้ `draggableCancel=".widget-toolbar"` คลิกปุ่มแล้วไม่ลาก widget ไปด้วย
+- Preview ใน Widget Settings ใช้สัดส่วนของ grid ใหม่
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ใช้ react-grid-layout เดิม แค่ปรับ geometry + `compactType` แทนการเปลี่ยน library
+- **เหตุผล:** Grafana เองก็ใช้ react-grid-layout (24 cols) ไม่ต้องเพิ่ม dependency
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- ความสูงหลัง migrate อาจต่างจากเดิม ~±20px เพราะต้องปัดเป็นจำนวนแถว
+- layout จะถูกบันทึกเป็น v2 เมื่อกด Save Layout ครั้งถัดไป (ก่อนหน้านั้นจะ migrate ใหม่ทุกครั้งที่โหลด)
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบใน browser กับ dashboard ที่มีอยู่จริง
+
+---
+
 ## [2026-10-05] - Chart Widget: Tooltip เวลาแบบอ่านง่าย, Live Preview และ Display Templates
 
 ### 🎯 เป้าหมาย (Goals)

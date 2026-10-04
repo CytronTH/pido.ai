@@ -1607,7 +1607,8 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 <div 
                    className="w-full relative flex items-center justify-center"
                    style={{ 
-                     aspectRatio: `${(widgetItem?.w || 4) * 100 + ((widgetItem?.w || 4) - 1) * 12} / ${(widgetItem?.h || 3) * 75 + ((widgetItem?.h || 3) - 1) * 12}`,
+                     // Approximates a grid cell on a ~1200px wide dashboard: 24 cols (~42px) / 30px rows, 8px gaps
+                     aspectRatio: `${(widgetItem?.w || 8) * 42 + ((widgetItem?.w || 8) - 1) * 8} / ${(widgetItem?.h || 7) * 30 + ((widgetItem?.h || 7) - 1) * 8}`,
                      maxHeight: '350px'
                    }}
                 >

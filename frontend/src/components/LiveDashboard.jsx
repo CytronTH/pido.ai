@@ -22,13 +22,38 @@ import HistoricalChartWidget from './DashboardWidgets/HistoricalChartWidget';
 import WidgetSettingsModal from './DashboardWidgets/WidgetSettingsModal';
 
 import { 
-  Lock, Unlock, Save, Plus, 
+  Unlock, Save, Plus, Copy, 
   Video, Gauge, CircleDot, Target, Hash, 
   Type, ListOrdered, LineChart, BarChart2, 
-  Play, Image, Flame, Zap, LayoutGrid 
+  Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move 
 } from 'lucide-react';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+// ── Grid geometry (v2 = Grafana-style fine grid) ─────────────────────────────
+// v1 (legacy): 12 cols, rowHeight 75, margin 12  → one row unit = 87px
+// v2:          24 cols, rowHeight 30, margin 8   → one row unit = 38px
+const GRID_VERSION = 2;
+const GRID_COLS = { lg: 24, md: 20, sm: 12, xs: 8, xxs: 4 };
+const GRID_ROW_HEIGHT = 30;
+const GRID_MARGIN = 8;
+const V1_ROW_UNIT = 75 + 12;
+const V2_ROW_UNIT = GRID_ROW_HEIGHT + GRID_MARGIN;
+const V1_TO_V2_COL = 2;
+const V1_TO_V2_ROW = V1_ROW_UNIT / V2_ROW_UNIT;
+
+const toV2Rows = (rows) => Math.max(1, Math.round(rows * V1_TO_V2_ROW));
+
+/** Scale a legacy 12-col / 75px layout item into the 24-col / 30px grid. */
+const migrateItemV1toV2 = (item) => ({
+  ...item,
+  x: (item.x || 0) * V1_TO_V2_COL,
+  w: (item.w || 1) * V1_TO_V2_COL,
+  y: Math.round((item.y || 0) * V1_TO_V2_ROW),
+  h: toV2Rows(item.h || 1),
+  minW: item.minW ? item.minW * V1_TO_V2_COL : undefined,
+  minH: item.minH ? toV2Rows(item.minH) : undefined,
+});
 
 const WIDGET_CATEGORIES = [
   {
@@ -76,9 +101,15 @@ const WIDGET_CATEGORIES = [
   }
 ];
 
-const WIDGET_TYPES = WIDGET_CATEGORIES.flatMap(c => c.widgets);
+// Widget minimum sizes above are written in legacy (v1) units; convert once for the v2 grid.
+const WIDGET_TYPES = WIDGET_CATEGORIES.flatMap(c => c.widgets).map(w => ({
+  ...w,
+  minW: w.minW * V1_TO_V2_COL,
+  minH: toV2Rows(w.minH),
+}));
 
-const defaultLayout = [
+// Written in v1 units, migrated to v2 at load time.
+const defaultLayoutV1 = [
   { i: 'video', x: 0, y: 0, w: 6, h: 5, minW: 2, minH: 2, type: 'video' },
   { i: 'status', x: 10, y: 0, w: 2, h: 2, minW: 2, minH: 2, type: 'pipelineStatus' },
   { i: 'metric_count', x: 6, y: 0, w: 2, h: 2, minW: 2, minH: 2, type: 'metric', config: { title: 'Detections', dataPath: 'data.length', unit: 'objects' } },
@@ -105,8 +136,17 @@ const getNestedValue = (obj, path) => {
   return current;
 };
 
+/** Find the first free spot for a w×h item: right of `source` if it fits, otherwise directly below it. */
+const findDuplicatePosition = (source, items, cols) => {
+  const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const right = { x: source.x + source.w, y: source.y, w: source.w, h: source.h };
+  if (right.x + right.w <= cols && !items.some(it => overlaps(right, it))) return { x: right.x, y: right.y };
+  return { x: source.x, y: source.y + source.h };
+};
+
 export default function LiveDashboard({ metadata, connected, projectId }) {
   const [layouts, setLayouts] = useState({ lg: [] }); // start empty instead of defaultLayout to prevent flashing
+  const [compactMode, setCompactMode] = useState('vertical'); // 'vertical' = Auto-arrange, 'free' = Free placement
   const [isEditMode, setIsEditMode] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
@@ -124,14 +164,18 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
           setDataSources(project.exposed_data_sources || []);
           setDataSourcesLoaded(true);
           if (project.dashboard_layout) {
+            const saved = project.dashboard_layout;
+            const gridMeta = saved._grid || {};
             // Backward compatibility check
-            const updatedLayout = project.dashboard_layout.lg ? project.dashboard_layout.lg : project.dashboard_layout;
+            let updatedLayout = Array.isArray(saved.lg) ? saved.lg : (Array.isArray(saved) ? saved : []);
             const hasTypes = updatedLayout.length === 0 || updatedLayout.some(i => i.type);
             if (!hasTypes) {
-               setLayouts({ lg: defaultLayout }); // Overwrite with new generic layout if old format
-            } else {
-               setLayouts({ lg: updatedLayout });
+               updatedLayout = defaultLayoutV1.map(migrateItemV1toV2); // Overwrite with new generic layout if old format
+            } else if ((gridMeta.version || 1) < GRID_VERSION) {
+               updatedLayout = updatedLayout.map(migrateItemV1toV2);
             }
+            setLayouts({ lg: updatedLayout });
+            setCompactMode(gridMeta.compact === 'free' ? 'free' : 'vertical');
           }
         }
       })
@@ -196,6 +240,35 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
     });
   }, [layouts]);
 
+  const handleDuplicateWidget = React.useCallback((sourceId) => {
+    setLayouts(prev => {
+      const lg = prev.lg || [];
+      const source = lg.find(it => it.i === sourceId);
+      if (!source) return prev;
+
+      const type = source.type || source.i.split('_')[0];
+      const config = structuredClone(source.config || {});
+      if (config.title) config.title = `${config.title} (Copy)`;
+
+      const pos = findDuplicatePosition(source, lg, GRID_COLS.lg);
+      const copy = {
+        ...source,
+        i: `${type}_${Date.now()}`,
+        x: pos.x,
+        y: pos.y,
+        type,
+        config,
+      };
+
+      const updated = {};
+      for (const bp in prev) {
+        updated[bp] = [...(prev[bp] || []), copy];
+      }
+      if (!updated.lg) updated.lg = [copy];
+      return updated;
+    });
+  }, []);
+
   const saveLayout = async () => {
     try {
       const res = await fetch('/api/projects');
@@ -203,7 +276,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
       
       const updatedProjects = projects.map(p => {
         if (p.id === projectId) {
-          return { ...p, dashboard_layout: layouts };
+          return { ...p, dashboard_layout: { ...layouts, _grid: { version: GRID_VERSION, compact: compactMode } } };
         }
         return p;
       });
@@ -249,6 +322,24 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
       
       {/* Floating Toolbar */}
       <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 flex gap-2">
+        {isEditMode && (
+          <div className="flex items-center bg-surface-2/90 backdrop-blur-sm border border-line-strong rounded-lg p-0.5 shadow-lg text-xs sm:text-sm" role="group" aria-label="Layout mode">
+            <button
+              onClick={() => setCompactMode('vertical')}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-md flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'vertical' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
+              title="Auto-arrange: widget จะไหลขึ้นไปชิดด้านบนอัตโนมัติ"
+            >
+              <ArrowUpToLine size={14} /> <span className="hidden sm:inline">Auto-arrange</span>
+            </button>
+            <button
+              onClick={() => setCompactMode('free')}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-md flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'free' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
+              title="Free placement: วางตรงไหนก็อยู่ตรงนั้น เว้นช่องว่างได้"
+            >
+              <Move size={14} /> <span className="hidden sm:inline">Free placement</span>
+            </button>
+          </div>
+        )}
         {isEditMode ? (
           <button 
             onClick={saveLayout}
@@ -277,15 +368,26 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         <div className={`flex-1 overflow-y-auto overflow-x-hidden p-1 sm:p-2 bg-canvas rounded-xl border ${isEditMode ? 'border-blue-500/50 border-dashed' : 'border-transparent'}`}>
           <ResponsiveGridLayout
             className="layout"
-            style={{ minHeight: '100%' }}
+            style={{
+              minHeight: '100%',
+              ...(isEditMode ? {
+                // Faint guide lines in the gutters between grid cells (column step = (width - margin) / cols)
+                backgroundImage: 'linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px)',
+                backgroundSize: `calc((100% - ${GRID_MARGIN}px) / ${GRID_COLS.lg}) ${V2_ROW_UNIT}px`,
+                backgroundPosition: `${GRID_MARGIN / 2}px ${GRID_MARGIN / 2}px`,
+              } : {}),
+            }}
             layouts={layouts}
             breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-            rowHeight={75}
+            cols={GRID_COLS}
+            rowHeight={GRID_ROW_HEIGHT}
             onLayoutChange={onLayoutChange}
             isDraggable={isEditMode}
             isResizable={isEditMode}
-            margin={[12, 12]}
+            margin={[GRID_MARGIN, GRID_MARGIN]}
+            compactType={compactMode === 'free' ? null : 'vertical'}
+            preventCollision={false}
+            draggableCancel=".widget-toolbar"
           >
           {layouts.lg.map(item => {
             const config = item.config || {};
@@ -299,10 +401,17 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                 )}
                 
                 {isEditMode && (
-                  <React.Fragment>
+                  <div className="widget-toolbar absolute top-2 right-2 z-20 hidden group-hover:flex items-center gap-1">
+                    <button 
+                      onClick={() => handleDuplicateWidget(item.i)}
+                      className="bg-surface-2 p-1.5 rounded hover:bg-blue-600 hover:text-white hover:border-blue-600 border border-line-stronger text-fg-secondary shadow-md transition-colors"
+                      title="Duplicate Widget (คัดลอกพร้อมการตั้งค่าทั้งหมด)"
+                    >
+                      <Copy size={16} />
+                    </button>
                     <button 
                       onClick={() => openSettings(item)}
-                      className="absolute top-2 right-2 z-20 bg-surface-2 p-1.5 rounded hover:bg-surface-3 hidden group-hover:block border border-line-stronger text-fg-secondary shadow-md"
+                      className="bg-surface-2 p-1.5 rounded hover:bg-surface-3 border border-line-stronger text-fg-secondary shadow-md"
                       title="Widget Settings"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -317,12 +426,12 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                           return updated;
                         });
                       }}
-                      className="absolute top-2 right-10 z-20 bg-red-900/80 p-1.5 rounded hover:bg-red-800 hidden group-hover:block border border-red-700 text-red-100 shadow-md"
+                      className="bg-red-900/80 p-1.5 rounded hover:bg-red-800 border border-red-700 text-red-100 shadow-md"
                       title="Remove Widget"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                     </button>
-                  </React.Fragment>
+                  </div>
                 )}
                 {type === 'video' && (
                   <VideoWidget 
