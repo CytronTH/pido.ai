@@ -25,6 +25,36 @@
 - 
 -->
 
+## [2026-10-05] - Chart Widget: Tooltip เวลาแบบอ่านง่าย, Live Preview และ Display Templates
+
+### 🎯 เป้าหมาย (Goals)
+- [x] Tooltip แสดงเวลาแบบ human-readable พร้อมชื่อตัวแปรข้อมูล
+- [x] แสดง Live Preview ของ Chart ใน Widget Settings (เดิมเป็นกล่องข้อความ "Chart Preview")
+- [x] เพิ่ม Display Template ให้ผู้ใช้เลือกรูปแบบกราฟได้ง่าย
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **`ChartWidget.jsx`:**
+  - `ChartTooltip` แสดง "วันนี้ / เมื่อวาน / วันที่" + `HH:mm:ss` + เวลาสัมพัทธ์ (เช่น "12 วินาทีที่แล้ว") และแต่ละแถวแสดงจุดสี + ชื่อแหล่งข้อมูล (จาก `config.dataPathNames`) + ค่าพร้อม unit
+  - โหมด preview (`config.__isPreview`) ใช้ข้อมูลตัวอย่างที่คงที่ (`buildSampleData`) ไม่ fetch API / ไม่ฟัง live
+  - ใช้ค่าตั้งค่าที่เดิมมีใน Settings แต่ widget ไม่ได้อ่าน: `strokeWidth`, `showDots`, `fillOpacity`, `useGradient`, `showGrid`, `gridStyle`, `thresholdColor/Label`, `thresholdMin*`, `enableUpperLimit/LowerLimit`, `enableYAxisConstraints`, `maxDataPoints`
+- **`WidgetSettingsModal.jsx`:**
+  - `CHART_TEMPLATES` 6 แบบ (Live Trend, Step/State, Volume Area, Count Bars, Threshold Monitor, Multi-Series Compare) พร้อม thumbnail SVG, คำอธิบาย และ "เหมาะกับ"
+  - template ที่ตรงกับค่าปัจจุบันจะไฮไลต์ "✓ ใช้อยู่" (`isTemplateActive`) และมีคำเตือนเมื่อ template ต้องการค่าเพิ่ม
+  - เพิ่มช่อง Time Range (5m/15m/1h/24h) และ Unit สำหรับ chart (เดิมไม่มีใน UI)
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** template เปลี่ยนเฉพาะค่าการแสดงผล ไม่แตะ data binding และไม่เก็บ template id ลง config
+- **เหตุผล:** ผู้ใช้ปรับต่อได้อิสระ และ config เดิมใช้งานได้ทันทีโดยไม่ต้อง migrate
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- `yAxisLogScale` และ `yAxisMargin` ยังไม่ถูกใช้ใน `ChartWidget`
+- Area chart เดิมจะแสดงแบบไล่สี (gradient) เพราะค่าเริ่มต้น `useGradient` เป็น true
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบใน browser
+
+---
+
 ## [2026-10-04] - จัดหมวดหมู่ Available Widgets, แก้ไอคอน Video Stream และเพิ่ม Visual Range Editor สำหรับ Dynamic Colors
 
 ### 🎯 เป้าหมาย (Goals)

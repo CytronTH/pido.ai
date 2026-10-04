@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { 
   LineChart, Line, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend 
@@ -7,10 +7,99 @@ import { BarChart2 } from 'lucide-react';
 import { chartTheme } from '../../utils/theme';
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
+const SAMPLE_SERIES_ID = '__sample';
 
 function getNestedValue(obj, path) {
     if (!path) return undefined;
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+function formatRelative(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 5) return 'เมื่อสักครู่';
+  if (s < 60) return `${s} วินาทีที่แล้ว`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} นาทีที่แล้ว`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ชั่วโมงที่แล้ว`;
+  return `${Math.floor(h / 24)} วันที่แล้ว`;
+}
+
+/** Turn a unix timestamp (seconds) into { day, time, relative } for display. */
+function formatHumanTime(unix) {
+  const d = new Date(unix * 1000);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  let day;
+  if (d.toDateString() === now.toDateString()) day = 'วันนี้';
+  else if (d.toDateString() === yesterday.toDateString()) day = 'เมื่อวาน';
+  else day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  return {
+    day,
+    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`,
+    relative: formatRelative(now.getTime() - d.getTime()),
+  };
+}
+
+function formatValue(value, unit) {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = Number(value);
+  const text = Number.isFinite(num)
+    ? num.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : String(value);
+  return unit ? `${text} ${unit}` : text;
+}
+
+function ChartTooltip({ active, payload, label, unit }) {
+  if (!active || !payload || payload.length === 0 || label === undefined) return null;
+  const { day, time, relative } = formatHumanTime(label);
+
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 shadow-lg text-xs min-w-[170px]"
+      style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--line-strong)', color: 'var(--fg)' }}
+    >
+      <div className="flex items-baseline justify-between gap-3 pb-1.5 mb-1.5 border-b" style={{ borderColor: 'var(--line)' }}>
+        <span className="font-semibold">{day} {time}</span>
+        <span style={{ color: 'var(--fg-subtle)' }} className="text-[10px] whitespace-nowrap">{relative}</span>
+      </div>
+      <div className="space-y-1">
+        {payload.map((entry) => (
+          <div key={entry.dataKey} className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color || entry.stroke }} />
+              <span className="truncate" style={{ color: 'var(--fg-muted)' }}>{entry.name}</span>
+            </span>
+            <span className="font-mono font-semibold whitespace-nowrap">{formatValue(entry.value, unit)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Deterministic sample data so the settings preview looks stable while editing. */
+function buildSampleData(seriesIds, timeframeMin, chartType) {
+  const points = 48;
+  const end = Math.floor(Date.now() / 1000);
+  const step = Math.max(1, Math.floor((timeframeMin * 60) / points));
+  const data = [];
+  for (let i = 0; i < points; i++) {
+    const ts = end - (points - 1 - i) * step;
+    const row = { timestamp_unix: ts };
+    seriesIds.forEach((id, s) => {
+      const wave = Math.sin((i + s * 7) / 6) * 18 + Math.sin((i + s * 3) / 2.3) * 6;
+      const raw = 50 + s * 12 + wave;
+      row[id] = chartType === 'stepAfter' || chartType === 'bar' ? Math.round(raw / 5) * 5 : Math.round(raw * 10) / 10;
+    });
+    data.push(row);
+  }
+  return data;
 }
 
 export default function ChartWidget({ title, config = {}, paths = [], metadata, icon: Icon = BarChart2 }) {
@@ -21,12 +110,36 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   const lastUpdateRef = useRef({});
   const chartWrapperRef = useRef(null);
   const boundsRef = useRef({ min: 0, max: 0 });
+  const gradientPrefix = `chartGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
 
+  const isPreview = config.__isPreview === true;
   const chartType = config.chartType || 'stepAfter'; // stepAfter, monotone, area, bar
   const baseColor = config.color || COLORS[0];
-  const threshold = (config.threshold !== undefined && config.threshold !== '') ? parseFloat(config.threshold) : null;
-  const yMin = (config.yMin !== undefined && config.yMin !== '') ? parseFloat(config.yMin) : 'auto';
-  const yMax = (config.yMax !== undefined && config.yMax !== '') ? parseFloat(config.yMax) : 'auto';
+  const unit = config.unit || '';
+
+  // Visual tweaks (fall back to defaults when the section is turned off)
+  const tweaksOn = config.enableVisualTweaks !== false;
+  const strokeWidth = tweaksOn ? (Number(config.strokeWidth) || 2) : 2;
+  const showDots = tweaksOn ? !!config.showDots : false;
+  const fillOpacityPct = tweaksOn && config.fillOpacity !== undefined && config.fillOpacity !== '' ? Number(config.fillOpacity) : 20;
+  const fillOpacity = chartType === 'bar' ? Math.max(fillOpacityPct, 60) / 100 : fillOpacityPct / 100;
+  const useGradient = tweaksOn ? config.useGradient !== false : true;
+  const showGrid = tweaksOn ? config.showGrid !== false : true;
+  const gridDash = tweaksOn && config.gridStyle === '0' ? undefined : (tweaksOn && config.gridStyle) || '3 3';
+
+  // Limits (older configs have no enable* flags: show whenever a value is set)
+  const parseNum = (v) => (v !== undefined && v !== null && v !== '' ? parseFloat(v) : null);
+  let threshold = config.enableUpperLimit === false ? null : parseNum(config.threshold);
+  const thresholdMin = config.enableLowerLimit === false ? null : parseNum(config.thresholdMin);
+  let thresholdLabel = config.thresholdLabel || 'Threshold';
+  if (isPreview && config.enableUpperLimit && (threshold === null || isNaN(threshold))) {
+    threshold = 75;
+    thresholdLabel = `${thresholdLabel} (ตัวอย่าง)`;
+  }
+  const yConstraintsOn = config.enableYAxisConstraints !== false;
+  const yMin = yConstraintsOn && parseNum(config.yMin) !== null ? parseNum(config.yMin) : 'auto';
+  const yMax = yConstraintsOn && parseNum(config.yMax) !== null ? parseNum(config.yMax) : 'auto';
+  const maxPoints = Number(config.maxDataPoints) || 500;
   
   const timeframeMap = {
       '5m': { tf: 5, aggr: null },
@@ -42,8 +155,25 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     return match ? match[1] : null;
   }).filter(Boolean);
 
+  // Human-friendly series names: saved data source names, falling back to the node id
+  const seriesNames = { [SAMPLE_SERIES_ID]: 'Sample Data' };
+  const savedNames = config.dataPathNames || {};
+  paths.forEach(p => {
+    const match = p.match(/^dashboard\.(.+?)\.(?:value|history)$/);
+    if (match) seriesNames[match[1]] = savedNames[p] || `Node: ${match[1].split('_')[0]}`;
+  });
+
+  const seriesIds = isPreview && nodeIds.length === 0 ? [SAMPLE_SERIES_ID] : nodeIds;
+  const seriesKey = seriesIds.join('|');
+
+  const previewData = useMemo(
+    () => (isPreview ? buildSampleData(seriesKey.split('|'), tfConfig.tf, chartType) : null),
+    [isPreview, seriesKey, tfConfig.tf, chartType]
+  );
+
   // Fetch history on mount
   useEffect(() => {
+    if (isPreview) return;
     if (nodeIds.length === 0) {
       setIsLoaded(true);
       return;
@@ -76,11 +206,11 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         console.error("Failed to fetch TSDB history", err);
         setIsLoaded(true);
     });
-  }, [config.dataPaths, config.dataPath, config.timeframe]);
+  }, [config.dataPaths, config.dataPath, config.timeframe, isPreview]);
 
   // Listen to live updates
   useEffect(() => {
-    if (!isLoaded || nodeIds.length === 0 || !metadata) return;
+    if (isPreview || !isLoaded || nodeIds.length === 0 || !metadata) return;
 
     let newPoint = { timestamp_unix: Date.now() / 1000, time: new Date().toLocaleTimeString() };
     let hasChanges = false;
@@ -111,11 +241,13 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         setHistoryData(prev => {
             const newHistory = [...prev, newPoint];
             // Keep a reasonable number of points for live viewing if no aggregation
-            if (!tfConfig.aggr && newHistory.length > 500) return newHistory.slice(-500);
+            if (!tfConfig.aggr && newHistory.length > maxPoints) return newHistory.slice(-maxPoints);
             return newHistory;
         });
     }
-  }, [metadata, isLoaded]);
+  }, [metadata, isLoaded, isPreview]);
+
+  const chartData = isPreview ? previewData : historyData;
 
   // Chart Component Selection
   const ChartComponent = chartType === 'bar' ? BarChart : (chartType === 'area' ? AreaChart : LineChart);
@@ -128,9 +260,9 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   if (lockTimeframe) {
       boundsRef.current.max = Math.floor(Date.now() / 1000);
       boundsRef.current.min = boundsRef.current.max - (tfConfig.tf * 60);
-  } else if (historyData.length > 0) {
-      boundsRef.current.min = historyData[0].timestamp_unix;
-      boundsRef.current.max = historyData[historyData.length - 1].timestamp_unix;
+  } else if (chartData.length > 0) {
+      boundsRef.current.min = chartData[0].timestamp_unix;
+      boundsRef.current.max = chartData[chartData.length - 1].timestamp_unix;
   }
 
   // Handle Wheel Zoom
@@ -185,8 +317,8 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   
   if (lockTimeframe && !zoomDomain) {
       let now = Math.floor(Date.now() / 1000);
-      if (historyData.length > 0) {
-          now = historyData[historyData.length - 1].timestamp_unix;
+      if (chartData.length > 0) {
+          now = chartData[chartData.length - 1].timestamp_unix;
       }
       
       const minTs = now - (tfConfig.tf * 60);
@@ -215,6 +347,8 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
       };
   }
 
+  const seriesColor = (index) => (index === 0 ? baseColor : COLORS[index % COLORS.length]);
+
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
@@ -242,10 +376,20 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         ref={chartWrapperRef}
         onDoubleClick={() => setZoomDomain(null)}
       >
-        {historyData.length > 0 ? (
+        {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <ChartComponent data={historyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+            <ChartComponent data={chartData}>
+              {chartType === 'area' && useGradient && (
+                <defs>
+                  {seriesIds.map((id, index) => (
+                    <linearGradient key={id} id={`${gradientPrefix}-${index}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={seriesColor(index)} stopOpacity={Math.min(1, fillOpacity * 2)} />
+                      <stop offset="95%" stopColor={seriesColor(index)} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
+              )}
+              {showGrid && <CartesianGrid strokeDasharray={gridDash} stroke={chartTheme.grid} vertical={false} />}
               <XAxis 
                 {...xAxisProps}
                 stroke={chartTheme.axis} 
@@ -258,31 +402,34 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
                 allowDataOverflow={true}
               />
               <Tooltip 
-                contentStyle={chartTheme.tooltip.contentStyle}
-                itemStyle={chartTheme.tooltip.itemStyle}
-                labelStyle={chartTheme.tooltip.labelStyle}
+                content={<ChartTooltip unit={unit} />}
+                cursor={chartType === 'bar' ? chartTheme.tooltip.cursor : { stroke: chartTheme.axis, strokeDasharray: '3 3' }}
               />
               
-              {nodeIds.length > 1 && <Legend wrapperStyle={{ fontSize: '12px' }} />}
+              {seriesIds.length > 1 && <Legend wrapperStyle={{ fontSize: '12px' }} />}
               
               {threshold !== null && !isNaN(threshold) && (
-                  <ReferenceLine y={threshold} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'top', value: 'Threshold', fill: '#ef4444', fontSize: 10 }} />
+                  <ReferenceLine y={threshold} stroke={config.thresholdColor || '#ef4444'} strokeDasharray="3 3" label={{ position: 'top', value: thresholdLabel, fill: config.thresholdColor || '#ef4444', fontSize: 10 }} />
+              )}
+              {thresholdMin !== null && !isNaN(thresholdMin) && (
+                  <ReferenceLine y={thresholdMin} stroke={config.thresholdMinColor || '#3b82f6'} strokeDasharray="3 3" label={{ position: 'bottom', value: config.thresholdMinLabel || 'Lower Limit', fill: config.thresholdMinColor || '#3b82f6', fontSize: 10 }} />
               )}
               
-              {nodeIds.map((id, index) => {
-                  const color = index === 0 ? baseColor : COLORS[index % COLORS.length];
+              {seriesIds.map((id, index) => {
+                  const color = seriesColor(index);
+                  const fill = chartType === 'area' && useGradient ? `url(#${gradientPrefix}-${index})` : color;
                   return (
                       <DataComponent 
                         key={id}
                         type={lineType}
                         dataKey={id}
-                        name={`Node: ${id.split('_')[0]}`}
+                        name={seriesNames[id] || id}
                         stroke={color} 
-                        fill={chartType === 'area' ? color : color}
-                        fillOpacity={0.2}
-                        strokeWidth={2} 
-                        dot={false}
-                        activeDot={{ r: 6 }}
+                        fill={fill}
+                        fillOpacity={chartType === 'area' && useGradient ? 1 : fillOpacity}
+                        strokeWidth={strokeWidth} 
+                        dot={showDots ? { r: 2.5, strokeWidth: 0, fill: color } : false}
+                        activeDot={{ r: 5 }}
                         isAnimationActive={false}
                         connectNulls={true}
                       />

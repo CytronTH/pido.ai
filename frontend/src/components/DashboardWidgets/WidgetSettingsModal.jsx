@@ -43,6 +43,102 @@ const PRESET_COLOR_STOPS = [
 
 const QUICK_COLORS = ['#10b981', '#eab308', '#f97316', '#ef4444', '#3b82f6', '#8b5cf6', '#06b6d4'];
 
+// Chart display templates: each one only sets presentation fields, never the data binding.
+const CHART_TEMPLATES = [
+  {
+    id: 'live-trend',
+    name: 'Live Trend',
+    desc: 'เส้นโค้งต่อเนื่อง ดูแนวโน้มแบบเรียลไทม์',
+    useFor: 'อุณหภูมิ, FPS, ความเร็ว',
+    thumb: 'smooth',
+    config: { chartType: 'monotone', timeframe: '5m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'digital-state',
+    name: 'Step / State',
+    desc: 'เส้นขั้นบันได ค่ากระโดดเป็นช่วง ไม่ลากเส้นเฉียง',
+    useFor: 'สถานะเปิด/ปิด, จำนวนคนในโซน',
+    thumb: 'step',
+    config: { chartType: 'stepAfter', timeframe: '5m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'volume-area',
+    name: 'Volume Area',
+    desc: 'พื้นที่ไล่สีใต้เส้น เน้นปริมาณ',
+    useFor: 'จำนวนวัตถุที่ตรวจพบ, โหลดระบบ',
+    thumb: 'area',
+    config: { chartType: 'area', timeframe: '15m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, useGradient: true, fillOpacity: 35, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'count-bars',
+    name: 'Count Bars',
+    desc: 'แท่งเปรียบเทียบค่าในแต่ละช่วงเวลา',
+    useFor: 'ยอดนับต่อนาที, ชิ้นงานต่อชั่วโมง',
+    thumb: 'bar',
+    config: { chartType: 'bar', timeframe: '1h', enableVisualTweaks: true, fillOpacity: 80, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'threshold-monitor',
+    name: 'Threshold Monitor',
+    desc: 'เส้นกราฟพร้อมเส้นเกณฑ์เตือน',
+    useFor: 'เฝ้าระวังค่าเกินกำหนด',
+    thumb: 'threshold',
+    config: { chartType: 'monotone', timeframe: '15m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, showGrid: true, gridStyle: '3 3', enableUpperLimit: true },
+  },
+  {
+    id: 'multi-compare',
+    name: 'Multi-Series Compare',
+    desc: 'หลายเส้นพร้อมจุดข้อมูล แยกสีชัดเจน',
+    useFor: 'เทียบหลายกล้อง / หลายตัวนับ',
+    thumb: 'multi',
+    config: { chartType: 'monotone', timeframe: '15m', enableVisualTweaks: true, strokeWidth: 2, showDots: true, showGrid: true, gridStyle: '3 3' },
+  },
+];
+
+const isTemplateActive = (template, data) =>
+  Object.entries(template.config).every(([k, v]) => String(data[k]) === String(v));
+
+const ChartTemplateThumb = ({ kind, color }) => {
+  const c = color || '#10b981';
+  const grid = <g stroke="currentColor" strokeOpacity="0.15" strokeDasharray="2 2">{[10, 20, 30].map(y => <line key={y} x1="0" x2="80" y1={y} y2={y} />)}</g>;
+  switch (kind) {
+    case 'step':
+      return <svg viewBox="0 0 80 40" className="w-full h-10">{grid}<path d="M0 30 H14 V14 H30 V26 H46 V8 H62 V20 H80" fill="none" stroke={c} strokeWidth="2" /></svg>;
+    case 'area':
+      return (
+        <svg viewBox="0 0 80 40" className="w-full h-10">
+          <defs><linearGradient id="thumbArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c} stopOpacity="0.6" /><stop offset="100%" stopColor={c} stopOpacity="0" /></linearGradient></defs>
+          {grid}
+          <path d="M0 30 C12 22 20 26 30 18 S50 8 60 14 S74 10 80 6 V40 H0 Z" fill="url(#thumbArea)" />
+          <path d="M0 30 C12 22 20 26 30 18 S50 8 60 14 S74 10 80 6" fill="none" stroke={c} strokeWidth="2" />
+        </svg>
+      );
+    case 'bar':
+      return <svg viewBox="0 0 80 40" className="w-full h-10">{grid}{[22, 12, 28, 16, 8, 20, 14].map((y, i) => <rect key={i} x={3 + i * 11} y={y} width="7" height={40 - y} rx="1" fill={c} fillOpacity="0.85" />)}</svg>;
+    case 'threshold':
+      return (
+        <svg viewBox="0 0 80 40" className="w-full h-10">
+          {grid}
+          <line x1="0" x2="80" y1="12" y2="12" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 3" />
+          <path d="M0 30 C10 26 18 32 28 22 S44 6 52 14 S68 28 80 20" fill="none" stroke={c} strokeWidth="2" />
+          <circle cx="47" cy="9" r="2.5" fill="#ef4444" />
+        </svg>
+      );
+    case 'multi':
+      return (
+        <svg viewBox="0 0 80 40" className="w-full h-10">
+          {grid}
+          <path d="M0 28 C14 20 24 26 36 18 S58 12 80 14" fill="none" stroke={c} strokeWidth="2" />
+          <path d="M0 18 C14 24 26 10 38 14 S60 28 80 24" fill="none" stroke="#3b82f6" strokeWidth="2" />
+          <path d="M0 34 C16 32 28 30 40 32 S62 26 80 30" fill="none" stroke="#8b5cf6" strokeWidth="2" />
+          {[[0, 28], [36, 18], [80, 14], [0, 18], [38, 14], [80, 24]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.8" fill={i < 3 ? c : '#3b82f6'} />)}
+        </svg>
+      );
+    default:
+      return <svg viewBox="0 0 80 40" className="w-full h-10">{grid}<path d="M0 28 C10 20 18 30 28 22 S44 8 54 14 S70 22 80 10" fill="none" stroke={c} strokeWidth="2" /></svg>;
+  }
+};
+
 const ToggleSwitch = ({ label, checked, onChange, className = "mb-3" }) => (
   <div className={`flex items-center justify-between gap-4 ${className}`}>
     <h4 className="text-sm font-semibold text-fg-secondary">{label}</h4>
@@ -308,8 +404,22 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         return <MetricWidget {...previewProps} value={realValue !== null ? realValue : 1024} unit={formData.unit || ''} />;
       case 'text':
         return <TextWidget {...previewProps} value={realValue !== null ? realValue : "System Nominal"} />;
-      case 'chart':
-        return <div className="w-full h-full bg-surface rounded-xl flex items-center justify-center border border-line-strong shadow-inner"><span className="text-fg-subtle font-mono text-sm">Chart Preview</span></div>;
+      case 'chart': {
+        const previewPaths = formData.dataPaths || [];
+        const dataPathNames = {};
+        previewPaths.forEach(id => {
+          const ds = dataSources.find(d => d.id === id);
+          if (ds) dataPathNames[id] = ds.name;
+        });
+        return (
+          <ChartWidget
+            title={previewProps.title}
+            config={{ ...previewProps.config, dataPathNames }}
+            paths={previewPaths}
+            metadata={metadata}
+          />
+        );
+      }
       default:
         return <div className="text-fg-subtle text-sm">Preview not available</div>;
     }
@@ -469,6 +579,76 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       ? `Supported types: ${supportedTypes.join(', ')}` 
                       : "No data binding required."}
                   </p>
+                </div>
+              )}
+
+              {widgetItem.type === 'chart' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1">Display Template</label>
+                    <p className="text-xs text-fg-subtle mb-2.5">เลือกรูปแบบที่ตรงกับข้อมูลของคุณ แล้วปรับรายละเอียดต่อได้ในแท็บ Appearance</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {CHART_TEMPLATES.map(t => {
+                        const active = isTemplateActive(t, formData);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, ...t.config })}
+                            className={`text-left p-2.5 rounded-xl border transition-all group ${active ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/40' : 'border-line-strong/70 bg-surface-2/40 hover:border-blue-500/60 hover:bg-surface-2/70'}`}
+                          >
+                            <div className={`rounded-lg border px-1.5 py-1 mb-2 text-fg ${active ? 'border-blue-500/30 bg-surface' : 'border-line bg-canvas'}`}>
+                              <ChartTemplateThumb kind={t.thumb} color={formData.color} />
+                            </div>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className={`text-xs font-semibold ${active ? 'text-blue-500' : 'text-fg group-hover:text-blue-500'}`}>{t.name}</span>
+                              {active && <span className="text-[10px] font-semibold text-blue-500">✓ ใช้อยู่</span>}
+                            </div>
+                            <p className="text-[11px] text-fg-muted mt-0.5 leading-snug">{t.desc}</p>
+                            <p className="text-[10px] text-fg-subtle mt-1 leading-snug">เหมาะกับ: {t.useFor}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {formData.enableUpperLimit && (formData.threshold === '' || formData.threshold === undefined) && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+                        ⚠️ ยังไม่ได้กำหนดค่าเกณฑ์ ไปตั้งค่าที่แท็บ Limits &amp; Alerts → Upper Limit
+                      </p>
+                    )}
+                    {isTemplateActive(CHART_TEMPLATES.find(t => t.id === 'multi-compare'), formData) && (formData.dataPaths || []).length < 2 && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+                        ⚠️ Template นี้เหมาะกับข้อมูลตั้งแต่ 2 แหล่งขึ้นไป เลือกเพิ่มได้ใน Data Source Binding ด้านบน
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Time Range</label>
+                      <select
+                        name="timeframe"
+                        value={formData.timeframe || '5m'}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                      >
+                        <option value="5m">5 นาทีล่าสุด</option>
+                        <option value="15m">15 นาทีล่าสุด</option>
+                        <option value="1h">1 ชั่วโมงล่าสุด</option>
+                        <option value="24h">24 ชั่วโมงล่าสุด</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit (แสดงใน Tooltip)</label>
+                      <input
+                        type="text"
+                        name="unit"
+                        value={formData.unit}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
+                        placeholder="e.g. °C, pcs, fps"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
