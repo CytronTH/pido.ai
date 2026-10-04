@@ -6,8 +6,9 @@ import NodeMenu from './NodeMenu';
 
 export default function SnapshotNode({ id, data, selected }) {
   const updateNodeData = usePipelineStore(s => s.updateNodeData);
+  const isCompact = data?.viewMode === 'compact';
   return (
-    <div className={`bg-surface border-2 rounded-xl shadow-xl w-64 overflow-hidden transition-colors ${selected ? 'border-pink-500' : 'border-pink-500/30'}`}>
+    <div className={`bg-surface border-2 rounded-xl shadow-xl ${isCompact ? 'w-48' : 'w-64'} overflow-hidden transition-colors ${selected ? 'border-pink-500' : 'border-pink-500/30'}`}>
       <div className="bg-gradient-to-r from-pink-900/50 to-pink-800/50 p-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Camera size={18} className="text-pink-600 dark:text-pink-400" />
