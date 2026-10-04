@@ -25,6 +25,44 @@
 - 
 -->
 
+## [2026-10-05] - Dashboard Version History (บันทึกเป็นเวอร์ชันพร้อมหมายเหตุ + กู้คืน)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ทุกครั้งที่ Save dashboard ต้องใส่บันทึกการเปลี่ยนแปลง และเก็บเป็นเวอร์ชัน
+- [x] ดูประวัติและกู้คืนเวอร์ชันเก่าได้
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Backend:**
+  - ตารางใหม่ `dashboard_versions` (`DashboardVersion` ใน `db/models.py`): `version_number` (unique ต่อโปรเจกต์), `note`, `layout_json`, `widget_count`, `restored_from_version`; ลบตาม project (CASCADE)
+  - Router `web_server/routers/dashboard_versions.py` ที่ `/api/projects/{id}/dashboard/versions`:
+    - `GET` รายการ (ใหม่สุดก่อน), `GET /{vid}` รายละเอียด + layout
+    - `POST` สร้างเวอร์ชัน + อัปเดต `Project.dashboard_layout_json` ใน transaction เดียว (note ห้ามว่าง, ≤200 ตัวอักษร)
+    - `POST /{vid}/restore` กู้คืนโดยสร้างเวอร์ชันใหม่ (ประวัติไม่หาย)
+    - เก็บล่าสุด 100 เวอร์ชันต่อโปรเจกต์; งาน DB รันผ่าน `asyncio.to_thread`
+  - เทสต์ `backend/test_dashboard_versions.py` (SQLite in-memory, ไม่แตะ DB จริง)
+- **Frontend (`components/DashboardVersions/`, `LiveDashboard.jsx`):**
+  - ติดตามสถานะ "ยังไม่ได้บันทึก" โดยเทียบ snapshot ของ layout + โหมดจัดวาง
+  - `SaveVersionModal`: บังคับใส่ note, สรุปการเปลี่ยนแปลง (เพิ่ม/ลบ/ย้าย/แก้ตั้งค่า/เปลี่ยนโหมด), ปุ่ม note ด่วน, Ctrl+Enter
+  - `VersionHistoryPanel`: timeline ของเวอร์ชัน, ป้าย "ปัจจุบัน", กู้คืนพร้อมยืนยัน, เตือนถ้ามีงานค้าง
+  - Toolbar: ปุ่ม History (แสดง vN), ป้าย "ยังไม่ได้บันทึก", Discard/Cancel, Save Version หรือ Done เมื่อไม่มีการแก้ไข
+  - เตือนก่อนปิด/รีโหลดแท็บถ้ามีงานค้าง (`beforeunload`)
+  - เลิกใช้การ POST `/api/projects` ทั้งก้อนตอน save dashboard → ใช้ endpoint เวอร์ชันแทน
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** สร้างตาราง `dashboard_versions` ใหม่ แทนการใช้ `ProjectRevision` ที่มีอยู่ (ยังไม่ได้ใช้งาน และเก็บ pipeline รวมด้วย)
+- **เหตุผล:** แยกประวัติ dashboard ออกจาก pipeline และกู้คืน dashboard ได้โดยไม่กระทบ pipeline
+- **เรื่องที่ตัดสินใจ:** เก็บเฉพาะ `lg` + `_grid` (breakpoint อื่นสร้างจาก `lg` อยู่แล้วตอนโหลด)
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- ต้องรีสตาร์ท backend เพื่อให้ endpoint ใหม่และตารางใหม่ทำงาน
+- ยังไม่ได้ป้องกันการสลับแท็บภายในแอปตอนมีงานค้าง (App ใช้ `BrowserRouter` ใช้ `useBlocker` ไม่ได้) ป้องกันเฉพาะปิด/รีโหลดหน้า
+- ยังไม่บันทึกชื่อผู้ใช้ที่ save เพราะ API ของ project ยังไม่ส่ง token
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบใน browser หลังรีสตาร์ท backend
+
+---
+
 ## [2026-10-05] - Duplicate Widget และ Grid แบบ Grafana (Auto-arrange / Free placement)
 
 ### 🎯 เป้าหมาย (Goals)

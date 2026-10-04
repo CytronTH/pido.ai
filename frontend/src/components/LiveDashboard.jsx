@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -20,12 +20,15 @@ import TextFeedWidget from './DashboardWidgets/TextFeedWidget';
 import ChartWidget from './DashboardWidgets/ChartWidget';
 import HistoricalChartWidget from './DashboardWidgets/HistoricalChartWidget';
 import WidgetSettingsModal from './DashboardWidgets/WidgetSettingsModal';
+import SaveVersionModal from './DashboardVersions/SaveVersionModal';
+import VersionHistoryPanel from './DashboardVersions/VersionHistoryPanel';
+import { listDashboardVersions, saveDashboardVersion } from './DashboardVersions/dashboardVersionsApi';
 
 import { 
   Unlock, Save, Plus, Copy, 
   Video, Gauge, CircleDot, Target, Hash, 
   Type, ListOrdered, LineChart, BarChart2, 
-  Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move 
+  Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move, History, Undo2, Check 
 } from 'lucide-react';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -144,6 +147,35 @@ const findDuplicatePosition = (source, items, cols) => {
   return { x: source.x, y: source.y + source.h };
 };
 
+// ── Version snapshot helpers ─────────────────────────────────────────────────────────────
+/** Only the fields that matter for persistence (RGL adds transient keys like `moved`). */
+const normalizeItem = ({ i, x, y, w, h, minW, minH, type, config }) => ({ i, x, y, w, h, minW, minH, type, config: config || {} });
+
+const snapshotOf = (lg, compact) => ({
+  compact,
+  lg: [...(lg || [])].map(normalizeItem).sort((a, b) => a.i.localeCompare(b.i)),
+});
+
+/** Payload stored by the backend (and restored from it). Only `lg` is persisted; other breakpoints are derived. */
+const toSavedLayout = (lg, compact) => ({
+  lg: (lg || []).map(normalizeItem),
+  _grid: { version: GRID_VERSION, compact },
+});
+
+const diffSnapshots = (saved, current) => {
+  const savedById = new Map((saved?.lg || []).map(it => [it.i, it]));
+  const currentById = new Map(current.lg.map(it => [it.i, it]));
+  let added = 0, removed = 0, moved = 0, configured = 0;
+  currentById.forEach((it, id) => {
+    const old = savedById.get(id);
+    if (!old) { added++; return; }
+    if (old.x !== it.x || old.y !== it.y || old.w !== it.w || old.h !== it.h) moved++;
+    if (JSON.stringify(old.config) !== JSON.stringify(it.config)) configured++;
+  });
+  savedById.forEach((_, id) => { if (!currentById.has(id)) removed++; });
+  return { added, removed, moved, configured, modeChanged: !!saved && saved.compact !== current.compact };
+};
+
 export default function LiveDashboard({ metadata, connected, projectId }) {
   const [layouts, setLayouts] = useState({ lg: [] }); // start empty instead of defaultLayout to prevent flashing
   const [compactMode, setCompactMode] = useState('vertical'); // 'vertical' = Auto-arrange, 'free' = Free placement
@@ -154,6 +186,43 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   const [dataSources, setDataSources] = useState([]);
   const [dataSourcesLoaded, setDataSourcesLoaded] = useState(false);
 
+  // Version history state
+  const [savedSnapshot, setSavedSnapshot] = useState(null); // snapshotOf() of the last saved/loaded layout
+  const [currentVersion, setCurrentVersion] = useState(null); // version_number of the latest saved version
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  // RGL normalises (compacts) the layout on first render; adopt that result as the clean baseline.
+  const adoptBaselineRef = useRef(false);
+  const adoptTimerRef = useRef(null);
+
+  const currentSnapshot = useMemo(() => snapshotOf(layouts.lg, compactMode), [layouts.lg, compactMode]);
+  const isDirty = savedSnapshot !== null && JSON.stringify(savedSnapshot) !== JSON.stringify(currentSnapshot);
+  const changes = useMemo(() => diffSnapshots(savedSnapshot, currentSnapshot), [savedSnapshot, currentSnapshot]);
+
+  const applySavedLayout = React.useCallback((saved) => {
+    const gridMeta = saved?._grid || {};
+    // Backward compatibility check
+    let lg = Array.isArray(saved?.lg) ? saved.lg : (Array.isArray(saved) ? saved : []);
+    const hasTypes = lg.length === 0 || lg.some(i => i.type);
+    if (!hasTypes) {
+      lg = defaultLayoutV1.map(migrateItemV1toV2); // Overwrite with new generic layout if old format
+    } else if ((gridMeta.version || 1) < GRID_VERSION) {
+      lg = lg.map(migrateItemV1toV2);
+    }
+    const compact = gridMeta.compact === 'free' ? 'free' : 'vertical';
+    setLayouts({ lg });
+    setCompactMode(compact);
+    setSavedSnapshot(snapshotOf(lg, compact));
+    adoptBaselineRef.current = true;
+    clearTimeout(adoptTimerRef.current);
+    adoptTimerRef.current = setTimeout(() => { adoptBaselineRef.current = false; }, 500);
+  }, []);
+
+  useEffect(() => () => clearTimeout(adoptTimerRef.current), []);
+
   useEffect(() => {
     if (!projectId) return;
     fetch('/api/projects')
@@ -163,25 +232,29 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         if (project) {
           setDataSources(project.exposed_data_sources || []);
           setDataSourcesLoaded(true);
-          if (project.dashboard_layout) {
-            const saved = project.dashboard_layout;
-            const gridMeta = saved._grid || {};
-            // Backward compatibility check
-            let updatedLayout = Array.isArray(saved.lg) ? saved.lg : (Array.isArray(saved) ? saved : []);
-            const hasTypes = updatedLayout.length === 0 || updatedLayout.some(i => i.type);
-            if (!hasTypes) {
-               updatedLayout = defaultLayoutV1.map(migrateItemV1toV2); // Overwrite with new generic layout if old format
-            } else if ((gridMeta.version || 1) < GRID_VERSION) {
-               updatedLayout = updatedLayout.map(migrateItemV1toV2);
-            }
-            setLayouts({ lg: updatedLayout });
-            setCompactMode(gridMeta.compact === 'free' ? 'free' : 'vertical');
-          }
+          applySavedLayout(project.dashboard_layout || {});
         }
       })
       .catch(err => console.error("Failed to load dashboard layout", err))
       .finally(() => setIsLoading(false));
-  }, [projectId]);
+
+    listDashboardVersions(projectId, 1)
+      .then(v => setCurrentVersion(v.length > 0 ? v[0].version_number : null))
+      .catch(err => console.error("Failed to load dashboard versions", err));
+  }, [projectId, applySavedLayout]);
+
+  // Adopt RGL's first normalised layout as the clean baseline (avoids a false "unsaved" state on load)
+  useEffect(() => {
+    if (adoptBaselineRef.current) setSavedSnapshot(currentSnapshot);
+  }, [currentSnapshot]);
+
+  // Warn before closing / reloading the tab with unsaved changes
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const onLayoutChange = React.useCallback((layout, newLayouts) => {
     setLayouts(prev => {
@@ -269,33 +342,42 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
     });
   }, []);
 
-  const saveLayout = async () => {
+  const handleConfirmSave = async (note) => {
+    setSaving(true);
+    setSaveError(null);
     try {
-      const res = await fetch('/api/projects');
-      const projects = await res.json();
-      
-      const updatedProjects = projects.map(p => {
-        if (p.id === projectId) {
-          return { ...p, dashboard_layout: { ...layouts, _grid: { version: GRID_VERSION, compact: compactMode } } };
-        }
-        return p;
-      });
-
-      const saveRes = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedProjects)
-      });
-
-      if (saveRes.ok) {
-        setIsEditMode(false);
-      } else {
-        alert("Failed to save layout to server.");
-      }
+      const version = await saveDashboardVersion(projectId, note, toSavedLayout(layouts.lg, compactMode));
+      setSavedSnapshot(currentSnapshot);
+      setCurrentVersion(version.version_number);
+      setHistoryRefreshKey(k => k + 1);
+      setSaveModalOpen(false);
+      setIsEditMode(false);
     } catch (err) {
-      console.error(err);
-      alert("Error saving layout.");
+      console.error("Failed to save dashboard version", err);
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleDiscard = () => {
+    if (isDirty && !window.confirm('ยกเลิกการแก้ไขทั้งหมดที่ยังไม่ได้บันทึก?')) return;
+    if (savedSnapshot) {
+      setLayouts({ lg: savedSnapshot.lg.map(it => ({ ...it, config: structuredClone(it.config) })) });
+      setCompactMode(savedSnapshot.compact);
+    }
+    setIsEditMode(false);
+  };
+
+  const handleRestored = (version) => {
+    applySavedLayout(version.layout);
+    setCurrentVersion(version.version_number);
+    setIsEditMode(false);
+  };
+
+  const openSaveModal = () => {
+    setSaveError(null);
+    setSaveModalOpen(true);
   };
 
   const openSettings = (item) => {
@@ -340,13 +422,45 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
             </button>
           </div>
         )}
+        {isDirty && (
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg backdrop-blur-sm" title="มีการแก้ไขที่ยังไม่ได้บันทึกเป็นเวอร์ชัน">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> ยังไม่ได้บันทึก
+          </div>
+        )}
+        <button
+          onClick={() => setHistoryOpen(o => !o)}
+          className={`backdrop-blur-sm px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border shadow-lg active:scale-95 ${historyOpen ? 'bg-blue-600 text-white border-blue-600' : 'bg-surface-2/90 hover:bg-surface-3 text-fg-secondary border-line-strong'}`}
+          title="Version History"
+        >
+          <History size={15} />
+          <span className="hidden sm:inline">{currentVersion ? `v${currentVersion}` : 'History'}</span>
+        </button>
         {isEditMode ? (
-          <button 
-            onClick={saveLayout}
-            className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
-          >
-            <Save size={15} /> <span>Save Layout</span>
-          </button>
+          <>
+            <button
+              onClick={handleDiscard}
+              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-lg active:scale-95"
+              title={isDirty ? 'ยกเลิกการแก้ไขที่ยังไม่ได้บันทึก' : 'ออกจากโหมดแก้ไข'}
+            >
+              <Undo2 size={15} /> <span className="hidden sm:inline">{isDirty ? 'Discard' : 'Cancel'}</span>
+            </button>
+            {isDirty || currentVersion === null ? (
+              <button 
+                onClick={openSaveModal}
+                className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
+              >
+                <Save size={15} /> <span>Save Version</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setIsEditMode(false)}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
+                title="ไม่มีการเปลี่ยนแปลง"
+              >
+                <Check size={15} /> <span>Done</span>
+              </button>
+            )}
+          </>
         ) : (
           <button 
             onClick={() => setIsEditMode(true)}
@@ -617,6 +731,26 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         widgetItem={editingWidget}
         projectId={projectId}
         metadata={metadata}
+      />
+
+      <VersionHistoryPanel
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        projectId={projectId}
+        currentVersion={currentVersion}
+        isDirty={isDirty}
+        onRestored={handleRestored}
+        refreshKey={historyRefreshKey}
+      />
+
+      <SaveVersionModal
+        isOpen={saveModalOpen}
+        onClose={() => !saving && setSaveModalOpen(false)}
+        onConfirm={handleConfirmSave}
+        changes={changes}
+        nextVersion={(currentVersion || 0) + 1}
+        saving={saving}
+        error={saveError}
       />
     </div>
   );
