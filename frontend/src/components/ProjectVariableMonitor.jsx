@@ -1,138 +1,192 @@
-import React, { useState, useEffect } from 'react';
-import { Database, RefreshCw, Activity, Terminal, Hash, ChevronRight, Layers } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Database, RefreshCw, Activity, Hash, ChevronRight, Layers, Search, Pause, Play, Download } from 'lucide-react';
 import VariableDataViewerModal from './VariableDataViewerModal';
+import { formatValue, timeAgo, formatDbTime, downloadCsv, parseDbTime } from '../utils/dbFormat';
 
-export default function ProjectVariableMonitor({ projectId }) {
+const POLL_MS = 5000;
+
+export default function ProjectVariableMonitor({ projectId, nodeMap = {} }) {
   const [variables, setVariables] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedVar, setSelectedVar] = useState(null);
-  const [nodeMap, setNodeMap] = useState({});
+  const [search, setSearch] = useState('');
+  const [live, setLive] = useState(true);
+  const [, setTick] = useState(0); // re-render "x ago" labels
 
-  useEffect(() => {
-    const fetchNodes = async () => {
-      try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        const project = data.find(p => p.id === projectId);
-        if (project && project.pipeline && project.pipeline.nodes) {
-          const mapping = {};
-          project.pipeline.nodes.forEach(n => {
-            mapping[n.id] = { label: n.data?.label || n.type, type: n.type };
-          });
-          setNodeMap(mapping);
-        }
-      } catch(e) {
-        console.error("Failed to fetch project nodes mapping:", e);
-      }
-    };
-    if (projectId) fetchNodes();
-  }, [projectId]);
-
-  const fetchVariables = async () => {
-    setLoading(true);
+  const fetchVariables = useCallback(async () => {
+    if (!projectId) return;
     try {
       const res = await fetch(`/api/projects/${projectId}/variables`);
       const data = await res.json();
-      if (data.status === 'success') {
+      if (res.ok && data.status === 'success') {
         setVariables(data.data || []);
+        setError(null);
+      } else {
+        setError('Failed to load variables');
       }
     } catch (e) {
-      console.error("Failed to fetch variables:", e);
+      console.error('Failed to fetch variables:', e);
+      setError('Cannot reach backend');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (projectId) {
-      fetchVariables();
-      const interval = setInterval(fetchVariables, 5000);
-      return () => clearInterval(interval);
-    }
   }, [projectId]);
 
+  useEffect(() => {
+    setLoading(true);
+    fetchVariables();
+  }, [fetchVariables]);
+
+  useEffect(() => {
+    if (!live) return undefined;
+    const id = setInterval(() => { fetchVariables(); setTick(t => t + 1); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [live, fetchVariables]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return variables;
+    return variables.filter(v => {
+      const label = nodeMap[v.node_id]?.label || '';
+      return v.variable_name.toLowerCase().includes(q) || v.node_id.toLowerCase().includes(q) || label.toLowerCase().includes(q);
+    });
+  }, [variables, search, nodeMap]);
+
+  const totalRecords = useMemo(() => variables.reduce((s, v) => s + (v.record_count || 0), 0), [variables]);
+
+  const exportSummary = () => {
+    downloadCsv(
+      `variables_${projectId}_${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Variable', 'Node ID', 'Node Label', 'Latest Value', 'Last Updated', 'Records'],
+      variables.map(v => [v.variable_name, v.node_id, nodeMap[v.node_id]?.label || '', v.value, formatDbTime(v.last_updated), v.record_count])
+    );
+  };
+
   return (
-    <div className="flex flex-col h-full bg-surface border border-line rounded-2xl overflow-hidden shadow-xl">
-      {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-line bg-surface/50">
-        <div>
-          <h2 className="text-lg font-bold flex items-center gap-2 text-fg">
-            <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
-            Project Variables
-          </h2>
-          <p className="text-xs text-fg-muted mt-1">
-            Real-time variables written to the database by this project
-          </p>
+    <div className="flex flex-col gap-4">
+      {/* Toolbar */}
+      <div className="bg-surface/90 border border-line rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-4 text-xs text-fg-muted">
+          <span className="flex items-center gap-1.5">
+            <Hash size={14} className="text-indigo-600 dark:text-indigo-400" />
+            <b className="text-fg font-mono">{variables.length}</b> variables
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Database size={14} className="text-indigo-600 dark:text-indigo-400" />
+            <b className="text-fg font-mono">{totalRecords.toLocaleString()}</b> data points
+          </span>
         </div>
-        <button
-          onClick={fetchVariables}
-          disabled={loading}
-          className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-3 py-2 rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 text-sm font-medium"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 md:w-60">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+            <input
+              id="variables-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search variable / node..."
+              className="w-full bg-canvas border border-line rounded-xl pl-8 pr-3 py-1.5 text-xs text-fg focus:outline-none focus:border-indigo-500 placeholder-fg-subtle"
+            />
+          </div>
+          <button
+            id="variables-export"
+            onClick={exportSummary}
+            disabled={variables.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line transition-all active:scale-95 disabled:opacity-40"
+          >
+            <Download size={14} /> Export
+          </button>
+          <button
+            id="variables-live-toggle"
+            onClick={() => setLive(l => !l)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95 ${
+              live
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
+                : 'bg-surface hover:bg-surface-2 text-fg-muted border-line'
+            }`}
+          >
+            {live ? <Pause size={14} /> : <Play size={14} />} {live ? 'Live' : 'Paused'}
+          </button>
+          <button
+            id="variables-refresh"
+            onClick={() => { setLoading(true); fetchVariables(); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs">{error}</div>
+      )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-5">
-        {loading && variables.length === 0 ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-          </div>
-        ) : variables.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-fg-subtle bg-surface/50 rounded-xl border border-dashed border-line">
-            <Database size={32} className="mb-3 opacity-20" />
-            <p>No variables found in the database.</p>
-            <p className="text-xs mt-1">Ensure a Database Writer Node is running.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {variables.map((v, i) => {
-              const nodeInfo = nodeMap[v.node_id] || { label: 'Unknown Node', type: 'unknown' };
-              return (
-              <div 
-                key={i} 
+      {loading && variables.length === 0 ? (
+        <div className="flex justify-center items-center h-48">
+          <RefreshCw size={24} className="animate-spin text-indigo-500" />
+        </div>
+      ) : variables.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-fg-subtle bg-surface/50 rounded-2xl border border-dashed border-line text-center px-4">
+          <Activity size={36} className="mb-3 opacity-30" />
+          <p className="text-sm font-semibold text-fg-secondary">No variables recorded yet</p>
+          <p className="text-xs mt-1 max-w-sm">
+            Add a <b>💾 Database Writer</b> node in the Pipeline Builder, give it a variable name, then deploy the pipeline.
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center text-xs text-fg-subtle py-12">No variables match “{search}”.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+          {filtered.map((v) => {
+            const nodeInfo = nodeMap[v.node_id] || { label: 'Unknown node', type: v.node_id };
+            const ageMs = Date.now() - (parseDbTime(v.last_updated)?.getTime() || 0);
+            const fresh = ageMs < 15000;
+            return (
+              <button
+                type="button"
+                id={`variable-card-${v.node_id}-${v.variable_name}`}
+                key={`${v.node_id}::${v.variable_name}`}
                 onClick={() => setSelectedVar(v)}
-                className="bg-canvas/80 border border-line hover:border-indigo-500/50 cursor-pointer group transition-all rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden mt-2"
+                className="text-left bg-surface/80 border border-line hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5 cursor-pointer group transition-all rounded-2xl p-4 flex flex-col"
               >
-                <div className="absolute top-2 left-4 px-2 py-0.5 bg-surface-2/80 text-[10px] text-fg-secondary rounded-full font-medium border border-line-strong/50 flex items-center gap-1">
-                  <Database size={10} className="text-indigo-600 dark:text-indigo-400" /> {v.record_count?.toLocaleString() || 0} records
-                </div>
-                <div className="absolute top-4 right-4 text-fg-faint group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                  <ChevronRight size={18} />
-                </div>
-                <div className="flex items-center gap-2 mb-3 pr-6 mt-4">
-                  <div className="p-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-md">
-                    <Hash size={16} />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg shrink-0">
+                      <Hash size={14} />
+                    </div>
+                    <h3 className="font-semibold text-sm text-fg truncate" title={v.variable_name}>{v.variable_name}</h3>
                   </div>
-                  <h3 className="font-semibold text-fg truncate" title={v.variable_name}>
-                    {v.variable_name}
-                  </h3>
+                  <ChevronRight size={16} className="text-fg-faint group-hover:text-indigo-500 transition-colors shrink-0 mt-1" />
                 </div>
-                <div className="flex-1 flex items-end">
-                  <div className="text-3xl font-bold font-mono mb-2 text-fg">
-                    {typeof v.value === 'number' ? (Number.isInteger(v.value) ? v.value : v.value.toFixed(2)) : v.value}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-fg-subtle mt-2 pt-2 border-t border-line/60">
-                  <span className="flex items-center gap-1 font-sans truncate" title={`${nodeInfo.label} (${nodeInfo.type})`}>
-                    <Layers size={10} /> {nodeInfo.label} <span className="opacity-50">({nodeInfo.type})</span>
-                  </span>
-                  <span>
-                    {new Date(v.last_updated + 'Z').toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-            )})}
-          </div>
-        )}
-      </div>
 
-      <VariableDataViewerModal 
-        isOpen={!!selectedVar} 
-        onClose={() => { setSelectedVar(null); fetchVariables(); }} 
-        projectId={projectId} 
+                <div className="text-3xl font-extrabold font-mono tracking-tight text-fg mt-3 truncate">
+                  {formatValue(v.value)}
+                </div>
+
+                <div className="flex items-center gap-1.5 mt-1 text-[11px] text-fg-subtle">
+                  <span className={`w-1.5 h-1.5 rounded-full ${fresh ? 'bg-emerald-500 animate-pulse' : 'bg-fg-faint'}`} />
+                  {timeAgo(v.last_updated)}
+                  <span className="mx-1">•</span>
+                  {v.record_count?.toLocaleString() || 0} pts
+                </div>
+
+                <div className="flex items-center gap-1 text-[11px] text-fg-muted mt-3 pt-2.5 border-t border-line/60 truncate" title={`${nodeInfo.label} (${v.node_id})`}>
+                  <Layers size={11} className="shrink-0" />
+                  <span className="truncate">{nodeInfo.label}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <VariableDataViewerModal
+        isOpen={!!selectedVar}
+        onClose={() => setSelectedVar(null)}
+        onDeleted={() => { setSelectedVar(null); fetchVariables(); }}
+        projectId={projectId}
         variable={selectedVar}
         nodeMap={nodeMap}
       />

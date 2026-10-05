@@ -6,7 +6,8 @@ import {
   ChevronRight, Copy, Check, Sparkles, Maximize2, ShieldAlert
 } from 'lucide-react';
 
-export default function LogsViewer({ projectId }) {
+export default function LogsViewer({ projectId, embedded = false }) {
+  const TitleTag = embedded ? 'h2' : 'h1';
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbStats, setDbStats] = useState(null);
@@ -248,62 +249,108 @@ export default function LogsViewer({ projectId }) {
   }, [selectedLogIndex, filteredLogs.length]);
 
   return (
-    <div className="h-full flex flex-col p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 overflow-y-auto bg-canvas text-fg font-sans">
+    <div className={`${embedded ? '' : 'h-full overflow-y-auto'} flex flex-col p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 bg-canvas text-fg font-sans`}>
       
       {/* ── Top Header & Stats Cards ─────────────────────────────────────── */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-blue-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/10 shrink-0">
-              <Database size={22} className="sm:w-6 sm:h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 sm:gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Database & Event Logs</h1>
-                {autoRefresh && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE
-                  </span>
-                )}
+        {!embedded ? (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-blue-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/10 shrink-0">
+                <Database size={22} className="sm:w-6 sm:h-6" />
               </div>
-              <p className="text-[11px] sm:text-xs text-fg-muted mt-0.5">
-                Search, filter, and inspect AI inference events, OK/NG snapshots, and edge storage.
-              </p>
+              <div>
+                <div className="flex items-center gap-2 sm:gap-2.5">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Database & Event Logs</h1>
+                  {autoRefresh && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      LIVE
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] sm:text-xs text-fg-muted mt-0.5">
+                  Search, filter, and inspect AI inference events, OK/NG snapshots, and edge storage.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Global Actions */}
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+              <button 
+                onClick={exportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line hover:border-line-strong transition-all shadow-sm active:scale-95"
+              >
+                <Download size={14} />
+                <span>Export</span>
+              </button>
+              
+              <button 
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
+                  autoRefresh 
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
+                    : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
+                }`}
+              >
+                {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
+                <span>{autoRefresh ? 'Live' : 'Auto'}</span>
+              </button>
+
+              <button 
+                onClick={() => { fetchLogs(page, filters); fetchDbStats(); }}
+                disabled={loading}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-fg px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
+                <span>Refresh</span>
+              </button>
             </div>
           </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              {autoRefresh && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  LIVE
+                </span>
+              )}
+            </div>
 
-          {/* Quick Global Actions */}
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">            <button 
-              onClick={exportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line hover:border-line-strong transition-all shadow-sm active:scale-95"
-            >
-              <Download size={14} />
-              <span>Export</span>
-            </button>
-            
-            <button 
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
-                autoRefresh 
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
-                  : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
-              }`}
-            >
-              {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
-              <span>{autoRefresh ? 'Live' : 'Auto'}</span>
-            </button>
+            {/* Quick Global Actions */}
+            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap ml-auto">
+              <button 
+                onClick={exportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line hover:border-line-strong transition-all shadow-sm active:scale-95"
+              >
+                <Download size={14} />
+                <span>Export</span>
+              </button>
+              
+              <button 
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
+                  autoRefresh 
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
+                    : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
+                }`}
+              >
+                {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
+                <span>{autoRefresh ? 'Live' : 'Auto'}</span>
+              </button>
 
-            <button 
-              onClick={() => { fetchLogs(page, filters); fetchDbStats(); }}
-              disabled={loading}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-fg px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
-              <span>Refresh</span>
-            </button>
+              <button 
+                onClick={() => { fetchLogs(page, filters); fetchDbStats(); }}
+                disabled={loading}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-fg px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Metric Cards Banner */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">

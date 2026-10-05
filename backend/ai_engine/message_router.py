@@ -1200,26 +1200,14 @@ class CollectionWriterNode(PipelineNode):
                         break
                 record_data[col_key] = target
         
-        # Save to DB
+        # Save to DB (batched by the DatabaseManager background writer)
         try:
-            import json
-            import sys
-            from pathlib import Path
-            backend_dir = Path("/home/pi/pido-ai/backend")
-            if str(backend_dir) not in sys.path:
-                sys.path.insert(0, str(backend_dir))
             from db.database import db
-            from db.models import CollectionRecord
-            from sqlmodel import Session
-            
-            new_record = CollectionRecord(
-                collection_id=self.collection_id,
+            db.log_collection_record(
                 project_id=self.router.project_id,
-                data_json=json.dumps(record_data)
+                collection_id=self.collection_id,
+                data=record_data,
             )
-            with Session(db.engine_telemetry) as session:
-                session.add(new_record)
-                session.commit()
         except Exception as e:
             import logging
             logging.getLogger("ai_engine").error(f"CollectionWriterNode error: {e}")
