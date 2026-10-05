@@ -5,6 +5,7 @@ import yaml
 import re
 import hashlib
 import uuid
+import threading
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
@@ -742,6 +743,20 @@ def _new_video_camera_id() -> str:
     return f"cam_file_{uuid.uuid4().hex[:12]}"
 
 
+# Serializes sync runs: concurrent GET /api/entities + /api/videos calls would
+# otherwise both see a file as unregistered and create duplicate entities.
+_video_sync_lock = threading.Lock()
+
+
+def _find_video_camera_id(path: Path) -> Optional[str]:
+    """Return the ID of the file-type camera entity registered for ``path``."""
+    with Session(db.engine) as session:
+        cam = session.exec(
+            select(Camera).where(Camera.type == "file", Camera.path == str(path))
+        ).first()
+        return cam.id if cam else None
+
+
 def sync_video_entities() -> int:
     """
     Reconcile video files in VIDEOS_DIR with file-type Camera entities.
@@ -762,7 +777,7 @@ def sync_video_entities() -> int:
         return 0
 
     changed = 0
-    with Session(db.engine) as session:
+    with _video_sync_lock, Session(db.engine) as session:
         file_cams = session.exec(select(Camera).where(Camera.type == "file")).all()
         registered_paths = {c.path for c in file_cams}
 
@@ -799,42 +814,30 @@ async def upload_video(video_file: UploadFile = File(...)):
         if suffix not in ALLOWED_VIDEO_EXTENSIONS:
             return {"status": "error", "message": f"Unsupported format. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}"}
         
-        save_path = VIDEOS_DIR / video_file.filename
+        # Strip any directory components to prevent path traversal (e.g. "../../x.mp4")
+        safe_name = Path(video_file.filename).name
+        save_path = VIDEOS_DIR / safe_name
+        # Write to a hidden .part file first so the entity sync never registers a
+        # half-written or rejected (oversized) upload.
+        tmp_path = VIDEOS_DIR / f".{safe_name}.part"
         size = 0
-        with open(save_path, "wb") as f:
+        with open(tmp_path, "wb") as f:
             while chunk := await video_file.read(1024 * 1024):  # 1MB chunks
                 size += len(chunk)
                 if size > MAX_VIDEO_SIZE:
                     f.close()
-                    save_path.unlink(missing_ok=True)
+                    tmp_path.unlink(missing_ok=True)
                     return {"status": "error", "message": "File exceeds 1GB limit"}
                 f.write(chunk)
-        
-        # Register as a camera entity of type "file" (reuse existing entity if the
-        # same file was uploaded before, to avoid duplicates on overwrite)
-        entities = read_entities()
-        if "cameras" not in entities:
-            entities["cameras"] = []
+        tmp_path.replace(save_path)
 
-        existing = next(
-            (c for c in entities["cameras"] if c.get("type") == "file" and c.get("path") == str(save_path)),
-            None,
-        )
-        if existing:
-            new_cam_id = existing["id"]
-        else:
-            new_cam_id = _new_video_camera_id()
-            entities["cameras"].append({
-                "id": new_cam_id,
-                "name": video_file.filename,
-                "type": "file",
-                "path": str(save_path),
-                "is_enabled": True,
-            })
-            write_entities(entities)
+        # Register via the shared sync path (reuses the existing entity when the
+        # same file is re-uploaded, so no duplicates are created).
+        await asyncio.to_thread(sync_video_entities)
+        new_cam_id = await asyncio.to_thread(_find_video_camera_id, save_path)
 
-        logger.info(f"Video uploaded: {video_file.filename} ({size} bytes) as camera '{new_cam_id}'")
-        return {"status": "success", "camera_id": new_cam_id, "filename": video_file.filename, "size_bytes": size}
+        logger.info(f"Video uploaded: {safe_name} ({size} bytes) as camera '{new_cam_id}'")
+        return {"status": "success", "camera_id": new_cam_id, "filename": safe_name, "size_bytes": size}
     except Exception as e:
         logger.error(f"Failed to upload video: {e}")
         return {"status": "error", "message": str(e)}
