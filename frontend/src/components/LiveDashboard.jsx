@@ -178,7 +178,7 @@ const diffSnapshots = (saved, current) => {
 
 export default function LiveDashboard({ metadata, connected, projectId }) {
   const [layouts, setLayouts] = useState({ lg: [] }); // start empty instead of defaultLayout to prevent flashing
-  const [compactMode, setCompactMode] = useState('vertical'); // 'vertical' = Auto-arrange, 'free' = Free placement
+  const [compactMode, setCompactMode] = useState('free'); // 'vertical' = Auto-arrange, 'free' = Free placement (default)
   const [isEditMode, setIsEditMode] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
@@ -212,7 +212,8 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
     } else if ((gridMeta.version || 1) < GRID_VERSION) {
       lg = lg.map(migrateItemV1toV2);
     }
-    const compact = gridMeta.compact === 'free' ? 'free' : 'vertical';
+    // Free placement is the default; only an explicitly saved Auto-arrange keeps vertical compaction
+    const compact = gridMeta.compact === 'vertical' ? 'vertical' : 'free';
     setLayouts({ lg });
     setCompactMode(compact);
     setSavedSnapshot(snapshotOf(lg, compact));
