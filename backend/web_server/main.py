@@ -357,43 +357,214 @@ import tempfile
 from fastapi.responses import Response, FileResponse
 from fastapi import HTTPException
 
-@app.get("/api/camera-snapshot")
-async def camera_snapshot(camera_id: str):
+class CameraTestRequest(BaseModel):
+    url: str
+    type: str = "rtsp"
+
+
+class CameraPreviewRequest(BaseModel):
+    path: Optional[str] = None
+    type: Optional[str] = "rtsp"
+
+
+@app.post("/api/cameras/test-connection")
+async def test_camera_connection(req: CameraTestRequest):
     """
-    Capture a single JPEG frame from a camera/RTSP/file source for the ROI editor.
-    Uses ffmpeg to grab one frame and returns it as image/jpeg.
+    Test connectivity to a CCTV RTSP stream, local camera device, or video file.
+    Uses ffprobe with a strict 5s timeout and returns stream metadata.
     """
+    url = req.url.strip()
+    cam_type = req.type.lower()
+
+    if not url:
+        raise HTTPException(status_code=400, detail="Source URL or path is required")
+
+    def _probe():
+        if cam_type == "rtsp" or url.startswith("rtsp://") or url.startswith("rtsps://"):
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-rtsp_transport", "tcp",
+                "-rw_timeout", "5000000",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name,width,height,r_frame_rate",
+                "-of", "json",
+                url
+            ]
+        elif cam_type == "local":
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-f", "v4l2",
+                "-i", url,
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name,width,height,r_frame_rate",
+                "-of", "json"
+            ]
+        else:
+            # File
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name,width,height,r_frame_rate",
+                "-of", "json",
+                url
+            ]
+
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=8)
+
+    try:
+        result = await asyncio.to_thread(_probe)
+        if result.returncode != 0:
+            err_msg = result.stderr.strip() or "Connection failed"
+            return {
+                "status": "error",
+                "connected": False,
+                "message": f"Connection test failed: {err_msg[-200:]}"
+            }
+
+        data = json.loads(result.stdout)
+        streams = data.get("streams", [])
+        if not streams:
+            return {
+                "status": "error",
+                "connected": False,
+                "message": "No video stream detected from source."
+            }
+
+        vstream = streams[0]
+        fps_val = None
+        raw_fps = vstream.get("r_frame_rate", "")
+        if "/" in raw_fps:
+            num, den = raw_fps.split("/", 1)
+            fps_val = round(float(num) / float(den), 1) if float(den) else None
+        elif raw_fps:
+            try:
+                fps_val = round(float(raw_fps), 1)
+            except ValueError:
+                fps_val = None
+
+        return {
+            "status": "success",
+            "connected": True,
+            "details": {
+                "codec": vstream.get("codec_name", "unknown"),
+                "width": vstream.get("width"),
+                "height": vstream.get("height"),
+                "fps": fps_val,
+                "resolution": f"{vstream.get('width', '?')}x{vstream.get('height', '?')}"
+            }
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "error",
+            "connected": False,
+            "message": "Connection timed out after 8s. Please verify host, port, credentials, and network reachability."
+        }
+    except Exception as e:
+        logger.error(f"Error testing camera connection: {e}")
+        return {
+            "status": "error",
+            "connected": False,
+            "message": str(e)
+        }
+
+
+@app.post("/api/cameras/{camera_id}/preview/start")
+async def start_camera_preview(camera_id: str, req: Optional[CameraPreviewRequest] = None):
+    """
+    Start central ingestion for camera preview via camera_mgr.
+    Provides a shared RTSP and WebRTC (WHEP) endpoint for realtime playback.
+    """
+    from media_server.camera_manager import camera_mgr
     entities = read_entities()
     camera = next((c for c in entities.get("cameras", []) if c.get("id") == camera_id), None)
+
     if not camera:
-        # Graceful fallback: if camera_id is missing or invalid (e.g. AI model ID passed), pick first available camera
-        enabled_cams = [c for c in entities.get("cameras", []) if c.get("is_enabled", True)]
-        if enabled_cams:
-            camera = enabled_cams[0]
-            logger.warning(f"Camera '{camera_id}' not found, falling back to '{camera.get('id')}'")
-        elif entities.get("cameras"):
-            camera = entities["cameras"][0]
-            logger.warning(f"Camera '{camera_id}' not found, falling back to '{camera.get('id')}'")
+        if req and req.path:
+            camera = {
+                "id": camera_id,
+                "type": req.type or "rtsp",
+                "path": req.path,
+                "name": f"Preview {camera_id}",
+                "is_enabled": True
+            }
         else:
-            raise HTTPException(status_code=404, detail="Camera entity not found")
+            raise HTTPException(status_code=404, detail=f"Camera '{camera_id}' not found")
 
-    if not camera.get("is_enabled", True):
-        raise HTTPException(status_code=400, detail=f"Camera '{camera.get('name', camera_id)}' is disabled. Please enable it in Settings.")
+    try:
+        rtsp_url = await asyncio.to_thread(camera_mgr.acquire, camera_id, camera)
+        return {
+            "status": "success",
+            "camera_id": camera_id,
+            "rtsp_url": rtsp_url,
+            "stream_path": f"shared_{camera_id}"
+        }
+    except Exception as e:
+        logger.error(f"Failed to acquire camera preview for '{camera_id}': {e}")
+        return {"status": "error", "message": str(e)}
 
-    src_type = camera.get("type", "local")
-    src_path = camera.get("path", "/dev/video0")
 
-    # Check if stream is currently active in camera_mgr (Dual-mode snapshot)
+@app.post("/api/cameras/{camera_id}/preview/stop")
+async def stop_camera_preview(camera_id: str):
+    """
+    Release central ingestion reference for camera preview.
+    """
     from media_server.camera_manager import camera_mgr
-    active_rtsp = camera_mgr.get_rtsp_url(camera.get("id", camera_id))
+    try:
+        await asyncio.to_thread(camera_mgr.release, camera_id)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Failed to release camera preview for '{camera_id}': {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/camera-snapshot")
+async def camera_snapshot(
+    camera_id: Optional[str] = None,
+    path: Optional[str] = None,
+    type: Optional[str] = None
+):
+    """
+    Capture a single JPEG frame from a camera/RTSP/file source for thumbnail and preview.
+    Uses ffmpeg to grab one frame and returns it as image/jpeg.
+    """
+    src_type = "local"
+    src_path = "/dev/video0"
+    active_rtsp = None
+
+    if camera_id:
+        entities = read_entities()
+        camera = next((c for c in entities.get("cameras", []) if c.get("id") == camera_id), None)
+        if not camera:
+            enabled_cams = [c for c in entities.get("cameras", []) if c.get("is_enabled", True)]
+            if enabled_cams:
+                camera = enabled_cams[0]
+            elif entities.get("cameras"):
+                camera = entities["cameras"][0]
+            else:
+                raise HTTPException(status_code=404, detail="Camera entity not found")
+
+        if not camera.get("is_enabled", True):
+            raise HTTPException(status_code=400, detail=f"Camera '{camera.get('name', camera_id)}' is disabled.")
+
+        src_type = camera.get("type", "local")
+        src_path = camera.get("path", "/dev/video0")
+
+        from media_server.camera_manager import camera_mgr
+        active_rtsp = camera_mgr.get_rtsp_url(camera.get("id", camera_id))
+    elif path:
+        src_path = path
+        src_type = type or ("rtsp" if path.startswith("rtsp://") or path.startswith("rtsps://") else "local")
+    else:
+        raise HTTPException(status_code=400, detail="Either camera_id or path is required")
 
     if active_rtsp:
-        input_args = ["-rtsp_transport", "tcp", "-i", active_rtsp]
+        input_args = ["-rtsp_transport", "tcp", "-timeout", "5000000", "-i", active_rtsp]
     elif src_type == "local":
         input_args = ["-f", "v4l2", "-i", src_path]
     elif src_type == "rtsp":
         input_args = [
             "-rtsp_transport", "tcp",
+            "-timeout", "5000000",
             "-i", src_path,
         ]
     elif src_type == "file":
@@ -401,7 +572,7 @@ async def camera_snapshot(camera_id: str):
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported source type: {src_type}")
 
-    try:
+    def _run_snapshot():
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp_path = tmp.name
 
@@ -417,45 +588,57 @@ async def camera_snapshot(camera_id: str):
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            timeout=10
+            timeout=8
         )
         if result.returncode != 0:
             err = result.stderr.decode(errors="replace")[-400:]
-            logger.error(f"ffmpeg snapshot failed for {camera_id}: {err}")
-            raise HTTPException(status_code=500, detail=f"ffmpeg error: {err}")
+            raise RuntimeError(f"ffmpeg error: {err}")
 
         with open(tmp_path, "rb") as f:
             jpeg_bytes = f.read()
 
         import os
         os.unlink(tmp_path)
+        return jpeg_bytes
 
-        return Response(content=jpeg_bytes, media_type="image/jpeg")
-
+    try:
+        jpeg_bytes = await asyncio.to_thread(_run_snapshot)
+        return Response(
+            content=jpeg_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="ffmpeg timed out capturing frame")
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Snapshot error for {camera_id}: {e}")
+        logger.error(f"Snapshot error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/video-file")
 async def serve_video_file(path: str):
     """
-    Serve a video file from an absolute path on the server.
-    Used by the ROI editor's scrubber so the <video> element can load and seek the file.
-    Only allows files inside the videos directory or absolute paths registered in entities.
+    Serve a video file from an absolute path on the server or within VIDEOS_DIR.
     """
     from pathlib import Path as PPath
     entities = read_entities()
     allowed_paths = {c.get("path") for c in entities.get("cameras", []) if c.get("type") == "file"}
 
-    if path not in allowed_paths:
-        raise HTTPException(status_code=403, detail="File not in allowed camera entities")
-
     p = PPath(path)
+    if not p.is_absolute():
+        p = (VIDEOS_DIR / path).resolve()
+    else:
+        p = p.resolve()
+
+    is_in_videos_dir = False
+    try:
+        is_in_videos_dir = p.is_relative_to(VIDEOS_DIR.resolve())
+    except Exception:
+        pass
+
+    if str(p) not in allowed_paths and path not in allowed_paths and not is_in_videos_dir:
+        raise HTTPException(status_code=403, detail="File not in allowed camera entities or videos directory")
+
     if not p.exists() or not p.is_file():
         raise HTTPException(status_code=404, detail="File not found")
 
