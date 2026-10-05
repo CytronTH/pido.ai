@@ -7,7 +7,7 @@ import Settings from './components/Settings/Settings';
 import ProjectList from './components/Home/ProjectList';
 import ResourceMonitor from './components/ResourceMonitor';
 import ErrorBoundary from './components/ErrorBoundary';
-import LogsViewer from './components/LogsViewer';
+import ProjectDatabase from './components/ProjectDatabase';
 import NodeWiki from './components/Wiki/NodeWiki';
 import DatabaseMonitoring from './components/DatabaseMonitoring';
 import LoginForm from './components/auth/LoginForm';
@@ -637,7 +637,7 @@ function AppContent() {
             <Route path="/project/:projectId/logs" element={
                activeProject ? (
                  <div className="h-full bg-canvas">
-                   <LogsViewer projectId={activeProject.id} />
+                   <ProjectDatabase projectId={activeProject.id} />
                  </div>
                ) : null
             } />

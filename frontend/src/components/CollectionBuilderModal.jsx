@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Database, AlertCircle, Save, Info } from 'lucide-react';
+import { apiError } from '../utils/dbFormat';
 
 const FIELD_TYPES = [
   { value: 'string', label: 'Text / String' },
@@ -66,13 +67,13 @@ export default function CollectionBuilderModal({ isOpen, onClose, projectId, onS
         })
       });
       const data = await res.json();
-      if (data.status === 'success') {
+      if (res.ok && data.status === 'success') {
         setName('');
         setFields([{ key: 'status', name: 'Status', type: 'string' }]);
-        if (onSaveSuccess) onSaveSuccess();
+        if (onSaveSuccess) onSaveSuccess(data.data);
         onClose();
       } else {
-        setError(data.message || "Failed to create collection");
+        setError(apiError(data, "Failed to create collection"));
       }
     } catch (err) {
       setError(err.message);

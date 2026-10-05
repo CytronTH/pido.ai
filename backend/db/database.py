@@ -250,6 +250,14 @@ class DatabaseManager:
                                 value=log_entry.get('data', {}).get('value', 0.0)
                             )
                             session.add(metric)
+                        elif log_entry['table'] == 'collection_records':
+                            from db.models import CollectionRecord
+                            session.add(CollectionRecord(
+                                collection_id=log_entry['collection_id'],
+                                project_id=log_entry['project_id'],
+                                timestamp=log_entry.get('timestamp') or datetime.now(timezone.utc),
+                                data_json=log_entry.get('data_json', '{}')
+                            ))
                     session.commit()
                 except Exception as e:
                     session.rollback()
@@ -621,6 +629,20 @@ class DatabaseManager:
             })
         except Full:
             logger.warning("Database log_queue full, dropping custom metric log")
+
+    def log_collection_record(self, project_id: str, collection_id: str, data: Dict[str, Any]) -> None:
+        """Queue a Collection Writer row for the batched background writer."""
+        try:
+            self.log_queue.put_nowait({
+                'table': 'collection_records',
+                'project_id': project_id,
+                'collection_id': collection_id,
+                'timestamp': datetime.now(timezone.utc),
+                'data_json': json.dumps(data, default=str),
+            })
+        except Full:
+            logger.warning("Database log_queue full, dropping collection record for %s", collection_id)
+
     def clear_project_logs(self, project_id: str) -> Dict[str, Any]:
         """Deletes all event logs, metrics, and associated snapshot files for a specific project."""
         deleted_rows = 0

@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, Terminal, Activity, Table as TableIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
 import { chartTheme } from '../utils/theme';
+import { parseDbTime, formatDbTime, formatValue, apiError } from '../utils/dbFormat';
 
-export default function VariableDataViewerModal({ isOpen, onClose, projectId, variable, nodeMap = {} }) {
+const HISTORY_LIMIT = 200;
+
+export default function VariableDataViewerModal({ isOpen, onClose, onDeleted, projectId, variable, nodeMap = {} }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,11 +14,16 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
     if (!projectId || !variable?.variable_name) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/variables/${variable.variable_name}/history?limit=100`);
+      const q = new URLSearchParams({
+        variable_name: variable.variable_name,
+        limit: String(HISTORY_LIMIT)
+      });
+      if (variable.node_id) q.set('node_id', variable.node_id);
+      const res = await fetch(`/api/projects/${projectId}/variable-history?${q.toString()}`);
       const data = await res.json();
       if (data.status === 'success') {
-        // Reverse array to have chronological order for chart (oldest to newest)
-        setHistory(data.data.reverse() || []);
+        // Chronological order (oldest → newest) for the chart; numeric x for a time axis
+        setHistory((data.data || []).reverse().map(r => ({ ...r, t: parseDbTime(r.timestamp)?.getTime() })));
       }
     } catch (e) {
       console.error("Failed to fetch variable history:", e);
@@ -27,13 +35,20 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
   const handleCleanup = async (days) => {
     if (!window.confirm(`Are you sure you want to delete all historical data for '${variable.variable_name}' older than ${days} days?`)) return;
     try {
-      const res = await fetch(`/api/projects/${projectId}/variables/${variable.variable_name}/cleanup?days=${days}`, {
+      const q = new URLSearchParams({
+        variable_name: variable.variable_name,
+        days: String(days)
+      });
+      if (variable.node_id) q.set('node_id', variable.node_id);
+      const res = await fetch(`/api/projects/${projectId}/variable-cleanup?${q.toString()}`, {
         method: 'DELETE'
       });
       const data = await res.json();
-      if (data.status === 'success') {
+      if (res.ok && data.status === 'success') {
         alert(data.message);
         fetchHistory();
+      } else {
+        alert(apiError(data, 'Cleanup failed'));
       }
     } catch (e) {
       console.error("Failed to cleanup variable history:", e);
@@ -50,13 +65,19 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
     }
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/variables/${variable.variable_name}`, {
+      const q = new URLSearchParams({
+        variable_name: variable.variable_name
+      });
+      if (variable.node_id) q.set('node_id', variable.node_id);
+      const res = await fetch(`/api/projects/${projectId}/variable-delete?${q.toString()}`, {
         method: 'DELETE'
       });
       const data = await res.json();
-      if (data.status === 'success') {
+      if (res.ok && data.status === 'success') {
         alert(data.message);
-        onClose(); // Close modal and let parent refresh
+        (onDeleted || onClose)();
+      } else {
+        alert(apiError(data, 'Delete failed'));
       }
     } catch (e) {
       console.error("Failed to delete variable:", e);
@@ -73,8 +94,8 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
 
   // Calculate data span to show effective retention
   let spanText = "No data";
-  if (history.length > 0) {
-    const oldestTimestamp = history[0].timestamp * 1000;
+  if (history.length > 0 && history[0].t) {
+    const oldestTimestamp = history[0].t;
     const now = Date.now();
     const diffMs = now - oldestTimestamp;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -96,7 +117,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
               {variable.variable_name}
             </h3>
             <p className="text-xs text-fg-muted flex items-center gap-2 mt-1">
-              <span className="font-semibold text-fg-secondary">{nodeInfo.label}</span> ({nodeInfo.type}) &bull; <Terminal size={12} className="ml-1" /> <span className="font-mono text-[10px]">{variable.node_id}</span> &bull; Latest: {typeof variable.value === 'number' ? variable.value.toFixed(2) : variable.value}
+              <span className="font-semibold text-fg-secondary">{nodeInfo.label}</span> ({nodeInfo.type}) &bull; <Terminal size={12} className="ml-1" /> <span className="font-mono text-[10px]">{variable.node_id}</span> &bull; Latest: {formatValue(variable.value)}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -122,7 +143,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
           {/* Chart Section */}
           <div className="bg-surface border border-line rounded-xl p-4 shadow-sm h-72 flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-bold text-fg-muted uppercase tracking-wider">Trend (Last 100 points)</h4>
+              <h4 className="text-xs font-bold text-fg-muted uppercase tracking-wider">Trend (Last {HISTORY_LIMIT} points)</h4>
               <div className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
                 Data Span: {spanText}
               </div>
@@ -147,16 +168,19 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                     <XAxis 
-                      dataKey="timestamp" 
+                      dataKey="t" 
+                      type="number"
+                      scale="time"
+                      domain={['dataMin', 'dataMax']}
                       stroke={chartTheme.axis} 
                       fontSize={10}
-                      tickFormatter={(unix) => new Date(unix + 'Z').toLocaleTimeString()}
+                      tickFormatter={(ms) => new Date(ms).toLocaleTimeString()}
                       minTickGap={30}
                     />
                     <YAxis stroke={chartTheme.axis} fontSize={10} domain={['auto', 'auto']} />
                     <Tooltip 
                       contentStyle={{ ...chartTheme.tooltip.contentStyle, fontSize: '12px' }}
-                      labelFormatter={(unix) => new Date(unix + 'Z').toLocaleString()}
+                      labelFormatter={(ms) => new Date(ms).toLocaleString()}
                     />
                     <Area type="monotone" dataKey="value" stroke="#818cf8" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
                   </AreaChart>
@@ -202,7 +226,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, projectId, va
                   {/* Map history in descending order for table (newest first) */}
                   {[...history].reverse().map((row) => (
                     <tr key={row.id} className="hover:bg-surface-2/30 transition-colors">
-                      <td className="px-4 py-2 font-mono text-xs">{new Date(row.timestamp + 'Z').toLocaleString()}</td>
+                      <td className="px-4 py-2 font-mono text-xs">{formatDbTime(row.timestamp)}</td>
                       <td className="px-4 py-2 font-mono text-indigo-600 dark:text-indigo-400 font-semibold">{row.value}</td>
                       <td className="px-4 py-2 text-fg-muted text-xs">{row.node_id}</td>
                       <td className="px-4 py-2 text-fg-subtle text-xs text-right">{row.id}</td>
