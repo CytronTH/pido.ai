@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Layers, Crosshair, UserX, UserCheck, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 import usePipelineStore from '../../../store/usePipelineStore';
 import ShelfSlotEditorModal from './ShelfSlotEditorModal';
 
@@ -102,20 +102,15 @@ export default function ShelfSlotMonitorNode({ id, data }) {
       />
 
       {/* Header */}
-      <div className="bg-amber-500/20 p-3 flex items-center justify-between border-b border-amber-800/50">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-amber-600 p-1.5 rounded-lg text-white shadow-sm">
-            <Layers size={16} />
-          </div>
-          <div>
-            <div className="font-semibold text-sm leading-tight text-amber-800 dark:text-amber-200">
-              {data?.label || 'Shelf Slot Monitor'}
-            </div>
-            <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-mono">Retail Slot Occupancy</div>
-          </div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+      <NodeHeader
+        id={id}
+        icon={Layers}
+        iconBg="bg-amber-600"
+        headerBg="bg-amber-500/20 border-amber-800/50"
+        defaultName="Shelf Slot Monitor"
+        defaultSubtitle="Retail Slot Occupancy"
+        data={data}
+      />
 
       <div className={`p-3.5 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         {/* Real-time Status Banner */}

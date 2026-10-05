@@ -22,20 +22,28 @@ const DEFAULT_NODE_NAMES = {
   actionNode: 'Action / Alert',
   functionNode: 'Function',
   transformNode: 'Transform',
+  rateLimitNode: 'Rate Limit',
   counterNode: 'Event Counter',
   flowCounterNode: 'Flow Counter',
   unitThroughputNode: 'Unit Throughput',
   targetTrackerNode: 'Target Tracker',
-  forkliftZoneNode: 'Forklift Zone Monitor',
+  forkliftZoneNode: 'Forklift Safety Monitor',
   shelfSlotMonitorNode: 'Shelf Slot Monitor',
-  snapshotNode: 'Snapshot Node',
+  snapshotNode: 'Snapshot',
   databaseWriterNode: 'Database Writer',
   collectionWriterNode: 'Collection Writer',
-  dashboardChartNode: 'Time-Series Output',
-  dashboardLogNode: 'Log Feed',
-  dashboardMetricNode: 'Number Output',
-  dashboardTextNode: 'Text Output',
+  dashboardChartNode: 'Chart',
+  dashboardLogNode: 'Dashboard Log',
+  dashboardMetricNode: 'Number / Metric',
+  dashboardTextNode: 'Text Value',
   dashboardVideoNode: 'Video Stream',
+  debugNode: 'Debug Node',
+  debugOutputNode: 'Debug Output',
+  digitalInputNode: 'Digital Input',
+  digitalOutputNode: 'Digital Output',
+  buzzerNode: 'Active Buzzer',
+  ledNode: 'LED Driver',
+  rs485Node: 'RS485 Modbus',
 };
 
 let id = 0;
@@ -427,11 +435,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     event?.stopPropagation?.();
     if (node.data?.isTutorialMock) return;
     
-    if (node.type === 'debugNode') {
+    // In inline mode, do NOT open the sidebar (settings are directly on the canvas node)
+    if (pipelineViewMode === 'compact') {
+      if (node.type === 'debugNode') {
+        setIsDebugPanelOpen(true);
+        setActiveSidebarNodeId(null);
+      } else {
+        setActiveSidebarNodeId(node.id);
+      }
+    } else if (node.type === 'debugNode') {
       setIsDebugPanelOpen(true);
-      setActiveSidebarNodeId(null);
-    } else {
-      setActiveSidebarNodeId(node.id);
     }
 
     // Ensure the double-clicked node is exclusively selected
@@ -442,7 +455,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         selected: n.id === node.id
       }))
     );
-  }, [nodes, onNodesChange]);
+  }, [nodes, onNodesChange, pipelineViewMode]);
 
   // Auto-close sidebar if active node was deleted or removed
   useEffect(() => {
@@ -580,7 +593,10 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             {/* View Mode Toggle */}
             <div className="bg-surface-2 border border-line-strong p-1 rounded-xl flex shadow-inner">
               <button 
-                onClick={() => setPipelineViewMode('inline')}
+                onClick={() => {
+                  setPipelineViewMode('inline');
+                  setActiveSidebarNodeId(null);
+                }}
                 className={`p-1.5 sm:p-2 rounded-lg transition-all text-xs font-semibold flex items-center gap-1 ${pipelineViewMode === 'inline' ? 'bg-surface-3 text-fg shadow' : 'text-fg-muted hover:text-fg'}`}
                 title="Inline View: Show settings on the nodes"
               >

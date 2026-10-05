@@ -45,7 +45,14 @@ export default function AINodeSettings({ nodeId, data, onChange, isSidebar }) {
   const upstreamVideoPath = upstreamCamera?.path ?? null;
 
   const handleEntityChange = (e) => {
-    onChange({ entityId: e.target.value, classFilter: null });
+    const selectedId = e.target.value;
+    const model = models.find(m => m.id === selectedId);
+    onChange({ 
+      entityId: selectedId,
+      modelName: model ? model.name : '',
+      modelVersion: model ? (model.version || '') : '',
+      classFilter: null 
+    });
   };
 
   const selectedModel = models.find(m => m.id === data?.entityId);
@@ -80,25 +87,16 @@ export default function AINodeSettings({ nodeId, data, onChange, isSidebar }) {
         </select>
       </div>
       
-      {isSidebar ? (
-        <div className="mt-4 border-t border-line pt-4">
-          <AINodeAdvancedSettingsContent
-            id={nodeId}
-            data={data}
-            updateNodeData={(id, updates) => onChange(updates)}
-            modelClasses={modelClasses}
-            isInputNode={isInputNode}
-            onOpenROI={() => setShowROIEditor(true)}
-          />
-        </div>
-      ) : (
-        <button 
-          onClick={() => setShowSettingsModal(true)}
-          className="bg-surface-2 hover:bg-surface-3 text-purple-700 dark:text-purple-300 border border-purple-500/50 rounded-lg py-2.5 px-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors mt-2 shadow-sm"
-        >
-          <Settings size={16} /> Advanced Settings
-        </button>
-      )}
+      <div className="mt-2 border-t border-line pt-3">
+        <AINodeAdvancedSettingsContent
+          id={nodeId}
+          data={data}
+          updateNodeData={(id, updates) => onChange(updates)}
+          modelClasses={modelClasses}
+          isInputNode={isInputNode}
+          onOpenROI={() => setShowROIEditor(true)}
+        />
+      </div>
 
       {selectedModel && (
         <div className="text-xs bg-canvas/80 border border-line p-3.5 rounded-xl space-y-2 mt-2 shadow-inner text-fg-muted">

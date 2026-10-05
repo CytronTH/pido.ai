@@ -12,7 +12,7 @@ import {
   Zap,
   Bug,
 } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 import usePipelineStore from '../../../store/usePipelineStore';
 import PolygonZoneEditorModal from './PolygonZoneEditorModal';
 
@@ -140,20 +140,15 @@ export default function ForkliftZoneNode({ id, data }) {
       />
 
       {/* Header */}
-      <div className="bg-rose-50 dark:bg-rose-950/40 p-3 flex items-center justify-between border-b border-rose-900/50">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-rose-600 p-1.5 rounded-lg text-white shadow-sm shadow-rose-900/50">
-            <ShieldAlert size={16} />
-          </div>
-          <div>
-            <div className="font-semibold text-sm leading-tight text-rose-800 dark:text-rose-200">
-              {data?.label || 'Forklift Safety Monitor'}
-            </div>
-            <div className="text-[10px] text-rose-600/80 dark:text-rose-400/80 font-mono">Intersection & Danger Zones</div>
-          </div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+      <NodeHeader
+        id={id}
+        icon={ShieldAlert}
+        iconBg="bg-rose-600"
+        headerBg="bg-rose-50 dark:bg-rose-950/40 border-rose-900/50"
+        defaultName="Forklift Safety Monitor"
+        defaultSubtitle="Intersection & Danger Zones"
+        data={data}
+      />
 
       <div className={`p-3.5 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         {/* Real-Time Status Banner */}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position, useHandleConnections, useNodesData } from '@xyflow/react';
 import { List } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function DashboardLogNode({ id, data }) {
@@ -18,8 +18,6 @@ export default function DashboardLogNode({ id, data }) {
   const handleSourceChange = (e) => {
     updateNodeData(id, { sourcePath: e.target.value });
   };
-
-
 
   const getAvailableProperties = () => {
     if (!upstreamNode) return [];
@@ -45,15 +43,15 @@ export default function DashboardLogNode({ id, data }) {
 
   return (
     <div className={`bg-surface border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
-      <div className="bg-indigo-600/20 p-3 flex items-center justify-between border-b border-indigo-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-600 p-1.5 rounded-lg">
-            <List size={16} className="text-fg" />
-          </div>
-          <div className="font-semibold text-sm">Dashboard Log</div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+      <NodeHeader
+        id={id}
+        icon={List}
+        iconBg="bg-indigo-600"
+        headerBg="bg-indigo-600/20 border-indigo-900/50"
+        defaultName="Dashboard Log"
+        defaultSubtitle="Historical Feed Output"
+        data={data}
+      />
       
       <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         <label className="text-xs text-fg-muted flex flex-col gap-1">

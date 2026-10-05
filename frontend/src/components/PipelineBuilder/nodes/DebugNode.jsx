@@ -2,7 +2,7 @@ import React, { memo, useState, useEffect, useRef, useCallback, useMemo } from '
 import { Handle, Position, useHandleConnections, useNodesData, useReactFlow } from '@xyflow/react';
 import { Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, AlertOctagon, RefreshCw, Film } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 
 function useWhepStream(whepUrl, videoRef, { disableAutoReconnect = false } = {}) {
   const pcRef = useRef(null);
@@ -881,55 +881,47 @@ export default memo(({ data, isConnectable, id }) => {
         : 'border-line-strong/80'
     }`}>
       <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-fg-muted border-2 border-line" />
-      <div className={`px-3 py-2 border-b flex items-center justify-between ${
-        isWaitingForDeploy
-          ? 'bg-amber-500/10 border-amber-500/30'
-          : isVideoEnd
-          ? 'bg-blue-500/10 border-blue-500/30'
-          : isPaused 
-          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-900/50' 
-          : 'bg-surface-2/80 border-line-strong/80'
-      }`}>
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-md ${
-            isWaitingForDeploy
-              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
-              : isVideoEnd
-              ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
-              : isPaused 
-              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400' 
-              : 'bg-surface-3 text-fg-secondary'
-          }`}>
-            <Bug size={14} />
-          </div>
-          <span className="text-xs font-bold text-fg uppercase tracking-wider">Debug Node</span>
-          {isWaitingForDeploy && (
-            <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-mono">
-              Waiting Deploy
-            </span>
-          )}
-          {isVideoEnd && !isWaitingForDeploy && (
-            <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-mono">
-              Video End
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {hasVideoPreview && (
-            <button 
-              onClick={togglePause} 
-              disabled={isWaitingForDeploy || isVideoEnd}
-              className={`bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors ${
-                (isWaitingForDeploy || isVideoEnd) ? 'opacity-40 cursor-not-allowed' : ''
-              }`} 
-              title={isWaitingForDeploy ? "Waiting for deploy" : isVideoEnd ? "Video End" : isPaused ? "Resume Node" : "Pause Node"}
-            >
-              {isPaused ? <Play size={12} className="text-green-600 dark:text-green-400" /> : <Pause size={12} className="text-amber-700 dark:text-amber-400" />}
-            </button>
-          )}
-          <NodeMenu id={id} />
-        </div>
-      </div>
+      <NodeHeader
+        id={id}
+        icon={Bug}
+        iconBg={isWaitingForDeploy || isPaused ? 'bg-amber-600' : isVideoEnd ? 'bg-blue-600' : 'bg-surface-3'}
+        iconColor={isWaitingForDeploy || isPaused || isVideoEnd ? 'text-white' : 'text-fg-secondary'}
+        headerBg={
+          isWaitingForDeploy
+            ? 'bg-amber-500/10 border-amber-500/30'
+            : isVideoEnd
+            ? 'bg-blue-500/10 border-blue-500/30'
+            : isPaused 
+            ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-900/50' 
+            : 'bg-surface-2/80 border-line-strong/80'
+        }
+        defaultName="Debug Node"
+        defaultSubtitle="Payload Probe"
+        data={data}
+      >
+        {isWaitingForDeploy && (
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-mono shrink-0">
+            Waiting Deploy
+          </span>
+        )}
+        {isVideoEnd && !isWaitingForDeploy && (
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-mono shrink-0">
+            Video End
+          </span>
+        )}
+        {hasVideoPreview && (
+          <button 
+            onClick={togglePause} 
+            disabled={isWaitingForDeploy || isVideoEnd}
+            className={`bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors ${
+              (isWaitingForDeploy || isVideoEnd) ? 'opacity-40 cursor-not-allowed' : ''
+            }`} 
+            title={isWaitingForDeploy ? "Waiting for deploy" : isVideoEnd ? "Video End" : isPaused ? "Resume Node" : "Pause Node"}
+          >
+            {isPaused ? <Play size={12} className="text-green-600 dark:text-green-400" /> : <Pause size={12} className="text-amber-700 dark:text-amber-400" />}
+          </button>
+        )}
+      </NodeHeader>
       <div className="bg-canvas flex flex-col relative min-h-[40px]">
         <div className={`transition-all duration-300 ${isPaused ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
           {content}

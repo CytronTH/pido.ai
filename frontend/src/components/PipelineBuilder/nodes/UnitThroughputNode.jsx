@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Activity } from 'lucide-react';
-import NodeMenu from './NodeMenu';
 import usePipelineStore from '../../../store/usePipelineStore';
+import NodeHeader from './NodeHeader';
 import UnitThroughputNodeSettings from '../settings/UnitThroughputNodeSettings';
 
-export default function UnitThroughputNode({ id, data }) {
+export default function UnitThroughputNode({ id, data, selected }) {
   const updateNodeData = usePipelineStore(s => s.updateNodeData);
   const debugData = usePipelineStore(s => s.debugData || {});
   const debugState = debugData[id] || {};
@@ -33,29 +33,23 @@ export default function UnitThroughputNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-surface border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 text-fg flex flex-col overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'}`}>
-      <div className="bg-indigo-600/20 p-3 flex items-center justify-between border-b border-indigo-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-600 p-1.5 rounded-lg">
-            <Activity size={16} className="text-fg" />
+    <div className={`bg-surface border-2 ${selected ? 'border-indigo-400 shadow-indigo-500/20' : 'border-indigo-600'} rounded-xl shadow-lg shadow-indigo-900/20 text-fg flex flex-col overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'}`}>
+      <NodeHeader
+        id={id}
+        icon={Activity}
+        iconBg="bg-indigo-600"
+        headerBg="bg-indigo-600/20 border-indigo-900/50"
+        defaultName="Unit Throughput"
+        defaultSubtitle={isRunning ? '● Running' : '○ Paused'}
+        data={data}
+      >
+        {!isCompact && (
+          <div className="text-[10px] flex items-center gap-1 bg-surface-2 px-1.5 py-0.5 rounded border border-line-strong">
+            <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-fg-subtle'}`}></span>
+            <span className="text-fg-muted font-medium">{isRunning ? 'Running' : 'Paused'}</span>
           </div>
-          <div>
-            <div className="flex flex-col justify-center">
-              <div className="font-semibold text-sm truncate max-w-[140px] leading-tight">{data?.label || 'Unit Throughput'}</div>
-              {data?.label && data.label !== 'Unit Throughput' && (
-                <span className="text-[10px] font-mono leading-none truncate mt-0.5 text-fg/50">Unit Throughput</span>
-              )}
-            </div>
-            {!isCompact && (
-              <div className="text-[10px] flex items-center gap-1 mt-1">
-                 <span className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-fg-subtle'}`}></span>
-                 <span className="text-indigo-700/70 dark:text-indigo-300/70">{isRunning ? 'Running' : 'Paused'}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+        )}
+      </NodeHeader>
 
       {!isCompact && (
         <div className="p-4 flex flex-col gap-3">
