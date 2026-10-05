@@ -203,7 +203,8 @@ class HailoPipelineWorker:
                         cam_id, 
                         cam_entity, 
                         loop=loop, 
-                        loop_count=getattr(first_stream, 'loop_count', 1)
+                        loop_count=getattr(first_stream, 'loop_count', 1),
+                        speed=speed if video_src_type == "file" else 1.0
                     )
                     self.acquired_cameras.append(cam_id)
                     source_bin = (
