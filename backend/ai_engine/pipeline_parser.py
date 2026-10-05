@@ -93,6 +93,7 @@ class PipelineParser:
         # Build MessageRouter graph
         router = MessageRouter(project_id=project_id)
         config.router = router
+        router.pipeline_config = config
 
         # Register pipeline and all active nodes with TelemetryManager
         try:

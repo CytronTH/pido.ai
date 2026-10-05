@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Database, Image as ImageIcon, RefreshCw, X, ChevronDown, ChevronUp, 
-  Download, Play, Pause, Filter, Grid, List, Trash2, HardDrive, 
-  Clock, Camera, Search, CheckCircle2, AlertTriangle, ChevronLeft, 
-  ChevronRight, Copy, Check, Sparkles, Maximize2, ShieldAlert
+  Download, Play, Pause, Grid, List, Tag, 
+  CheckCircle2, AlertTriangle, ChevronLeft, 
+  ChevronRight, Copy, Check, Sparkles, Maximize2
 } from 'lucide-react';
 
 export default function LogsViewer({ projectId, embedded = false }) {
@@ -13,6 +13,10 @@ export default function LogsViewer({ projectId, embedded = false }) {
   const [dbStats, setDbStats] = useState(null);
   const [cameras, setCameras] = useState([]);
   
+  // Available tags extracted from snapshot event logs & current selected tag
+  const [availableTags, setAvailableTags] = useState([]);
+  const [selectedTag, setSelectedTag] = useState('');
+
   // View mode: 'table' or 'gallery'
   const [viewMode, setViewMode] = useState('gallery');
   
@@ -26,15 +30,6 @@ export default function LogsViewer({ projectId, embedded = false }) {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(30);
   const [total, setTotal] = useState(0);
-  
-  // Filtering
-  const [filters, setFilters] = useState({
-    event_type: '',
-    camera_id: '',
-    node_id: '',
-    quick: 'all', // 'all', 'snapshot', 'ok', 'ng'
-    search: ''
-  });
   
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -70,6 +65,23 @@ export default function LogsViewer({ projectId, embedded = false }) {
     }
   };
 
+  // Fetch distinct tags recorded from snapshot images
+  const fetchAvailableTags = async () => {
+    try {
+      const url = projectId ? `/api/logs/tags?project_id=${projectId}` : '/api/logs/tags';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.status === 'success' && Array.isArray(data.tags)) {
+        setAvailableTags(data.tags);
+      } else {
+        setAvailableTags([]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch log tags:", e);
+      setAvailableTags([]);
+    }
+  };
+
   // Map camera_id to human readable camera name
   const cameraMap = useMemo(() => {
     const map = {};
@@ -80,7 +92,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
   }, [cameras]);
 
   // Fetch Event Logs
-  const fetchLogs = async (currentPage = page, currentFilters = filters) => {
+  const fetchLogs = async (currentPage = page, currentTag = selectedTag) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -88,16 +100,8 @@ export default function LogsViewer({ projectId, embedded = false }) {
         page: currentPage
       });
 
-      // Quick filter mapping
-      let eventType = currentFilters.event_type;
-      if (currentFilters.quick === 'snapshot' || currentFilters.quick === 'ok' || currentFilters.quick === 'ng') {
-        eventType = 'SNAPSHOT';
-      }
-
-      if (eventType) params.append('event_type', eventType);
-      if (currentFilters.camera_id) params.append('camera_id', currentFilters.camera_id);
-      if (currentFilters.node_id) params.append('node_id', currentFilters.node_id);
       if (projectId) params.append('project_id', projectId);
+      if (currentTag) params.append('tag', currentTag);
       
       const res = await fetch(`/api/logs?${params.toString()}`);
       const data = await res.json();
@@ -112,60 +116,52 @@ export default function LogsViewer({ projectId, embedded = false }) {
     }
   };
 
+  // Refresh everything
+  const handleRefresh = () => {
+    fetchLogs(page, selectedTag);
+    fetchDbStats();
+    fetchAvailableTags();
+  };
+
   useEffect(() => {
     fetchDbStats();
     fetchCameras();
+    fetchAvailableTags();
   }, [projectId]);
 
   useEffect(() => {
-    fetchLogs(page, filters);
-  }, [page, perPage, filters.event_type, filters.camera_id, filters.node_id, filters.quick, projectId]);
+    fetchLogs(page, selectedTag);
+  }, [page, perPage, selectedTag, projectId]);
 
   // Auto-refresh interval
   useEffect(() => {
     let interval;
     if (autoRefresh) {
       interval = setInterval(() => {
-        fetchLogs(1, filters);
+        fetchLogs(1, selectedTag);
         fetchDbStats();
+        fetchAvailableTags();
         if (page !== 1) setPage(1);
       }, 3000);
     }
     return () => clearInterval(interval);
-  }, [autoRefresh, filters, page, perPage, projectId]);
+  }, [autoRefresh, selectedTag, page, perPage, projectId]);
 
-  // Filter logs by client-side search (search in payload, camera, node)
+  // Client-side fallback filter
   const filteredLogs = useMemo(() => {
+    if (!selectedTag) return logs;
+    const targetTag = selectedTag.toLowerCase();
     return logs.filter(log => {
-      // Quick filter for OK / NG
-      if (filters.quick === 'ok') {
-        const label = log.payload?.label?.toUpperCase();
-        if (label !== 'OK') return false;
-      } else if (filters.quick === 'ng') {
-        const label = log.payload?.label?.toUpperCase();
-        if (label !== 'NG') return false;
-      }
-
-      // Search keyword filter
-      if (filters.search) {
-        const q = filters.search.toLowerCase();
-        const payloadStr = JSON.stringify(log.payload || {}).toLowerCase();
-        const camName = (cameraMap[log.camera_id] || log.camera_id || '').toLowerCase();
-        const nodeId = (log.node_id || '').toLowerCase();
-        const eventType = (log.event_type || '').toLowerCase();
-        return payloadStr.includes(q) || camName.includes(q) || nodeId.includes(q) || eventType.includes(q);
-      }
-      return true;
+      const logTags = Array.isArray(log.payload?.tags)
+        ? log.payload.tags
+        : (log.payload?.tags ? [log.payload.tags] : []);
+      return logTags.some(t => String(t).toLowerCase() === targetTag);
     });
-  }, [logs, filters.quick, filters.search, cameraMap]);
+  }, [logs, selectedTag]);
 
-  // Handle Quick Filter click
-  const handleQuickFilter = (quickKey) => {
-    setFilters(prev => ({
-      ...prev,
-      quick: quickKey,
-      event_type: quickKey === 'snapshot' || quickKey === 'ok' || quickKey === 'ng' ? 'SNAPSHOT' : ''
-    }));
+  // Tag selection toggle
+  const handleSelectTag = (tag) => {
+    setSelectedTag(prev => (prev.toLowerCase() === tag.toLowerCase() ? '' : tag));
     setPage(1);
   };
 
@@ -187,7 +183,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
     }
     const lowerType = (log.event_type || '').toLowerCase();
     if (lowerType.includes('snapshot')) {
-      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', icon: ImageIcon };
+      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/30', icon: ImageIcon };
     }
     if (lowerType.includes('alert') || lowerType.includes('error')) {
       return { text: log.event_type, bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', icon: AlertTriangle };
@@ -200,14 +196,15 @@ export default function LogsViewer({ projectId, embedded = false }) {
   // Export filtered/current logs to CSV
   const exportCSV = () => {
     if (logs.length === 0) return;
-    const headers = ['Timestamp', 'Event Type', 'Result', 'Camera ID', 'Camera Name', 'Node ID', 'Payload', 'Snapshot Path'];
+    const headers = ['Timestamp', 'Event Type', 'Result', 'Tags', 'Camera ID', 'Camera Name', 'Node ID', 'Payload', 'Snapshot Path'];
     const csvContent = [
       headers.join(','),
       ...logs.map(log => {
         const payloadStr = log.payload ? JSON.stringify(log.payload).replace(/"/g, '""') : '';
         const camName = cameraMap[log.camera_id] || '';
         const resultLabel = log.payload?.label || '';
-        return `"${log.timestamp}","${log.event_type}","${resultLabel}","${log.camera_id || ''}","${camName}","${log.node_id}","${payloadStr}","${log.snapshot_path || ''}"`;
+        const tagsStr = Array.isArray(log.payload?.tags) ? log.payload.tags.join(';') : '';
+        return `"${log.timestamp}","${log.event_type}","${resultLabel}","${tagsStr}","${log.camera_id || ''}","${camName}","${log.node_id}","${payloadStr}","${log.snapshot_path || ''}"`;
       })
     ].join('\n');
     
@@ -215,7 +212,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `iriv_logs_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `pido_logs_export_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -256,33 +253,28 @@ export default function LogsViewer({ projectId, embedded = false }) {
         {!embedded ? (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-blue-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/10 shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-pink-500/20 to-blue-600/20 border border-pink-500/30 flex items-center justify-center text-pink-500 shadow-lg shadow-pink-500/10 shrink-0">
                 <Database size={22} className="sm:w-6 sm:h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2 sm:gap-2.5">
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Database & Event Logs</h1>
-                  {autoRefresh && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                      LIVE
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] sm:text-xs text-fg-muted mt-0.5">
-                  Search, filter, and inspect AI inference events, OK/NG snapshots, and edge storage.
+                <TitleTag className="text-xl sm:text-2xl font-black text-fg tracking-tight">
+                  Event Logs & Snapshot Gallery
+                </TitleTag>
+                <p className="text-xs sm:text-sm text-fg-subtle">
+                  Chronological records of pipeline detections, alerts, and captured image frames
                 </p>
               </div>
             </div>
 
-            {/* Quick Global Actions */}
+            {/* Quick Actions */}
             <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
               <button 
                 onClick={exportCSV}
                 className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line hover:border-line-strong transition-all shadow-sm active:scale-95"
+                title="Export logs as CSV spreadsheet"
               >
                 <Download size={14} />
-                <span>Export</span>
+                <span>Export CSV</span>
               </button>
               
               <button 
@@ -298,9 +290,9 @@ export default function LogsViewer({ projectId, embedded = false }) {
               </button>
 
               <button 
-                onClick={() => { fetchLogs(page, filters); fetchDbStats(); }}
+                onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-fg px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-pink-500/20 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
                 <span>Refresh</span>
@@ -341,9 +333,9 @@ export default function LogsViewer({ projectId, embedded = false }) {
               </button>
 
               <button 
-                onClick={() => { fetchLogs(page, filters); fetchDbStats(); }}
+                onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-fg px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-pink-500/20 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
                 <span>Refresh</span>
@@ -379,12 +371,28 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 {dbStats?.snapshot_size_mb ? `${(dbStats.snapshot_size_mb / 1024).toFixed(2)} GB on disk` : 'Calculating...'}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
               <ImageIcon size={20} />
             </div>
           </div>
 
-          {/* Inspection Result Ratio or View Switcher Card */}
+          {/* Available Tags Count */}
+          <div className="bg-surface/80 backdrop-blur-md border border-line/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Active Tags</p>
+              <h3 className="text-2xl font-extrabold text-fg mt-1 font-mono tracking-tight">
+                {availableTags.length}
+              </h3>
+              <p className="text-[11px] text-fg-subtle mt-0.5">
+                {selectedTag ? `Filtered by #${selectedTag}` : 'All tags visible'}
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-500">
+              <Tag size={20} />
+            </div>
+          </div>
+
+          {/* Display Mode Switcher */}
           <div className="bg-surface/80 backdrop-blur-md border border-line/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Display Mode</span>
@@ -397,7 +405,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 onClick={() => setViewMode('gallery')}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === 'gallery'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
                     : 'bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg'
                 }`}
               >
@@ -407,7 +415,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 onClick={() => setViewMode('table')}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === 'table'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
                     : 'bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg'
                 }`}
               >
@@ -418,81 +426,63 @@ export default function LogsViewer({ projectId, embedded = false }) {
         </div>
       </div>
 
-      {/* ── Filter Toolbar & Quick Filter Pills ─────────────────────────── */}
-      <div className="bg-surface/90 border border-line/90 rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-        {/* Quick Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1 max-w-full scrollbar-none">
-          <span className="text-xs font-medium text-fg-muted mr-1 flex items-center gap-1 shrink-0">
-            <Filter size={14} /> Filter:
-          </span>
-          {[
-            { key: 'all', label: 'All Events' },
-            { key: 'snapshot', label: '📷 Snapshots' },
-            { key: 'ok', label: '✓ OK Items' },
-            { key: 'ng', label: '✕ NG Alerts' },
-          ].map(pill => (
-            <button
-              key={pill.key}
-              onClick={() => handleQuickFilter(pill.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 active:scale-95 ${
-                filters.quick === pill.key
-                  ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/40 shadow-sm'
-                  : 'bg-canvas/60 hover:bg-surface-2 text-fg-muted border border-line/80'
-              }`}
-            >
-              {pill.label}
-            </button>
-          ))}
-        </div>
+      {/* ── Exclusive Tags Filter Bar (Shown only if tags exist) ─────────────────────────── */}
+      {availableTags.length > 0 && (
+        <div className="bg-surface/90 border border-line/90 rounded-2xl p-3 sm:p-4 shadow-lg flex items-center justify-between gap-3 flex-wrap animate-in fade-in">
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 max-w-full scrollbar-none flex-1">
+            <span className="text-xs font-semibold text-fg-secondary mr-1 flex items-center gap-1.5 shrink-0">
+              <Tag size={14} className="text-pink-500" />
+              Tags:
+            </span>
 
-        {/* Dropdowns & Search */}
-        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap flex-1 md:justify-end">
-          {/* Camera Selector Dropdown */}
-          <div className="relative flex-1 sm:flex-initial">
-            <select
-              value={filters.camera_id}
-              onChange={(e) => {
-                setFilters(prev => ({ ...prev, camera_id: e.target.value }));
-                setPage(1);
-              }}
-              className="w-full sm:w-auto bg-canvas border border-line rounded-xl px-3 py-1.5 text-xs text-fg focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer sm:max-w-[180px] truncate"
-            >
-              <option value="">All Cameras</option>
-              {cameras.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name || c.id}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
-          </div>
-
-          {/* Keyword Search Input */}
-          <div className="relative flex-1 sm:max-w-[240px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
-            <input
-              type="text"
-              placeholder="Search payload / node..."
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="w-full bg-canvas border border-line rounded-xl pl-8 pr-3 py-1.5 text-xs text-fg focus:outline-none focus:border-blue-500 placeholder-fg-subtle"
-            />
-          </div>
-
-          {/* Reset Filters */}
-          {(filters.camera_id || filters.search || filters.quick !== 'all' || filters.node_id || filters.event_type) && (
+            {/* All Tag Pill */}
             <button
               onClick={() => {
-                setFilters({ event_type: '', camera_id: '', node_id: '', quick: 'all', search: '' });
+                setSelectedTag('');
                 setPage(1);
               }}
-              className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg px-2.5 py-1.5 bg-surface-2/80 hover:bg-surface-2 rounded-xl border border-line-strong/60 transition-colors active:scale-95"
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 active:scale-95 ${
+                !selectedTag
+                  ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
+                  : 'bg-canvas/80 hover:bg-surface-2 text-fg-muted border border-line'
+              }`}
             >
-              <X size={13} /> Reset
+              All
+            </button>
+
+            {/* Individual Tag Pills */}
+            {availableTags.map((tag) => {
+              const isSelected = selectedTag.toLowerCase() === tag.toLowerCase();
+              return (
+                <button
+                  key={tag}
+                  onClick={() => handleSelectTag(tag)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 active:scale-95 flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30 ring-2 ring-pink-400/50'
+                      : 'bg-canvas/80 hover:bg-surface-2 text-fg-secondary border border-line hover:border-pink-500/40'
+                  }`}
+                >
+                  <span>#{tag}</span>
+                  {isSelected && <X size={12} className="opacity-80" />}
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedTag && (
+            <button
+              onClick={() => {
+                setSelectedTag('');
+                setPage(1);
+              }}
+              className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg px-2.5 py-1.5 bg-surface-2 rounded-xl border border-line transition-colors active:scale-95 shrink-0"
+            >
+              <X size={12} /> Clear Filter
             </button>
           )}
         </div>
-      </div>
+      )}
 
       {/* ── Main Content Area (Gallery or Table) ────────────────────────── */}
       {viewMode === 'gallery' ? (
@@ -500,15 +490,26 @@ export default function LogsViewer({ projectId, embedded = false }) {
         <div className="flex-1 bg-surface/60 border border-line/80 rounded-2xl p-5 shadow-xl flex flex-col">
           {loading && logs.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20 text-fg-subtle gap-3">
-              <RefreshCw size={28} className="animate-spin text-blue-500" />
+              <RefreshCw size={28} className="animate-spin text-pink-500" />
               <p className="text-sm">Loading snapshots from database...</p>
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20 text-fg-subtle gap-3">
               <ImageIcon size={38} className="text-fg-faint" />
-              <p className="text-base font-semibold text-fg-secondary">No snapshot events found</p>
+              <p className="text-base font-semibold text-fg-secondary">
+                {selectedTag ? `No snapshots found matching #${selectedTag}` : 'No snapshot events found'}
+              </p>
               <p className="text-xs text-fg-subtle max-w-sm text-center">
-                Try switching quick filters or wait for the AI inspection node to capture frames.
+                {selectedTag ? (
+                  <button 
+                    onClick={() => { setSelectedTag(''); setPage(1); }} 
+                    className="text-pink-600 dark:text-pink-400 hover:underline font-medium"
+                  >
+                    Clear tag filter to view all snapshots
+                  </button>
+                ) : (
+                  'Snapshots captured by Snapshot nodes will appear here.'
+                )}
               </p>
             </div>
           ) : (
@@ -520,12 +521,13 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 const camName = cameraMap[log.camera_id] || log.camera_id || 'Camera';
                 const timeStr = new Date(log.timestamp + 'Z').toLocaleTimeString();
                 const dateStr = new Date(log.timestamp + 'Z').toLocaleDateString();
+                const logTags = Array.isArray(log.payload?.tags) ? log.payload.tags : [];
 
                 return (
                   <div 
                     key={log.id}
                     onClick={() => setSelectedLogIndex(index)}
-                    className="group relative bg-canvas/80 border border-line/80 hover:border-blue-500/50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 cursor-pointer flex flex-col"
+                    className="group relative bg-canvas/80 border border-line/80 hover:border-pink-500/50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-pink-500/5 transition-all duration-300 cursor-pointer flex flex-col"
                   >
                     {/* Image Preview Container */}
                     <div className="relative aspect-video bg-surface overflow-hidden flex items-center justify-center">
@@ -561,7 +563,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                       </div>
 
                       {/* Zoom Indicator on Hover */}
-                      <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <div className="w-8 h-8 rounded-full bg-surface/80 backdrop-blur-sm flex items-center justify-center text-fg shadow-lg">
                           <Maximize2 size={14} />
                         </div>
@@ -579,9 +581,27 @@ export default function LogsViewer({ projectId, embedded = false }) {
                         </span>
                       </div>
 
-                      <div className="mt-1.5 text-[10px] font-mono text-fg-muted bg-surface/80 px-2 py-1 rounded-lg border border-line/60 truncate">
-                        {log.payload ? JSON.stringify(log.payload) : log.event_type}
-                      </div>
+                      {/* Tags Badges or Payload Label */}
+                      {logTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {logTags.map((t, idx) => (
+                            <span 
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectTag(t);
+                              }}
+                              className="text-[10px] bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 px-1.5 py-0.5 rounded font-mono hover:bg-pink-500/25 transition-colors"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 text-[10px] font-mono text-fg-muted bg-surface/80 px-2 py-1 rounded-lg border border-line/60 truncate">
+                          {log.payload?.label || log.event_type}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -600,6 +620,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                   <th className="px-4 py-3.5">Snapshot</th>
                   <th className="px-5 py-3.5">Timestamp</th>
                   <th className="px-5 py-3.5">Event / Result</th>
+                  <th className="px-5 py-3.5">Tags</th>
                   <th className="px-5 py-3.5">Camera</th>
                   <th className="px-5 py-3.5">Node ID</th>
                   <th className="px-5 py-3.5">Payload Details</th>
@@ -608,20 +629,24 @@ export default function LogsViewer({ projectId, embedded = false }) {
               <tbody className="divide-y divide-line/60 font-sans">
                 {loading && logs.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-16 text-center text-fg-subtle">
+                    <td colSpan="8" className="px-6 py-16 text-center text-fg-subtle">
                       <div className="flex flex-col items-center gap-2">
-                        <RefreshCw size={24} className="animate-spin text-blue-500" />
+                        <RefreshCw size={24} className="animate-spin text-pink-500" />
                         <p className="text-sm">Loading event logs...</p>
                       </div>
                     </td>
                   </tr>
                 ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-16 text-center text-fg-subtle">
+                    <td colSpan="8" className="px-6 py-16 text-center text-fg-subtle">
                       <div className="flex flex-col items-center gap-2">
                         <Database size={32} className="text-fg-faint" />
-                        <p className="text-sm font-semibold text-fg-secondary">No logs found</p>
-                        <p className="text-xs text-fg-subtle">Try adjusting your filters or keyword query.</p>
+                        <p className="text-sm font-semibold text-fg-secondary">
+                          {selectedTag ? `No logs found matching #${selectedTag}` : 'No logs found'}
+                        </p>
+                        <p className="text-xs text-fg-subtle">
+                          {selectedTag ? 'Try selecting another tag or clearing the filter.' : 'Captured snapshot events will be listed here.'}
+                        </p>
                       </div>
                     </td>
                   </tr>
@@ -632,6 +657,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                     const BadgeIcon = badge.icon;
                     const snapUrl = log.snapshot_path ? `/api/snapshots/${log.snapshot_path.split('/').pop()}` : null;
                     const camName = cameraMap[log.camera_id] || log.camera_id || '-';
+                    const logTags = Array.isArray(log.payload?.tags) ? log.payload.tags : [];
 
                     return (
                       <React.Fragment key={log.id}>
@@ -653,7 +679,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                             {snapUrl ? (
                               <div 
                                 onClick={() => setSelectedLogIndex(index)}
-                                className="w-14 h-9 rounded-lg overflow-hidden bg-canvas border border-line cursor-pointer relative group/thumb hover:border-blue-500 transition-colors"
+                                className="w-14 h-9 rounded-lg overflow-hidden bg-canvas border border-line cursor-pointer relative group/thumb hover:border-pink-500 transition-colors"
                               >
                                 <img 
                                   src={snapUrl} 
@@ -682,6 +708,25 @@ export default function LogsViewer({ projectId, embedded = false }) {
                             </span>
                           </td>
 
+                          {/* Tags Column */}
+                          <td className="px-5 py-3">
+                            {logTags.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {logTags.map((t, idx) => (
+                                  <span
+                                    key={idx}
+                                    onClick={() => handleSelectTag(t)}
+                                    className="text-[10px] bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 px-1.5 py-0.5 rounded font-mono cursor-pointer hover:bg-pink-500/25 transition-colors"
+                                  >
+                                    #{t}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-fg-subtle text-[11px] font-mono">-</span>
+                            )}
+                          </td>
+
                           {/* Camera Name */}
                           <td className="px-5 py-3 text-fg font-medium">
                             {camName}
@@ -701,7 +746,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                         {/* Expanded Payload Code Block */}
                         {isExpanded && log.payload && (
                           <tr className="bg-canvas/70">
-                            <td colSpan="7" className="px-6 py-4 border-l-2 border-l-blue-500">
+                            <td colSpan="8" className="px-6 py-4 border-l-2 border-l-pink-500">
                               <div className="bg-canvas p-4 rounded-xl border border-line/80 shadow-inner">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-[11px] text-fg-muted font-bold uppercase tracking-wider">
@@ -719,7 +764,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                                     <span>{copied ? 'Copied' : 'Copy JSON'}</span>
                                   </button>
                                 </div>
-                                <pre className="text-xs text-blue-700 dark:text-blue-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
+                                <pre className="p-3 bg-surface/80 rounded-lg text-[11px] font-mono text-fg overflow-x-auto border border-line-subtle">
                                   {JSON.stringify(log.payload, null, 2)}
                                 </pre>
                               </div>
@@ -736,10 +781,10 @@ export default function LogsViewer({ projectId, embedded = false }) {
         </div>
       )}
 
-      {/* ── Pagination Bar ─────────────────────────────────────────────── */}
+      {/* ── Pagination Footer ───────────────────────────────────────────── */}
       <div className="bg-surface/80 border border-line rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-fg-muted shadow-sm">
         <div>
-          Showing {Math.min((page - 1) * perPage + 1, total)} to {Math.min(page * perPage, total)} of {total.toLocaleString()} records
+          Showing {total === 0 ? 0 : Math.min((page - 1) * perPage + 1, total)} to {Math.min(page * perPage, total)} of {total.toLocaleString()} records
         </div>
         
         <div className="flex items-center gap-4">
@@ -748,7 +793,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
             <select 
               value={perPage} 
               onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-              className="bg-canvas border border-line rounded-lg px-2.5 py-1 text-fg focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-canvas border border-line rounded-lg px-2.5 py-1 text-fg focus:outline-none focus:border-pink-500 cursor-pointer"
             >
               <option value="20">20</option>
               <option value="30">30</option>
@@ -787,7 +832,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-line bg-surface/90 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <div className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-pink-500">
                   <ImageIcon size={18} />
                 </div>
                 <div>
@@ -893,6 +938,25 @@ export default function LogsViewer({ projectId, embedded = false }) {
                     </div>
                   </div>
 
+                  {/* Tags Detail in Lightbox */}
+                  {Array.isArray(selectedLog.payload?.tags) && selectedLog.payload.tags.length > 0 && (
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-fg-muted mb-1.5 flex items-center gap-1.5">
+                        <Tag size={12} className="text-pink-500" /> Snapshot Tags
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedLog.payload.tags.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/30 font-mono"
+                          >
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payload Details */}
                   {selectedLog.payload && (
                     <div>
@@ -904,13 +968,13 @@ export default function LogsViewer({ projectId, embedded = false }) {
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
-                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
+                          className="text-[10px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 flex items-center gap-1"
                         >
                           {copied ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                           {copied ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-blue-800 dark:text-blue-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-pink-800 dark:text-pink-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
                         {JSON.stringify(selectedLog.payload, null, 2)}
                       </pre>
                     </div>

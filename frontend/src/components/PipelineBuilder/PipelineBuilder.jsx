@@ -11,6 +11,7 @@ import ExportProjectModal from '../Home/ExportProjectModal';
 import NodeSettingsSidebar from './NodeSettingsSidebar';
 import NodeSuggestionMenu from './NodeSuggestionMenu';
 import ProjectRevisionsModal from '../ProjectRevisionsModal';
+import SnapshotPreviewFloatingWindow from './SnapshotPreviewFloatingWindow';
 
 import { nodeTypes, edgeTypes } from './nodeTypes';
 import { useResolvedTheme } from '../../utils/theme';
@@ -98,6 +99,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     beautifyPipeline: state.beautifyPipeline,
     checkProjectStatus: state.checkProjectStatus,
     setIsProjectRunning: state.setIsProjectRunning,
+    updateNodeData: state.updateNodeData,
   })));
 
   React.useEffect(() => {
@@ -907,6 +909,19 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           )}
 
           <DebugWebSocket />
+
+          {/* Realtime Floating Photo Preview Windows for Snapshot Nodes */}
+          {nodes
+            .filter((n) => n.type === 'snapshotNode' && (n.data?.showPreviewWindow === true || n.data?.showPreviewWindow === 'true'))
+            .map((node, index) => (
+              <SnapshotPreviewFloatingWindow
+                key={node.id}
+                nodeId={node.id}
+                nodeData={node.data}
+                defaultOffsetIndex={index}
+                onClose={() => updateNodeData(node.id, { showPreviewWindow: false })}
+              />
+            ))}
           
           {/* Desktop Sidebar Toggle Button (Moved to Left) */}
           <button

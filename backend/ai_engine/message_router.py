@@ -763,36 +763,141 @@ class SnapshotNode(PipelineNode):
         self.label = data.get("label", "Snapshot")
         self.last_payload = False
         self._proc = None
-        self.zero_latency = data.get("zeroLatency", False)
+        self.zero_latency = data.get("zeroLatency", True)
+        self.camera_id = data.get("cameraId")
+        
+        # Tags for snapshot categorization & Event Logs filtering
+        raw_tags = data.get("tags", [])
+        if isinstance(raw_tags, str):
+            self.tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
+        elif isinstance(raw_tags, list):
+            self.tags = [str(t).strip() for t in raw_tags if str(t).strip()]
+        else:
+            self.tags = []
         
         # Zero-latency state
         self.cap_running = False
         self.cap_thread = None
         self.latest_frame = None
         self.frame_buffer = [] # (timestamp, frame)
+        self.current_rtsp_url = None
 
-    def _capture_loop(self, rtsp_url):
+    def on_pipeline_start(self):
+        """Called when pipeline starts or hot-reloads to warm up zero-latency capture loop."""
+        if not self.zero_latency:
+            return
+        cam_id = self._resolve_camera_id()
+        if cam_id:
+            rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{cam_id}"
+            self._start_capture_thread(rtsp_url)
+
+    def _resolve_camera_id(self, msg: dict = None) -> str:
+        """Resolve the upstream camera_id from message, explicit node config, upstream graph edges, or pipeline config."""
+        if msg:
+            cid = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
+            if cid:
+                return str(cid)
+        if self.camera_id:
+            return str(self.camera_id)
+            
+        # Search upstream nodes
+        visited = set()
+        queue = [self.node_id]
+        while queue:
+            curr = queue.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            for src_id, targets in self.router.edges.items():
+                target_ids = [t[0] if isinstance(t, tuple) else t for t in targets]
+                if curr in target_ids:
+                    src_node = self.router.nodes.get(src_id)
+                    if src_node:
+                        scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId")
+                        if scid:
+                            return str(scid)
+                    if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
+                        for cs in getattr(self.router.pipeline_config, "camera_streams", []):
+                            if getattr(cs, "ai_node_id", None) == src_id or getattr(cs, "input_node_id", None) == src_id:
+                                return str(cs.stream_id)
+                    queue.append(src_id)
+                    
+        # Fallback to first camera stream in pipeline_config
+        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
+            streams = getattr(self.router.pipeline_config, "camera_streams", [])
+            if streams:
+                return str(streams[0].stream_id)
+        return None
+
+    def _get_bbox_draw_mode(self, msg: dict, camera_id: str) -> str:
+        """Adhere to AI Model node bboxDrawMode (backend vs frontend)."""
+        # 1. From message metadata
+        mode = msg.get("metadata", {}).get("bbox_draw_mode")
+        if mode in ("backend", "frontend"):
+            return mode
+            
+        # 2. From router pipeline_config
+        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
+            for cs in getattr(self.router.pipeline_config, "camera_streams", []):
+                if cs.stream_id == camera_id or not camera_id:
+                    return getattr(cs, "bbox_draw_mode", "frontend")
+                    
+        return "frontend"
+
+    def _start_capture_thread(self, rtsp_url: str):
+        if self.cap_running and self.current_rtsp_url == rtsp_url:
+            return
+        if self.cap_running:
+            self.cleanup()
+            
+        self.cap_running = True
+        self.current_rtsp_url = rtsp_url
+        self.cap_thread = threading.Thread(target=self._capture_loop, args=(rtsp_url,), daemon=True)
+        self.cap_thread.start()
+
+    def _capture_loop(self, rtsp_url: str) -> None:
         import cv2, time
-        cap = cv2.VideoCapture(rtsp_url)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        logger.info(f"SnapshotNode [{self.node_id}] starting zero-latency buffer on {rtsp_url}")
+        
+        # Clean GStreamer pipeline that negotiates properly with OpenCV CAP_GSTREAMER
+        gst_pipeline = (
+            f"rtspsrc location={rtsp_url} protocols=tcp latency=0 ! "
+            f"rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink"
+        )
         
         while self.cap_running:
-            ret, frame = cap.read()
-            if ret:
-                self.latest_frame = frame
-                self.frame_buffer.append((time.time(), frame))
-                if len(self.frame_buffer) > 30: # keep approx 1 sec at 30fps
-                    self.frame_buffer.pop(0)
-            else:
-                time.sleep(0.01)
+            cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            if not cap.isOpened():
+                # If stream is not yet ready on MediaMTX, wait 0.5s and retry zero-latency pipeline
+                time.sleep(0.5)
+                continue
                 
-        cap.release()
+            logger.info(f"SnapshotNode [{self.node_id}] zero-latency GStreamer buffer connected successfully")
+            fail_count = 0
+            while self.cap_running and cap.isOpened():
+                ret, frame = cap.read()
+                if ret:
+                    fail_count = 0
+                    self.latest_frame = frame
+                    self.frame_buffer.append((time.time(), frame))
+                    if len(self.frame_buffer) > 60: # approx 2s buffer at 30fps
+                        self.frame_buffer.pop(0)
+                else:
+                    fail_count += 1
+                    if fail_count > 30:
+                        break
+                    time.sleep(0.01)
+            cap.release()
+            if self.cap_running:
+                time.sleep(0.5)
 
     def cleanup(self):
         if self.cap_running:
             self.cap_running = False
-            if self.cap_thread:
+            if self.cap_thread and self.cap_thread.is_alive():
                 self.cap_thread.join(timeout=1.0)
+            self.cap_thread = None
+            self.current_rtsp_url = None
                 
     def process(self, msg: dict):
         payload = msg.get("payload")
@@ -805,16 +910,12 @@ class SnapshotNode(PipelineNode):
         else:
             current_payload = bool(payload)
         
-        
-        camera_id = msg.get("camera_id", msg.get("metadata", {}).get("camera_id"))
+        camera_id = self._resolve_camera_id(msg)
         rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{camera_id}" if camera_id else None
         
-        # Lazy start zero-latency thread
+        # Lazy/ensure start zero-latency thread if not already running
         if self.zero_latency and rtsp_url and not self.cap_running:
-            self.cap_running = True
-            import threading
-            self.cap_thread = threading.Thread(target=self._capture_loop, args=(rtsp_url,), daemon=True)
-            self.cap_thread.start()
+            self._start_capture_thread(rtsp_url)
 
         trigger_edge = self.data.get("triggerEdge", "rising")
         is_triggered = False
@@ -825,7 +926,6 @@ class SnapshotNode(PipelineNode):
 
         if is_triggered:
             if camera_id:
-                import subprocess
                 from pathlib import Path
                 import time
                 
@@ -850,11 +950,11 @@ class SnapshotNode(PipelineNode):
                     if detections is None:
                         detections = search_payload.get("detections", [])
 
-                    def _capture_and_draw(url, path, dets, proj_id, lbl, latest_frame=None):
+                    def _capture_and_draw(url, path, dets, proj_id, lbl, latest_frame=None, bbox_draw_mode="frontend"):
                         import subprocess, cv2
                         if latest_frame is not None:
                             img = latest_frame.copy()
-                            cv2.imwrite(str(path), img) # Save raw frame first
+                            cv2.imwrite(str(path), img) # Save frame directly from video buffer
                         else:
                             proc = subprocess.Popen([
                                 "ffmpeg", "-y", "-rtsp_transport", "tcp", "-i", url, 
@@ -867,49 +967,57 @@ class SnapshotNode(PipelineNode):
                                 pass
                             proc.wait()
                         
-                        # Draw bbox and flow lines
-                        should_draw_bbox = dets and self.data.get("drawBbox", True) is not False
+                        # Note:
+                        # - If bbox_draw_mode == 'backend', the AI RTSP stream ALREADY contains hailooverlay
+                        #   burned into every frame by GStreamer.
+                        # - If bbox_draw_mode == 'frontend', the snapshot remains clean without burned-in boxes.
+                        # Flow lines/zones from FlowCounter are not handled by hailooverlay, so draw them if present.
                         should_draw_lines = search_payload.get("flow_mode") is not None
-                        
-                        if (should_draw_bbox or should_draw_lines) and path.exists():
+                        if should_draw_lines and path.exists():
                             try:
                                 img = cv2.imread(str(path))
                                 if img is not None:
                                     H, W, _ = img.shape
-                                    
-                                    if should_draw_bbox:
-                                        for det in dets:
-                                            box = det.get("bbox", [])
-                                            if len(box) == 4:
-                                                x1 = int(box[0] * W)
-                                                y1 = int(box[1] * H)
-                                                x2 = int(box[2] * W)
-                                                y2 = int(box[3] * H)
-                                                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                                                cv2.putText(img, f"{det.get('label', '')} {det.get('confidence', 0):.2f}", (x1, max(y1 - 5, 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                                        
-                                    if should_draw_lines:
-                                        # Draw the Flow Counter Line/Zone if available
-                                        flow_mode = search_payload.get("flow_mode")
-                                        if flow_mode == "line" and search_payload.get("flow_line"):
-                                            lx1, ly1, lx2, ly2 = search_payload.get("flow_line")
-                                            cv2.line(img, (int(lx1 * W), int(ly1 * H)), (int(lx2 * W), int(ly2 * H)), (0, 0, 255), 2)
-                                        elif flow_mode == "roi" and search_payload.get("flow_roi"):
-                                            roi = search_payload.get("flow_roi")
-                                            rx, ry, rw, rh = roi["x"], roi["y"], roi["w"], roi["h"]
-                                            cv2.rectangle(img, (int(rx * W), int(ry * H)), (int((rx+rw) * W), int((ry+rh) * H)), (0, 0, 255), 2)
-                                            
+                                    flow_mode = search_payload.get("flow_mode")
+                                    if flow_mode == "line" and search_payload.get("flow_line"):
+                                        lx1, ly1, lx2, ly2 = search_payload.get("flow_line")
+                                        cv2.line(img, (int(lx1 * W), int(ly1 * H)), (int(lx2 * W), int(ly2 * H)), (0, 0, 255), 2)
+                                    elif flow_mode == "roi" and search_payload.get("flow_roi"):
+                                        roi = search_payload.get("flow_roi")
+                                        rx, ry, rw, rh = roi["x"], roi["y"], roi["w"], roi["h"]
+                                        cv2.rectangle(img, (int(rx * W), int(ry * H)), (int((rx+rw) * W), int((ry+rh) * H)), (0, 0, 255), 2)
                                     cv2.imwrite(str(path), img)
                             except Exception as e:
-                                import logging
-                                logging.getLogger("ai_engine").error(f"Draw bbox error: {e}")
+                                logger.error(f"Draw flow lines error: {e}")
+
+                    bbox_draw_mode = self._get_bbox_draw_mode(msg, camera_id)
+                    snapshot_url = f"/api/snapshots/{filepath.name}"
+
+                    def _broadcast_capture() -> None:
+                        if self.router.metadata_callback:
+                            try:
+                                self.router.metadata_callback({
+                                    "type": "snapshot_capture",
+                                    "node_id": self.node_id,
+                                    "project_id": self.router.project_id,
+                                    "label": self.label,
+                                    "camera_id": camera_id,
+                                    "snapshot_path": snapshot_url,
+                                    "filename": filepath.name,
+                                    "timestamp": time.time(),
+                                    "tags": self.tags,
+                                    "trigger_payload": payload,
+                                })
+                            except Exception as broadcast_err:
+                                logger.error(f"Snapshot broadcast error for node {self.node_id}: {broadcast_err}")
 
                     if self.zero_latency and self.latest_frame is not None:
                         # Synchronize RTSP latency with JSON speed
-                        sync_delay_ms = int(self.data.get("syncDelay", 250))
+                        sync_delay_ms = int(self.data.get("syncDelay", 0))
                         
                         import threading
                         def delayed_capture():
+                            logger.info(f"SnapshotNode [{self.node_id}] capture triggered: syncDelay={sync_delay_ms}ms, buffer_len={len(self.frame_buffer)}")
                             if sync_delay_ms > 0:
                                 time.sleep(sync_delay_ms / 1000.0) # Wait for video frame to catch up
                                 target_frame = self.latest_frame
@@ -927,50 +1035,47 @@ class SnapshotNode(PipelineNode):
                             else:
                                 target_frame = self.latest_frame
                                 
-                            _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, target_frame)
+                            _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, target_frame, bbox_draw_mode)
+                            _broadcast_capture()
                         
                         t = threading.Thread(target=delayed_capture, daemon=True)
                         t.start()
                     else:
-                        # Asynchronous ffmpeg snapshot
+                        # Asynchronous ffmpeg snapshot fallback
                         import threading
                         if not hasattr(self, '_threads'):
                             self._threads = []
                         self._threads = [t for t in self._threads if t.is_alive()]
                         
                         if len(self._threads) < 5:
-                            t = threading.Thread(target=_capture_and_draw, args=(rtsp_url, filepath, detections, self.router.project_id, self.label))
-                            t.daemon = True
+                            def async_fallback():
+                                _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, None, bbox_draw_mode)
+                                _broadcast_capture()
+
+                            t = threading.Thread(target=async_fallback, daemon=True)
                             t.start()
                             self._threads.append(t)
-
                     
                     # Log to DB
                     import sys
-                    import os
-                    # add backend dir to sys.path if needed
                     backend_dir = Path("/home/pi/pido-ai/backend")
                     if str(backend_dir) not in sys.path:
                         sys.path.insert(0, str(backend_dir))
                     from db.database import db
                     
-                    # Include count if available
                     payload = msg.get("payload")
-                    if isinstance(payload, int):
-                        pass # It might be the count from CounterNode
-                        
                     db.log_event(
                         node_id=self.node_id,
                         project_id=self.router.project_id,
-                        event_type=f"SNAPSHOT",
-                        payload={"label": self.label, "trigger": payload},
+                        event_type="SNAPSHOT",
+                        payload={"label": self.label, "trigger": payload, "tags": self.tags},
                         camera_id=camera_id,
                         snapshot_path=str(filepath)
                     )
-                    msg["snapshot_path"] = f"/api/snapshots/{filepath.name}"
+                    msg["snapshot_path"] = snapshot_url
+                    msg["snapshot_tags"] = self.tags
                 except Exception as e:
-                    import logging
-                    logging.getLogger("ai_engine").error(f"Snapshot error: {e}")
+                    logger.error(f"Snapshot error: {e}")
                     
         self.last_payload = current_payload
         return msg
@@ -1224,6 +1329,7 @@ class MessageRouter:
         self.running = False
         self.thread = None
         self._lock = threading.RLock()
+        self.pipeline_config = None
 
     def add_node(self, node_id: str, node_instance: PipelineNode):
         with self._lock:
@@ -1280,6 +1386,14 @@ class MessageRouter:
                         new_node.last_emit_time = getattr(old_node, 'last_emit_time', 0.0)
                         new_node.last_ws_val = getattr(old_node, 'last_ws_val', None)
                         new_node.first_true = getattr(old_node, 'first_true', None)
+                    # Preserve SnapshotNode frame cache and cleanly restart loop on new node
+                    if hasattr(old_node, 'cap_running') and hasattr(new_node, 'cap_running'):
+                        new_node.latest_frame = getattr(old_node, 'latest_frame', None)
+                        new_node.frame_buffer = list(getattr(old_node, 'frame_buffer', []))
+                        try:
+                            old_node.cleanup()
+                        except Exception as e:
+                            logger.error(f"Error cleaning up old SnapshotNode {nid}: {e}")
 
             # Update nodes' router reference
             for node in new_nodes.values():
@@ -1287,6 +1401,15 @@ class MessageRouter:
 
             self.nodes = new_nodes
             self.edges = new_edges
+
+            # Warm up any newly added nodes
+            for node in self.nodes.values():
+                if hasattr(node, 'on_pipeline_start') and not getattr(node, 'cap_running', False):
+                    try:
+                        node.on_pipeline_start()
+                    except Exception as e:
+                        logger.error(f"Error starting node {node.node_id}: {e}")
+
         logger.info("MessageRouter hot-reload complete.")
 
     def inject_message(self, source_id: str, msg: dict):
@@ -1303,6 +1426,13 @@ class MessageRouter:
             self.running = True
             self.thread = threading.Thread(target=self._route_loop, daemon=True)
             self.thread.start()
+            with self._lock:
+                for node in self.nodes.values():
+                    if hasattr(node, 'on_pipeline_start'):
+                        try:
+                            node.on_pipeline_start()
+                        except Exception as e:
+                            logger.error(f"Error starting node {node.node_id}: {e}")
 
     def stop(self):
         self.running = False
