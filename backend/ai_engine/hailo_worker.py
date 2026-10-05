@@ -464,16 +464,15 @@ class HailoPipelineWorker:
         logger.info("EOS reached bus — sending EOS metadata and stopping pipeline in 1s")
         
         # Send EOS metadata to frontend so it shows "Video Ended" instead of "Stream Error"
-        if self.metadata_callback:
-            # Send EOS flag for all cameras in this worker
-            for pipeline in self.pipelines:
-                for i, group in enumerate(self.config.camera_streams):
-                    if hasattr(group, 'camera_id'):
-                        self.metadata_callback({
-                            "type": "system",
-                            "eos": True,
-                            "camera_id": group.camera_id
-                        })
+        if self.metadata_callback and self.config:
+            for group in getattr(self.config, 'camera_streams', []):
+                self.metadata_callback({
+                    "type": "system",
+                    "eos": True,
+                    "camera_id": getattr(group, 'camera_id', None),
+                    "stream_id": getattr(group, 'stream_id', None),
+                    "input_node_id": getattr(group, 'input_node_id', None)
+                })
                         
         # Delay quit to let the WebRTC buffer flush and metadata to send
         def _delayed_quit():

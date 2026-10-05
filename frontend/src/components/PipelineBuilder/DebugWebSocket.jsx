@@ -131,6 +131,12 @@ export default function DebugWebSocket() {
               sourceDebugNodeIds = logics.get(data.node_id) || [];
               if (setDebugData) setDebugData(data.node_id, data);
             }
+          } else if (data.type === 'system' && data.eos) {
+            if (setDebugData) {
+              if (data.camera_id) setDebugData(data.camera_id, data);
+              if (data.stream_id) setDebugData(data.stream_id, data);
+              if (data.input_node_id) setDebugData(data.input_node_id, data);
+            }
           } else if (data.camera_id) {
             if (cameras.has(data.camera_id) || advancedDebugMode) {
               if (data.type === 'detection' || data.type === 'classification' || data.type === 'pose' || data.type === 'segmentation' || !data.type) {
