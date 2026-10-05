@@ -15,3 +15,12 @@ backups/
 *.tar.gz
 *.zip
 backend/db/*.sqlite*
+
+# Video files are never committed (uploaded sources, wiki demo clips, etc.)
+*.mp4
+*.MP4
+*.avi
+*.mkv
+*.mov
+*.webm
+*.part
