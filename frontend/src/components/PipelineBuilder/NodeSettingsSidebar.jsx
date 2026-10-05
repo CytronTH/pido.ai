@@ -16,6 +16,10 @@ import DashboardWidgetSettings from './settings/DashboardWidgetSettings';
 import DashboardVideoNodeSettings from './settings/DashboardVideoNodeSettings';
 import SnapshotNodeSettings from './settings/SnapshotNodeSettings';
 import TargetTrackerNodeSettings from './settings/TargetTrackerNodeSettings';
+import RateLimitNodeSettings from './settings/RateLimitNodeSettings';
+import FunctionNodeSettings from './settings/FunctionNodeSettings';
+import DebugNodeSettings from './settings/DebugNodeSettings';
+import DebugOutputNodeSettings from './settings/DebugOutputNodeSettings';
 
 const settingsComponents = {
   inputNode: InputNodeSettings,
@@ -32,6 +36,10 @@ const settingsComponents = {
   dashboardVideoNode: DashboardVideoNodeSettings,
   snapshotNode: SnapshotNodeSettings,
   targetTrackerNode: TargetTrackerNodeSettings,
+  rateLimitNode: RateLimitNodeSettings,
+  functionNode: FunctionNodeSettings,
+  debugNode: DebugNodeSettings,
+  debugOutputNode: DebugOutputNodeSettings,
 };
 
 export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose }) {

@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Target } from 'lucide-react';
-import NodeMenu from './NodeMenu';
 import usePipelineStore from '../../../store/usePipelineStore';
+import NodeHeader from './NodeHeader';
 import TargetTrackerNodeSettings from '../settings/TargetTrackerNodeSettings';
 
-export default function TargetTrackerNode({ id, data }) {
+export default function TargetTrackerNode({ id, data, selected }) {
   const updateNodeData = usePipelineStore(s => s.updateNodeData);
   const debugData = usePipelineStore(s => s.debugData || {});
   const debugState = debugData[id] || {};
@@ -45,29 +45,23 @@ export default function TargetTrackerNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-surface border-2 ${isComplete ? 'border-amber-400' : 'border-amber-600'} rounded-xl shadow-lg shadow-amber-900/20 text-fg flex flex-col overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'}`}>
-      <div className="bg-amber-600/20 p-3 flex items-center justify-between border-b border-amber-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-amber-600 p-1.5 rounded-lg">
-            <Target size={16} className="text-fg" />
+    <div className={`bg-surface border-2 ${isComplete ? 'border-amber-400' : selected ? 'border-amber-500 shadow-amber-500/20' : 'border-amber-600'} rounded-xl shadow-lg shadow-amber-900/20 text-fg flex flex-col overflow-hidden transition-all duration-300 ${isCompact ? 'w-48' : 'w-72'}`}>
+      <NodeHeader
+        id={id}
+        icon={Target}
+        iconBg="bg-amber-600"
+        headerBg="bg-amber-600/20 border-amber-900/50"
+        defaultName="Target Tracker"
+        defaultSubtitle={isComplete ? 'Target Reached' : 'Tracking'}
+        data={data}
+      >
+        {!isCompact && (
+          <div className="text-[10px] flex items-center gap-1 bg-surface-2 px-1.5 py-0.5 rounded border border-line-strong">
+            <span className={`w-2 h-2 rounded-full ${isComplete ? 'bg-amber-400 shadow-[0_0_5px_#fbbf24]' : 'bg-fg-subtle'}`}></span>
+            <span className="text-fg-muted font-medium">{isComplete ? 'Target Reached' : 'Tracking'}</span>
           </div>
-          <div>
-            <div className="flex flex-col justify-center">
-              <div className="font-semibold text-sm truncate max-w-[140px] leading-tight">{data?.label || 'Target Tracker'}</div>
-              {data?.label && data.label !== 'Target Tracker' && (
-                <span className="text-[10px] font-mono leading-none truncate mt-0.5 text-fg/50">Target Tracker</span>
-              )}
-            </div>
-            {!isCompact && (
-              <div className="text-[10px] flex items-center gap-1 mt-1">
-                 <span className={`w-2 h-2 rounded-full ${isComplete ? 'bg-amber-400 shadow-[0_0_5px_#fbbf24]' : 'bg-fg-subtle'}`}></span>
-                 <span className="text-amber-700/70 dark:text-amber-300/70">{isComplete ? 'Target Reached' : 'Tracking'}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+        )}
+      </NodeHeader>
 
       {!isCompact && (
         <div className="p-4 flex flex-col gap-3">

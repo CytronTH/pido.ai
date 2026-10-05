@@ -1,28 +1,23 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Settings2 } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 
 export default function RS485Node({ id, data }) {
   const isCompact = data?.viewMode === 'compact';
   return (
-    <div className={`bg-surface border-2 border-indigo-500 rounded-xl p-4 shadow-xl shadow-indigo-900/20 ${isCompact ? 'w-48' : 'w-64'}`}>
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-indigo-500 border-2 border-line-subtle" />
+    <div className={`bg-surface border-2 border-indigo-500 rounded-xl shadow-xl shadow-indigo-900/20 overflow-hidden ${isCompact ? 'w-48' : 'w-64'}`}>
+      <NodeHeader
+        id={id}
+        icon={Settings2}
+        iconBg="bg-indigo-600"
+        headerBg="bg-indigo-500/20 border-indigo-800/50"
+        defaultName="RS485 Modbus"
+        defaultSubtitle="/dev/ttyACM0"
+        data={data}
+      />
       
-      <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-500/20 p-2 rounded-lg">
-            <Settings2 className="text-indigo-600 dark:text-indigo-400" size={24} />
-          </div>
-          <div>
-            <h3 className="font-bold text-fg text-sm">RS485 Modbus</h3>
-            <p className="text-xs text-indigo-500 font-mono">/dev/ttyACM0</p>
-          </div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
-      
-      <div className="space-y-3">
+      <div className={`p-4 space-y-3 ${isCompact ? 'hidden' : ''}`}>
         <div>
           <label className="text-xs text-fg-muted block mb-1">Payload Format</label>
           <select 

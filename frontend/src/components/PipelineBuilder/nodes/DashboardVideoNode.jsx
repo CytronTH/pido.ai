@@ -1,51 +1,37 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Tv } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import { Video } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
+import NodeHeader from './NodeHeader';
 import NodeTelemetryBadge from './NodeTelemetryBadge';
+import DashboardVideoNodeSettings from '../settings/DashboardVideoNodeSettings';
 
-export default function DashboardVideoNode({ id, data }) {
+export default function DashboardVideoNode({ id, data, selected }) {
   const isCompact = data?.viewMode === 'compact';
-  const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
-  const updateNodeData = data?.onUpdate || globalUpdateNodeData;
+  const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
-  const handleLabelChange = (e) => {
-    updateNodeData(id, { label: e.target.value });
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
   };
 
   return (
-    <div className={`bg-surface border-2 border-pink-600 rounded-xl shadow-lg shadow-pink-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
-      <div className="bg-pink-600/20 p-3 flex items-center justify-between border-b border-pink-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-pink-600 p-1.5 rounded-lg">
-            <Tv size={16} className="text-fg" />
-          </div>
-          <div className="font-semibold text-sm">Dashboard Video</div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+    <div className={`bg-surface border-2 ${selected ? 'border-pink-400 shadow-pink-500/20' : 'border-pink-600'} rounded-xl shadow-lg shadow-pink-900/20 ${isCompact ? 'w-48' : 'w-72'} text-fg overflow-hidden`}>
+      <NodeHeader
+        id={id}
+        icon={Video}
+        iconBg="bg-pink-600"
+        headerBg="bg-pink-600/20 border-pink-900/50"
+        defaultName="Video Stream"
+        defaultSubtitle="Dashboard Feed"
+        data={data}
+      />
       
-      <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Output Label (For Dashboard)
-          <input 
-            type="text"
-            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-pink-500 nodrag"
-            value={data?.label || ''}
-            onChange={handleLabelChange}
-            placeholder="e.g. Main CCTV Output"
-          />
-        </label>
-        
-
-        <div className="text-[10px] text-fg-subtle mt-1">
-          Provides video stream to Dashboard Video widgets.
+      {!isCompact && (
+        <div className="p-4 flex flex-col gap-3">
+          <DashboardVideoNodeSettings nodeId={id} data={data} onChange={handleSettingsChange} />
+          <NodeTelemetryBadge nodeId={id} />
         </div>
-
-        {/* Live Telemetry (CPU & FPS) */}
-        <NodeTelemetryBadge nodeId={id} />
-      </div>
+      )}
 
       <Handle 
         type="target" 

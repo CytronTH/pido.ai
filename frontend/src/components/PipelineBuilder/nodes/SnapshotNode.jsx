@@ -1,38 +1,35 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Camera } from 'lucide-react';
+import { Image } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
+import SnapshotNodeSettings from '../settings/SnapshotNodeSettings';
 
 export default function SnapshotNode({ id, data, selected }) {
   const updateNodeData = usePipelineStore(s => s.updateNodeData);
   const isCompact = data?.viewMode === 'compact';
+
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
+  };
+
   return (
-    <div className={`bg-surface border-2 rounded-xl shadow-xl ${isCompact ? 'w-48' : 'w-64'} overflow-hidden transition-colors ${selected ? 'border-pink-500' : 'border-pink-500/30'}`}>
-      <div className="bg-gradient-to-r from-pink-900/50 to-pink-800/50 p-3 border-b border-line flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Camera size={18} className="text-pink-600 dark:text-pink-400" />
-          <span className="font-semibold text-fg text-sm tracking-wide">Snapshot Node</span>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+    <div className={`bg-surface border-2 rounded-xl shadow-xl ${isCompact ? 'w-48' : 'w-72'} overflow-hidden transition-all duration-300 ${selected ? 'border-pink-400 shadow-pink-500/20' : 'border-pink-600'}`}>
+      <NodeHeader
+        id={id}
+        icon={Image}
+        iconBg="bg-pink-600"
+        headerBg="bg-pink-600/20 border-pink-900/50"
+        defaultName="Snapshot"
+        defaultSubtitle="Frame Capture"
+        data={data}
+      />
       
-      <div className={`p-4 space-y-4 ${isCompact ? 'hidden' : ''}`}>
-        <div>
-          <label className="block text-xs font-medium text-fg-muted mb-1">Snapshot Label</label>
-          <input
-            type="text"
-            className="w-full bg-surface-2 border border-line-strong rounded-md p-2 text-sm text-fg focus:outline-none focus:border-pink-500 transition-colors nodrag"
-            value={data.label || ''}
-            onChange={(e) => updateNodeData(id, { label: e.target.value })}
-            placeholder="e.g. Save NG Image"
-          />
+      {!isCompact && (
+        <div className="p-4 flex flex-col gap-3">
+          <SnapshotNodeSettings data={data} onChange={handleSettingsChange} />
         </div>
-        
-        <div className="text-xs text-fg-subtle leading-relaxed bg-surface-2/50 p-2 rounded-lg border border-line-strong/50">
-          Saves a high-res frame to disk and logs it to the database when triggered by a <span className="text-blue-600 dark:text-blue-400 font-medium">True</span> payload.
-        </div>
-      </div>
+      )}
 
       <Handle type="target" position={Position.Left} className="w-3 h-3 bg-pink-500 border-2 border-line-subtle" />
       <Handle type="source" position={Position.Right} className="w-3 h-3 bg-pink-500 border-2 border-line-subtle" />

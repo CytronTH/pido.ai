@@ -2,7 +2,7 @@ import React, { memo, useState } from 'react';
 import { Handle, Position, NodeResizer } from '@xyflow/react';
 import { Terminal, Trash2, Pause, Play, Plus, Minus, Code, AlignLeft } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 
 export default memo(({ data, selected, isConnectable, id }) => {
   const debugMessages = usePipelineStore((state) => state.debugMessages || []);
@@ -217,12 +217,15 @@ export default memo(({ data, selected, isConnectable, id }) => {
         <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500 border-2 border-line-subtle" />
         
         {/* Header */}
-        <div className="bg-purple-100 dark:bg-purple-900/30 px-3 py-2 border-b border-purple-800/50 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <Terminal size={14} className="text-purple-600 dark:text-purple-400" />
-            <span className="text-xs font-bold text-purple-800 dark:text-purple-100 uppercase tracking-wider">Debug Output</span>
-          </div>
-          
+        <NodeHeader
+          id={id}
+          icon={Terminal}
+          iconBg="bg-purple-600"
+          headerBg="bg-purple-100 dark:bg-purple-900/30 border-purple-800/50"
+          defaultName="Debug Output"
+          defaultSubtitle="Realtime Log Console"
+          data={data}
+        >
           <div className="flex items-center gap-1">
             <button 
               onClick={() => setIsPretty(!isPretty)} 
@@ -257,9 +260,8 @@ export default memo(({ data, selected, isConnectable, id }) => {
             >
               <Trash2 size={12} />
             </button>
-            <NodeMenu id={id} />
           </div>
-        </div>
+        </NodeHeader>
 
         {/* Content */}
         <div className="p-2 flex-grow overflow-y-auto bg-canvas font-mono" style={{ fontSize: `${fontSize}px` }}>

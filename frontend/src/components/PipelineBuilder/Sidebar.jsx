@@ -1,35 +1,71 @@
 import React from 'react';
-import { Camera, BrainCircuit, Filter, Bell, ToggleLeft, ToggleRight, Lightbulb, BellRing, Settings2, Info, Camera as CameraIcon, BookOpen, X, Plus, Layers, ShieldAlert } from 'lucide-react';
+import { 
+  Camera, BrainCircuit, Filter, Timer, Code, Hash, ArrowRightLeft, Target, 
+  Activity, Database, BookOpen, Image, Video, Type, LineChart, List, Bell, 
+  ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, Terminal, 
+  Info, X 
+} from 'lucide-react';
 
 export const NODE_CATEGORIES = [
   {
-    title: 'Nodes',
+    title: 'Vision & AI',
+    badgeColor: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
     items: [
-      { type: 'inputNode', label: 'Input Source', icon: Camera, bg: 'bg-blue-100 dark:bg-blue-900/30 border-blue-700/50 text-blue-600 dark:text-blue-400' },
-      { type: 'aiNode', label: 'AI Model', icon: BrainCircuit, bg: 'bg-purple-100 dark:bg-purple-900/30 border-purple-700/50 text-purple-600 dark:text-purple-400' },
-      { type: 'logicNode', label: 'Logic / Filter', icon: Filter, bg: 'bg-orange-100 dark:bg-orange-900/30 border-orange-700/50 text-orange-700 dark:text-orange-400' },
-      { type: 'counterNode', label: 'Counter', textIcon: '∑', bg: 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-700/50 text-emerald-600 dark:text-emerald-400' },
-      { type: 'flowCounterNode', label: 'Flow Counter', textIcon: '⇄', bg: 'bg-teal-100 dark:bg-teal-900/30 border-teal-700/50 text-teal-600 dark:text-teal-400' },
-      { type: 'targetTrackerNode', label: '🎯 Target Tracker', bg: 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-700/50 text-indigo-600 dark:text-indigo-400' },
-      { type: 'unitThroughputNode', label: '⏱️ Unit Throughput', bg: 'bg-teal-100 dark:bg-teal-900/30 border-teal-700/50 text-teal-600 dark:text-teal-400' },
-      { type: 'databaseWriterNode', label: '💾 Database Writer', bg: 'bg-blue-100 dark:bg-blue-900/30 border-blue-700/50 text-blue-600 dark:text-blue-400' },
-      { type: 'collectionWriterNode', label: '📚 Collection Writer', bg: 'bg-orange-100 dark:bg-orange-900/30 border-orange-700/50 text-orange-700 dark:text-orange-400' },
-      { type: 'snapshotNode', label: 'Snapshot', icon: CameraIcon, bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
+      { type: 'inputNode', label: 'Input Source', desc: 'Camera or video source', icon: Camera, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
+      { type: 'aiNode', label: 'AI Model', desc: 'Hailo-8 NPU inference', icon: BrainCircuit, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' },
+      { type: 'snapshotNode', label: 'Snapshot', desc: 'Capture image frame', icon: Image, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
+    ]
+  },
+  {
+    title: 'Analytics & Logic',
+    badgeColor: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
+    items: [
+      { type: 'logicNode', label: 'Logic Filter', desc: 'Filter & equation rules', icon: Filter, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+      { type: 'flowCounterNode', label: 'Flow Counter', desc: 'Line & zone object counter', icon: ArrowRightLeft, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20' },
+      { type: 'counterNode', label: 'Event Counter', desc: 'Signal edge counter', icon: Hash, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+      { type: 'targetTrackerNode', label: 'Target Tracker', desc: 'Production target & ETA', icon: Target, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
+      { type: 'unitThroughputNode', label: 'Unit Throughput', desc: 'Rate per minute tracking', icon: Activity, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
+      { type: 'functionNode', label: 'Function', desc: 'Python transformation script', icon: Code, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+      { type: 'rateLimitNode', label: 'Rate Limit', desc: 'Throttle event rate', icon: Timer, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20' },
+    ]
+  },
+  {
+    title: 'Storage & Integration',
+    badgeColor: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+    items: [
+      { type: 'databaseWriterNode', label: 'Database Writer', desc: 'Save values to database', icon: Database, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
+      { type: 'collectionWriterNode', label: 'Collection Writer', desc: 'Save to collections', icon: BookOpen, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+      { type: 'actionNode', label: 'Action / Alert', desc: 'Notification & webhook', icon: Bell, color: 'text-green-500 bg-green-500/10 border-green-500/20' },
+    ]
+  },
+  {
+    title: 'Hardware & I/O',
+    badgeColor: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20',
+    items: [
+      { type: 'digitalInputNode', label: 'Digital Input', desc: 'Isolated DI (Max 50V)', icon: ToggleLeft, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
+      { type: 'digitalOutputNode', label: 'Digital Output', desc: 'Isolated DO (Max 50V)', icon: ToggleRight, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+      { type: 'buzzerNode', label: 'Active Buzzer', desc: 'GPIO19 Onboard alert', icon: BellRing, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
+      { type: 'ledNode', label: 'LED Driver', desc: 'PWM Output (Max 2A)', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' },
+      { type: 'rs485Node', label: 'RS485 Modbus', desc: 'Serial industrial comms', icon: Settings2, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
     ]
   },
   {
     title: 'Dashboard Outputs',
+    badgeColor: 'text-pink-500 bg-pink-500/10 border-pink-500/20',
     items: [
-      { type: 'dashboardVideoNode', label: 'Video Stream', textIcon: '📺', bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
-      { type: 'dashboardMetricNode', label: 'Number / Metric', textIcon: '🔢', bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
-      { type: 'dashboardTextNode', label: 'Text Value', textIcon: '📝', bg: 'bg-pink-100 dark:bg-pink-900/30 border-pink-700/50 text-pink-600 dark:text-pink-400' },
-      { type: 'dashboardChartNode', label: 'Chart', textIcon: '📊', bg: 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-700/50 text-indigo-600 dark:text-indigo-400' },
+      { type: 'dashboardVideoNode', label: 'Video Stream', desc: 'Live video to dashboard', icon: Video, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
+      { type: 'dashboardMetricNode', label: 'Number / Metric', desc: 'Numeric metric display', icon: Hash, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
+      { type: 'dashboardTextNode', label: 'Text Value', desc: 'Status text display', icon: Type, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
+      { type: 'dashboardChartNode', label: 'Chart', desc: 'Time-series chart output', icon: LineChart, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
+      { type: 'dashboardLogNode', label: 'Dashboard Log', desc: 'Historical feed output', icon: List, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
     ]
   },
   {
-    title: 'Debugging',
+    title: 'Diagnostics & Debug',
+    badgeColor: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
     items: [
-      { type: 'debugNode', label: 'Debug Node', textIcon: '🐛', bg: 'bg-surface-2 border-line-stronger text-fg-secondary' },
+      { type: 'debugNode', label: 'Debug Node', desc: 'Probe payload packets', icon: Bug, color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' },
+      { type: 'debugOutputNode', label: 'Debug Output', desc: 'Live JSON terminal window', icon: Terminal, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
     ]
   }
 ];
@@ -77,34 +113,47 @@ export default function Sidebar({ onOpenWiki, onAddNode, onCloseMobile }) {
 
       {NODE_CATEGORIES.map(category => (
         <div key={category.title} className="flex flex-col gap-1.5">
-          <div className="text-fg-muted font-semibold text-xs uppercase tracking-wider mt-2 mb-1">
-            {category.title}
+          <div className="text-fg-muted font-semibold text-xs uppercase tracking-wider mt-2 mb-1 flex items-center justify-between">
+            <span>{category.title}</span>
+            <span className="text-[10px] text-fg-subtle font-normal">({category.items.length})</span>
           </div>
           {category.items.map(item => {
             const IconComponent = item.icon;
             return (
               <div 
                 key={item.type}
-                className={`flex items-center gap-3 p-2.5 sm:p-3 ${item.bg} border rounded-lg cursor-pointer hover:brightness-125 transition-all group select-none active:scale-[0.98] shadow-sm`}
+                className="bg-surface-2 border border-line-strong/60 p-2 sm:p-2.5 rounded-xl cursor-pointer hover:bg-surface-3 hover:border-line-strong transition-all shadow-sm flex items-center justify-between group gap-2.5 select-none active:scale-[0.98]"
                 onDragStart={(event) => onDragStart(event, item.type)}
                 onClick={() => handleNodeClick(item.type)}
                 draggable
                 title="Click or tap to add, or drag to position"
               >
-                {IconComponent ? (
-                  <IconComponent size={18} className="shrink-0" />
-                ) : (
-                  <span className="font-bold text-sm shrink-0 w-4 text-center">{item.textIcon}</span>
-                )}
-                <span className="text-fg font-medium text-xs sm:text-sm truncate flex-1">{item.label}</span>
-                <span className="md:hidden text-[10px] text-fg-muted bg-surface-2/80 px-1.5 py-0.5 rounded border border-line-strong">Add</span>
-                <button 
-                  onClick={(e) => handleInfoClick(e, item.type)} 
-                  className="text-fg-muted hover:text-fg sm:opacity-0 sm:group-hover:opacity-100 transition-all p-1 hover:bg-surface-2 rounded shrink-0"
-                  title="View Wiki Info"
-                >
-                  <Info size={15} />
-                </button>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className={`p-2 rounded-lg border shrink-0 ${item.color}`}>
+                    <IconComponent size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-fg text-xs sm:text-sm font-semibold truncate group-hover:text-blue-500 transition-colors">
+                      {item.label}
+                    </div>
+                    {item.desc && (
+                      <div className="text-[10px] sm:text-[11px] text-fg-subtle truncate">
+                        {item.desc}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="md:hidden text-[10px] text-fg-muted bg-surface-3 px-1.5 py-0.5 rounded border border-line-strong">Add</span>
+                  <button 
+                    onClick={(e) => handleInfoClick(e, item.type)} 
+                    className="text-fg-muted hover:text-fg sm:opacity-0 sm:group-hover:opacity-100 transition-all p-1.5 hover:bg-surface rounded-lg shrink-0"
+                    title="View Wiki Info"
+                  >
+                    <Info size={14} />
+                  </button>
+                </div>
               </div>
             );
           })}
