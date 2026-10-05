@@ -27,7 +27,7 @@ const NODE_NAMES = {
   dashboardTextNode: 'Text Value',
   dashboardChartNode: 'Chart',
   dashboardLogNode: 'Dashboard Log',
-  debugNode: 'Debug Node',
+  debugNode: 'Debug node',
   debugOutputNode: 'Debug Output',
 };
 

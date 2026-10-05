@@ -24,7 +24,8 @@ export default function NodeHeader({
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
   const trimmedLabel = typeof data?.label === 'string' ? data.label.trim() : '';
-  const isCustom = Boolean(trimmedLabel && trimmedLabel.toLowerCase() !== defaultName.toLowerCase());
+  const isLegacyDefault = trimmedLabel.toLowerCase() === 'debugnode node' || trimmedLabel.toLowerCase() === 'debugnode';
+  const isCustom = Boolean(trimmedLabel && trimmedLabel.toLowerCase() !== defaultName.toLowerCase() && !isLegacyDefault);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(isCustom ? trimmedLabel : '');

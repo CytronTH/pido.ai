@@ -37,7 +37,7 @@ const DEFAULT_NODE_NAMES = {
   dashboardMetricNode: 'Number / Metric',
   dashboardTextNode: 'Text Value',
   dashboardVideoNode: 'Video Stream',
-  debugNode: 'Debug Node',
+  debugNode: 'Debug node',
   debugOutputNode: 'Debug Output',
   digitalInputNode: 'Digital Input',
   digitalOutputNode: 'Digital Output',
@@ -68,7 +68,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     dirtyNodeIds, deployMode, setDeployMode, markAsDeployed,
     deleteNodes, deleteEdge, pipelineViewMode, setPipelineViewMode,
     syncCurrentPositions, autoSaveStatus,
-    activeSidebarNodeId, setActiveSidebarNodeId, beautifyPipeline
+    activeSidebarNodeId, setActiveSidebarNodeId, beautifyPipeline,
+    checkProjectStatus, setIsProjectRunning
   } = usePipelineStore(useShallow((state) => ({
     nodes: state.nodes,
     edges: state.edges,
@@ -95,11 +96,14 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     activeSidebarNodeId: state.activeSidebarNodeId,
     setActiveSidebarNodeId: state.setActiveSidebarNodeId,
     beautifyPipeline: state.beautifyPipeline,
+    checkProjectStatus: state.checkProjectStatus,
+    setIsProjectRunning: state.setIsProjectRunning,
   })));
 
   React.useEffect(() => {
     if (!projectId) return;
     setProjectId(projectId);
+    checkProjectStatus(projectId);
     // Fetch project data and initialize store
     fetch('/api/projects')
       .then(res => res.json())
@@ -285,6 +289,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         markAsDeployed(nodes, edges);
+        setIsProjectRunning(true);
         const modeLabel = 
           data.mode === 'none' ? 'Already up to date' :
           data.mode === 'router_only' ? '⚡ Logic Hot-Reloaded (0s downtime)' :
