@@ -109,6 +109,7 @@ const usePipelineStore = create((set, get) => ({
       autoSaveStatus: 'idle', // 'idle' | 'saving' | 'saved'
       debugData: {},
       projectId: null,
+      isProjectRunning: false,
       highlightedNodeIds: [],
       telemetryData: null,
       showMetricsOverlay: true,
@@ -245,7 +246,29 @@ const usePipelineStore = create((set, get) => ({
         }, 400);
       },
       setHighlightedNodeIds: (ids) => set({ highlightedNodeIds: ids }),
-      setProjectId: (id) => set({ projectId: id }),
+      setIsProjectRunning: (isRunning) => set({ isProjectRunning: Boolean(isRunning) }),
+      checkProjectStatus: async (targetProjectId) => {
+        const pid = targetProjectId || get().projectId;
+        if (!pid || pid === 'wiki_sandbox') return false;
+        try {
+          const res = await fetch('/api/projects/status');
+          if (res.ok) {
+            const data = await res.json();
+            const isRunning = data[pid]?.status === 'running';
+            set({ isProjectRunning: isRunning });
+            return isRunning;
+          }
+        } catch (err) {
+          // ignore
+        }
+        return false;
+      },
+      setProjectId: (id) => {
+        set({ projectId: id });
+        if (id && id !== 'wiki_sandbox') {
+          get().checkProjectStatus(id);
+        }
+      },
       setTelemetryData: (data) => set({ telemetryData: data }),
       setShowMetricsOverlay: (show) => set({ showMetricsOverlay: show }),
       toggleMetricsOverlay: () => set((state) => ({ showMetricsOverlay: !state.showMetricsOverlay })),
@@ -346,14 +369,24 @@ const usePipelineStore = create((set, get) => ({
       setPipeline: (nodes, edges) => {
         const currentMode = get().pipelineViewMode;
         const processedNodes = nodes.map(node => {
-          const pos = node.position || { x: 50, y: 150 };
-          const existingPositions = node.data?.positions || {};
+          let updatedNode = node;
+          if (node.type === 'debugNode' && (node.data?.label === 'debugNode node' || node.data?.label === 'debugNode')) {
+            updatedNode = {
+              ...node,
+              data: {
+                ...node.data,
+                label: 'Debug node'
+              }
+            };
+          }
+          const pos = updatedNode.position || { x: 50, y: 150 };
+          const existingPositions = updatedNode.data?.positions || {};
           const currentModePos = existingPositions[currentMode] || pos;
           return {
-            ...node,
+            ...updatedNode,
             position: { ...currentModePos },
             data: {
-              ...node.data,
+              ...updatedNode.data,
               positions: {
                 inline: existingPositions.inline || { ...pos },
                 compact: existingPositions.compact || { ...pos },

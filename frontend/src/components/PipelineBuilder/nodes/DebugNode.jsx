@@ -91,11 +91,13 @@ export default memo(({ data, isConnectable, id }) => {
   const dirtyNodeIds = usePipelineStore((state) => state.dirtyNodeIds || []);
   const debugData = usePipelineStore((state) => state.debugData || {});
   const projectId = usePipelineStore((state) => state.projectId);
+  const isProjectRunning = usePipelineStore((state) => state.isProjectRunning);
   const highlightedNodeIds = usePipelineStore((state) => state.highlightedNodeIds);
   const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
   const updateNodeData = data?.onUpdate || globalUpdateNodeData;
   const isWikiMode = data?.isWikiMode;
   const activeProjectId = isWikiMode ? 'wiki_sandbox' : projectId;
+  const isStreamActive = Boolean(isWikiMode || isProjectRunning);
   
   const connections = useHandleConnections({ type: 'target' });
   const incomingEdge = edges.find((e) => e.target === id);
@@ -149,6 +151,7 @@ export default memo(({ data, isConnectable, id }) => {
 
   // If any upstream node or this node has undeployed changes, show "waiting for deploy"
   const isWaitingForDeploy = useMemo(() => {
+    if (!isStreamActive) return false;
     if (isWikiMode) return false;
     if (!hasVideoPreview) return false;
     if (!dirtyNodeIds || dirtyNodeIds.length === 0) return false;
@@ -158,7 +161,7 @@ export default memo(({ data, isConnectable, id }) => {
 
     // Check if any upstream node in the pipeline chain has modified settings
     return upstreamNodeIds.some(upstreamId => dirtyNodeIds.includes(upstreamId));
-  }, [isWikiMode, hasVideoPreview, dirtyNodeIds, id, upstreamNodeIds]);
+  }, [isStreamActive, isWikiMode, hasVideoPreview, dirtyNodeIds, id, upstreamNodeIds]);
 
   const isHighlighted = highlightedNodeIds?.includes(id);
   const isPaused = data?.isPaused;
@@ -237,7 +240,7 @@ export default memo(({ data, isConnectable, id }) => {
     }
   }
   
-  const activeWhepUrl = isWaitingForDeploy ? null : whepUrl;
+  const activeWhepUrl = (!isStreamActive || isWaitingForDeploy) ? null : whepUrl;
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -281,34 +284,34 @@ export default memo(({ data, isConnectable, id }) => {
   }, [status]);
 
   useEffect(() => {
-    if (isWaitingForDeploy) {
+    if (isWaitingForDeploy || !isStreamActive) {
       setIsEos(false);
       hasConnectedOnceRef.current = false;
     }
-  }, [isWaitingForDeploy]);
+  }, [isWaitingForDeploy, isStreamActive]);
 
   // Check if non-loop video has ended
   const isVideoEnd = Boolean(
-    hasVideoPreview && isNonLoop && (isEos || status === 'ended' || (status === 'error' && (hasConnectedOnceRef.current || isEos || true)))
+    isStreamActive && hasVideoPreview && isNonLoop && (isEos || status === 'ended' || (status === 'error' && hasConnectedOnceRef.current))
   );
 
-  const shouldDrawBoxes = (sourceNode?.type === 'aiNode' || (isForkliftNode && isVideoMode)) && !data?.isPaused && !isWaitingForDeploy && !isVideoEnd;
+  const shouldDrawBoxes = isStreamActive && (sourceNode?.type === 'aiNode' || (isForkliftNode && isVideoMode)) && !data?.isPaused && !isWaitingForDeploy && !isVideoEnd;
   const lastBoxesRef = useRef({ items: [], time: 0 });
   const latestDataRef = useRef(null);
 
   useEffect(() => {
-    if (debugData && currentStreamId && !isWaitingForDeploy && !isVideoEnd) {
+    if (debugData && currentStreamId && isStreamActive && !isWaitingForDeploy && !isVideoEnd) {
       latestDataRef.current = debugData[currentStreamId];
     }
-  }, [debugData, currentStreamId, isWaitingForDeploy, isVideoEnd]);
+  }, [debugData, currentStreamId, isStreamActive, isWaitingForDeploy, isVideoEnd]);
 
   useEffect(() => {
-    if (isWaitingForDeploy || isVideoEnd) {
+    if (!isStreamActive || isWaitingForDeploy || isVideoEnd) {
       latestDataRef.current = null;
       lastBoxesRef.current = { items: [], time: 0 };
       if (videoRef.current) {
         videoRef.current.pause();
-        if (isWaitingForDeploy) {
+        if (!isStreamActive || isWaitingForDeploy) {
           videoRef.current.srcObject = null;
         }
       }
@@ -319,17 +322,17 @@ export default memo(({ data, isConnectable, id }) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
     }
-  }, [isWaitingForDeploy, isVideoEnd]);
+  }, [isStreamActive, isWaitingForDeploy, isVideoEnd]);
 
   useEffect(() => {
     if (videoRef.current) {
-      if (isPaused || isWaitingForDeploy || isVideoEnd) {
+      if (!isStreamActive || isPaused || isWaitingForDeploy || isVideoEnd) {
         videoRef.current.pause();
       } else if (activeWhepUrl) {
         videoRef.current.play().catch(e => console.log('[WHEP] Play error:', e));
       }
     }
-  }, [isPaused, isWaitingForDeploy, isVideoEnd, activeWhepUrl]);
+  }, [isStreamActive, isPaused, isWaitingForDeploy, isVideoEnd, activeWhepUrl]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -557,7 +560,7 @@ export default memo(({ data, isConnectable, id }) => {
       <div className="relative w-64 aspect-video bg-black flex items-center justify-center overflow-hidden">
         <video 
           ref={videoRef} 
-          className={`w-full h-full object-contain ${(!activeWhepUrl || status === 'error' || status === 'ended' || isWaitingForDeploy || isVideoEnd) ? 'hidden' : ''}`} 
+          className={`w-full h-full object-contain ${(!activeWhepUrl || status === 'error' || status === 'ended' || isWaitingForDeploy || isVideoEnd || !isStreamActive) ? 'hidden' : ''}`} 
           autoPlay 
           playsInline 
           muted 
@@ -565,7 +568,43 @@ export default memo(({ data, isConnectable, id }) => {
           onLoadedMetadata={(e) => setResolution(`${e.target.videoWidth}x${e.target.videoHeight}`)}
         />
         
-        {isWaitingForDeploy ? (
+        {!isStreamActive ? (
+          <div 
+            data-testid="debug-node-project-stopped"
+            className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-4 text-center select-none z-10"
+          >
+            <div className="relative mb-2 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-surface-3 border border-line-strong flex items-center justify-center shadow-md text-fg-muted">
+                <Play size={18} className="translate-x-0.5 text-fg-muted" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-0.5 items-center">
+              <span className="text-xs font-bold uppercase tracking-wider text-fg-secondary font-mono">
+                start project to watch debug video
+              </span>
+              <span className="text-[10px] text-fg-subtle leading-tight max-w-[200px]">
+                Project is stopped. Start project or deploy pipeline to view video.
+              </span>
+              {projectId && (
+                <button 
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await fetch(`/api/projects/${projectId}/start`, { method: 'POST' });
+                      usePipelineStore.getState().setIsProjectRunning(true);
+                    } catch (err) {
+                      console.error("Failed to start project", err);
+                    }
+                  }}
+                  className="mt-2 text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1 font-medium transition-colors"
+                >
+                  <Play size={10} fill="currentColor" />
+                  <span>Start Project</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ) : isWaitingForDeploy ? (
           <div 
             data-testid="debug-node-waiting-deploy"
             className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-4 text-center select-none z-10"
@@ -631,7 +670,7 @@ export default memo(({ data, isConnectable, id }) => {
             )}
             
             <canvas ref={canvasRef} width={640} height={360} className="absolute inset-0 w-full h-full pointer-events-none" />
-            <div className={`absolute top-1 left-1 bg-black/60 text-fg text-[10px] px-1 rounded flex gap-2 ${isVideoEnd ? 'hidden' : ''}`}>
+            <div className={`absolute top-1 left-1 bg-black/60 text-fg text-[10px] px-1 rounded flex gap-2 ${isVideoEnd || !isStreamActive ? 'hidden' : ''}`}>
               <span>{sourceNode.type === 'forkliftZoneNode' ? `Forklift Video (${sourceHandle || 'debug'})` : 'Live Preview'}</span>
               {resolution && <span className="text-fg-secondary font-mono">{resolution}</span>}
             </div>
@@ -872,6 +911,8 @@ export default memo(({ data, isConnectable, id }) => {
     <div className={`bg-surface border-2 rounded-xl shadow-2xl min-w-[180px] overflow-hidden transition-all duration-300 relative ${
       isHighlighted 
         ? 'border-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.6)] scale-105 z-50' 
+        : !isStreamActive
+        ? 'border-line-strong/80'
         : isWaitingForDeploy
         ? 'border-amber-500/70 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
         : isVideoEnd
@@ -884,10 +925,12 @@ export default memo(({ data, isConnectable, id }) => {
       <NodeHeader
         id={id}
         icon={Bug}
-        iconBg={isWaitingForDeploy || isPaused ? 'bg-amber-600' : isVideoEnd ? 'bg-blue-600' : 'bg-surface-3'}
-        iconColor={isWaitingForDeploy || isPaused || isVideoEnd ? 'text-white' : 'text-fg-secondary'}
+        iconBg={!isStreamActive ? 'bg-surface-3' : isWaitingForDeploy || isPaused ? 'bg-amber-600' : isVideoEnd ? 'bg-blue-600' : 'bg-surface-3'}
+        iconColor={!isStreamActive ? 'text-fg-secondary' : isWaitingForDeploy || isPaused || isVideoEnd ? 'text-white' : 'text-fg-secondary'}
         headerBg={
-          isWaitingForDeploy
+          !isStreamActive
+            ? 'bg-surface-2/80 border-line-strong/80'
+            : isWaitingForDeploy
             ? 'bg-amber-500/10 border-amber-500/30'
             : isVideoEnd
             ? 'bg-blue-500/10 border-blue-500/30'
@@ -895,16 +938,21 @@ export default memo(({ data, isConnectable, id }) => {
             ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-900/50' 
             : 'bg-surface-2/80 border-line-strong/80'
         }
-        defaultName="Debug Node"
+        defaultName="Debug node"
         defaultSubtitle="Payload Probe"
         data={data}
       >
-        {isWaitingForDeploy && (
+        {!isStreamActive && hasVideoPreview && (
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-surface-3 text-fg-subtle border border-line-strong font-mono shrink-0">
+            Stopped
+          </span>
+        )}
+        {isStreamActive && isWaitingForDeploy && (
           <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-mono shrink-0">
             Waiting Deploy
           </span>
         )}
-        {isVideoEnd && !isWaitingForDeploy && (
+        {isStreamActive && isVideoEnd && !isWaitingForDeploy && (
           <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-mono shrink-0">
             Video End
           </span>
@@ -912,11 +960,11 @@ export default memo(({ data, isConnectable, id }) => {
         {hasVideoPreview && (
           <button 
             onClick={togglePause} 
-            disabled={isWaitingForDeploy || isVideoEnd}
+            disabled={!isStreamActive || isWaitingForDeploy || isVideoEnd}
             className={`bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors ${
-              (isWaitingForDeploy || isVideoEnd) ? 'opacity-40 cursor-not-allowed' : ''
+              (!isStreamActive || isWaitingForDeploy || isVideoEnd) ? 'opacity-40 cursor-not-allowed' : ''
             }`} 
-            title={isWaitingForDeploy ? "Waiting for deploy" : isVideoEnd ? "Video End" : isPaused ? "Resume Node" : "Pause Node"}
+            title={!isStreamActive ? "Start project to resume" : isWaitingForDeploy ? "Waiting for deploy" : isVideoEnd ? "Video End" : isPaused ? "Resume Node" : "Pause Node"}
           >
             {isPaused ? <Play size={12} className="text-green-600 dark:text-green-400" /> : <Pause size={12} className="text-amber-700 dark:text-amber-400" />}
           </button>

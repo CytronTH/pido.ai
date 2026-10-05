@@ -64,7 +64,7 @@ export const NODE_CATEGORIES = [
     title: 'Diagnostics & Debug',
     badgeColor: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
     items: [
-      { type: 'debugNode', label: 'Debug Node', desc: 'Probe payload packets', icon: Bug, color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' },
+      { type: 'debugNode', label: 'Debug node', desc: 'Probe payload packets', icon: Bug, color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' },
       { type: 'debugOutputNode', label: 'Debug Output', desc: 'Live JSON terminal window', icon: Terminal, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
     ]
   }
