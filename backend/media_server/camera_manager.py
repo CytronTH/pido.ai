@@ -25,6 +25,35 @@ class CameraStreamInstance:
         self.restart_count = 0
         self.is_ready = False
         self.duration_sec: Optional[float] = None
+        self.speed: float = 1.0
+        self.src_fps: Optional[float] = None
+
+
+MIN_PLAYBACK_SPEED = 0.25
+MAX_PLAYBACK_SPEED = 4.0
+
+
+def _clamp_speed(speed: Any) -> float:
+    """Normalize a user-supplied playback speed into the supported range."""
+    try:
+        value = float(speed)
+    except (TypeError, ValueError):
+        return 1.0
+    if value <= 0:
+        return 1.0
+    return max(MIN_PLAYBACK_SPEED, min(MAX_PLAYBACK_SPEED, value))
+
+
+def _parse_frame_rate(raw: str) -> Optional[float]:
+    """Parse ffprobe r_frame_rate strings like '30000/1001' or '25'."""
+    try:
+        if "/" in raw:
+            num, den = raw.split("/", 1)
+            den_f = float(den)
+            return float(num) / den_f if den_f else None
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 class CameraManager:
     """
@@ -64,13 +93,15 @@ class CameraManager:
         with self.lock:
             stream = self.streams.get(camera_id)
             if stream and stream.proc and stream.camera_type == "file" and stream.start_time > 0 and stream.duration_sec:
-                # Calculate loop based on elapsed time (minus the 4s tpad delay)
+                # Calculate loop based on elapsed time (minus the 4s tpad delay).
+                # At speed S, one pass of the file takes duration/S seconds of wall-clock time.
                 elapsed = max(0, time.time() - stream.start_time - 4.0)
-                current_loop = int(elapsed // stream.duration_sec) + 1
-                return {"duration": stream.duration_sec, "current_loop": current_loop}
+                loop_wall_sec = stream.duration_sec / (stream.speed or 1.0)
+                current_loop = int(elapsed // loop_wall_sec) + 1
+                return {"duration": stream.duration_sec, "current_loop": current_loop, "speed": stream.speed}
             return {}
 
-    def acquire(self, camera_id: str, camera_entity: Optional[Dict[str, Any]] = None, loop: bool = True, loop_count: int = 1) -> str:
+    def acquire(self, camera_id: str, camera_entity: Optional[Dict[str, Any]] = None, loop: bool = True, loop_count: int = 1, speed: float = 1.0) -> str:
         """
         Acquires a shared camera stream.
         If already running, increments ref_count and cancels any pending grace shutdown.
@@ -93,6 +124,11 @@ class CameraManager:
                     logger.info(f"Revived camera '{camera_id}' from grace period.")
                 
                 stream.ref_count += 1
+                if stream.camera_type == "file" and abs(stream.speed - _clamp_speed(speed)) > 1e-6:
+                    logger.warning(
+                        f"Camera '{camera_id}' already playing at {stream.speed}x; requested {_clamp_speed(speed)}x "
+                        f"ignored because the stream is shared (ref_count={stream.ref_count})."
+                    )
                 logger.info(f"Acquired existing camera '{camera_id}' (ref_count={stream.ref_count})")
                 return stream.rtsp_url
 
@@ -119,6 +155,7 @@ class CameraManager:
             )
             new_stream.loop = loop
             new_stream.loop_count = loop_count
+            new_stream.speed = _clamp_speed(speed)
             new_stream.ref_count = 1
 
             # 3. Start Ingestion Process
@@ -180,30 +217,56 @@ class CameraManager:
 
         try:
             if cam_type == "file":
-                # Extract duration using ffprobe
+                # Extract duration and source frame rate using ffprobe
                 try:
                     out = subprocess.check_output(
-                        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path],
-                        stderr=subprocess.STDOUT
-                    ).decode().strip()
-                    stream.duration_sec = float(out)
+                        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                         "-show_entries", "format=duration:stream=r_frame_rate",
+                         "-of", "default=noprint_wrappers=1", path],
+                        stderr=subprocess.STDOUT,
+                        timeout=10,
+                    ).decode()
+                    probe = dict(
+                        line.split("=", 1) for line in out.splitlines() if "=" in line
+                    )
+                    stream.duration_sec = float(probe["duration"]) if "duration" in probe else None
+                    stream.src_fps = _parse_frame_rate(probe.get("r_frame_rate", ""))
                 except Exception as e:
-                    logger.warning(f"Failed to get duration for {path}: {e}")
+                    logger.warning(f"Failed to probe {path}: {e}")
                     stream.duration_sec = None
+                    stream.src_fps = None
 
-                # Looping video file via FFmpeg
+                speed = _clamp_speed(stream.speed)
+                # Filter chain:
+                #   setpts  - rebuild monotonic timestamps (needed across loops) and
+                #             compress/stretch them by the playback speed
+                #   fps     - when speeding up, drop surplus frames so encoder/NPU load
+                #             stays at the source frame rate instead of N x fps
+                #   tpad    - 4s black lead-in (applied after speed so it stays 4s)
+                #   realtime- pace output to wall clock according to the new timestamps
+                filters = [f"setpts=N/(FRAME_RATE*{speed})/TB"]
+                if speed > 1.0:
+                    out_fps = stream.src_fps if stream.src_fps and stream.src_fps > 0 else 30.0
+                    filters.append(f"fps={out_fps:.3f}")
+                filters.append("tpad=start_duration=4:color=black")
+                filters.append("realtime")
+
+                # Looping video file via FFmpeg.
+                # -readrate S reads input at S x realtime (equivalent to -re when S == 1).
                 loop_arg = "-1" if stream.loop else str(max(0, stream.loop_count - 1))
                 cmd = [
-                    "ffmpeg", "-nostdin", "-re",
+                    "ffmpeg", "-nostdin",
+                    "-readrate", f"{speed}",
                     "-stream_loop", loop_arg,
                     "-i", path,
-                    "-vf", "tpad=start_duration=4:color=black,setpts=N/FRAME_RATE/TB,realtime",
+                    "-vf", ",".join(filters),
                     "-c:v", "libx264", "-profile:v", "baseline",
                     "-tune", "zerolatency", "-preset", "ultrafast",
                     "-b:v", "2M", "-g", "30",
                     "-an", "-f", "rtsp", "-rtsp_transport", "tcp",
                     rtsp_url
                 ]
+                logger.info(f"Starting file ingestion for '{stream.camera_id}' at {speed}x (src_fps={stream.src_fps})")
                 with open("/tmp/ffmpeg_err.log", "w") as f:
                     proc = subprocess.Popen(
                         cmd, stdout=subprocess.DEVNULL, stderr=f,
