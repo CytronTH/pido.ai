@@ -1478,13 +1478,38 @@ async def restart_system():
     return {"status": "success", "message": "Rebooting..."}
 
 @app.get("/api/logs")
-def get_logs(limit: int = 100, node_id: str = None, event_type: str = None, camera_id: str = None, page: int = 1, project_id: str = None):
+def get_logs(
+    limit: int = 100,
+    node_id: Optional[str] = None,
+    event_type: Optional[str] = None,
+    camera_id: Optional[str] = None,
+    page: int = 1,
+    project_id: Optional[str] = None,
+    tag: Optional[str] = None
+):
     try:
         from db.database import db
-        result = db.get_logs(limit=limit, node_id=node_id, event_type=event_type, camera_id=camera_id, page=page, project_id=project_id)
+        result = db.get_logs(
+            limit=limit,
+            node_id=node_id,
+            event_type=event_type,
+            camera_id=camera_id,
+            page=page,
+            project_id=project_id,
+            tag=tag
+        )
         return {"status": "success", **result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/logs/tags")
+def get_log_tags(project_id: Optional[str] = None):
+    try:
+        from db.database import db
+        tags = db.get_log_tags(project_id=project_id)
+        return {"status": "success", "tags": tags}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "tags": []}
 
 # --- Analytics & Historical Reports APIs ---
 from fastapi.responses import Response

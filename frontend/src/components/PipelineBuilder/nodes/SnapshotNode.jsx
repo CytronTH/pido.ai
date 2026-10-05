@@ -25,6 +25,21 @@ export default function SnapshotNode({ id, data, selected }) {
         data={data}
       />
       
+      {isCompact && Array.isArray(data?.tags) && data.tags.length > 0 && (
+        <div className="px-3 py-2 border-t border-line/60 bg-canvas/40 flex flex-wrap gap-1">
+          {data.tags.slice(0, 3).map((t, i) => (
+            <span key={i} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 truncate max-w-[80px]">
+              #{t}
+            </span>
+          ))}
+          {data.tags.length > 3 && (
+            <span className="text-[9px] text-fg-subtle font-mono self-center">
+              +{data.tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
       {!isCompact && (
         <div className="p-4 flex flex-col gap-3">
           <SnapshotNodeSettings data={data} onChange={handleSettingsChange} />
