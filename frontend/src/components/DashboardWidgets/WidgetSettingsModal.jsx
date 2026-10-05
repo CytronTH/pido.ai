@@ -1,13 +1,143 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Settings, Palette, Bell, Sliders, Activity } from 'lucide-react';
+import { X, Save, Settings, Palette, Bell, Sliders, Activity, Plus, Sparkles, Trash2, ArrowUpDown } from 'lucide-react';
 import GaugeWidget from './GaugeWidget';
-import CapacityBarWidget from './CapacityBarWidget';
-import RadialDonutWidget from './RadialDonutWidget';
 import TrafficLightWidget from './TrafficLightWidget';
 import MetricWidget from './MetricWidget';
 import ChartWidget from './ChartWidget';
 import TextWidget from './TextWidget';
 import HistoricalChartWidget from './HistoricalChartWidget';
+
+const PRESET_COLOR_STOPS = [
+  {
+    name: 'Traffic Light (60 / 85 / 100%)',
+    stops: [
+      { limit: 60, color: '#10b981' },
+      { limit: 85, color: '#eab308' },
+      { limit: 100, color: '#ef4444' }
+    ]
+  },
+  {
+    name: 'Cool to Hot (40 / 75 / 100%)',
+    stops: [
+      { limit: 40, color: '#3b82f6' },
+      { limit: 75, color: '#f59e0b' },
+      { limit: 100, color: '#ef4444' }
+    ]
+  },
+  {
+    name: 'Battery / Capacity (20 / 50 / 100%)',
+    stops: [
+      { limit: 20, color: '#ef4444' },
+      { limit: 50, color: '#eab308' },
+      { limit: 100, color: '#10b981' }
+    ]
+  },
+  {
+    name: 'Pass / Alert (50 / 100%)',
+    stops: [
+      { limit: 50, color: '#10b981' },
+      { limit: 100, color: '#ef4444' }
+    ]
+  }
+];
+
+const QUICK_COLORS = ['#10b981', '#eab308', '#f97316', '#ef4444', '#3b82f6', '#8b5cf6', '#06b6d4'];
+
+// Chart display templates: each one only sets presentation fields, never the data binding.
+const CHART_TEMPLATES = [
+  {
+    id: 'live-trend',
+    name: 'Live Trend',
+    desc: 'เส้นโค้งต่อเนื่อง ดูแนวโน้มแบบเรียลไทม์',
+    useFor: 'อุณหภูมิ, FPS, ความเร็ว',
+    thumb: 'smooth',
+    config: { chartType: 'monotone', timeframe: '5m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'digital-state',
+    name: 'Step / State',
+    desc: 'เส้นขั้นบันได ค่ากระโดดเป็นช่วง ไม่ลากเส้นเฉียง',
+    useFor: 'สถานะเปิด/ปิด, จำนวนคนในโซน',
+    thumb: 'step',
+    config: { chartType: 'stepAfter', timeframe: '5m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'volume-area',
+    name: 'Volume Area',
+    desc: 'พื้นที่ไล่สีใต้เส้น เน้นปริมาณ',
+    useFor: 'จำนวนวัตถุที่ตรวจพบ, โหลดระบบ',
+    thumb: 'area',
+    config: { chartType: 'area', timeframe: '15m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, useGradient: true, fillOpacity: 35, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'count-bars',
+    name: 'Count Bars',
+    desc: 'แท่งเปรียบเทียบค่าในแต่ละช่วงเวลา',
+    useFor: 'ยอดนับต่อนาที, ชิ้นงานต่อชั่วโมง',
+    thumb: 'bar',
+    config: { chartType: 'bar', timeframe: '1h', enableVisualTweaks: true, fillOpacity: 80, showGrid: true, gridStyle: '3 3' },
+  },
+  {
+    id: 'threshold-monitor',
+    name: 'Threshold Monitor',
+    desc: 'เส้นกราฟพร้อมเส้นเกณฑ์เตือน',
+    useFor: 'เฝ้าระวังค่าเกินกำหนด',
+    thumb: 'threshold',
+    config: { chartType: 'monotone', timeframe: '15m', enableVisualTweaks: true, strokeWidth: 2, showDots: false, showGrid: true, gridStyle: '3 3', enableUpperLimit: true },
+  },
+  {
+    id: 'multi-compare',
+    name: 'Multi-Series Compare',
+    desc: 'หลายเส้นพร้อมจุดข้อมูล แยกสีชัดเจน',
+    useFor: 'เทียบหลายกล้อง / หลายตัวนับ',
+    thumb: 'multi',
+    config: { chartType: 'monotone', timeframe: '15m', enableVisualTweaks: true, strokeWidth: 2, showDots: true, showGrid: true, gridStyle: '3 3' },
+  },
+];
+
+const isTemplateActive = (template, data) =>
+  Object.entries(template.config).every(([k, v]) => String(data[k]) === String(v));
+
+const ChartTemplateThumb = ({ kind, color }) => {
+  const c = color || '#10b981';
+  const grid = <g stroke="currentColor" strokeOpacity="0.15" strokeDasharray="2 2">{[10, 20, 30].map(y => <line key={y} x1="0" x2="80" y1={y} y2={y} />)}</g>;
+  switch (kind) {
+    case 'step':
+      return <svg viewBox="0 0 80 40" className="w-full h-10">{grid}<path d="M0 30 H14 V14 H30 V26 H46 V8 H62 V20 H80" fill="none" stroke={c} strokeWidth="2" /></svg>;
+    case 'area':
+      return (
+        <svg viewBox="0 0 80 40" className="w-full h-10">
+          <defs><linearGradient id="thumbArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c} stopOpacity="0.6" /><stop offset="100%" stopColor={c} stopOpacity="0" /></linearGradient></defs>
+          {grid}
+          <path d="M0 30 C12 22 20 26 30 18 S50 8 60 14 S74 10 80 6 V40 H0 Z" fill="url(#thumbArea)" />
+          <path d="M0 30 C12 22 20 26 30 18 S50 8 60 14 S74 10 80 6" fill="none" stroke={c} strokeWidth="2" />
+        </svg>
+      );
+    case 'bar':
+      return <svg viewBox="0 0 80 40" className="w-full h-10">{grid}{[22, 12, 28, 16, 8, 20, 14].map((y, i) => <rect key={i} x={3 + i * 11} y={y} width="7" height={40 - y} rx="1" fill={c} fillOpacity="0.85" />)}</svg>;
+    case 'threshold':
+      return (
+        <svg viewBox="0 0 80 40" className="w-full h-10">
+          {grid}
+          <line x1="0" x2="80" y1="12" y2="12" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 3" />
+          <path d="M0 30 C10 26 18 32 28 22 S44 6 52 14 S68 28 80 20" fill="none" stroke={c} strokeWidth="2" />
+          <circle cx="47" cy="9" r="2.5" fill="#ef4444" />
+        </svg>
+      );
+    case 'multi':
+      return (
+        <svg viewBox="0 0 80 40" className="w-full h-10">
+          {grid}
+          <path d="M0 28 C14 20 24 26 36 18 S58 12 80 14" fill="none" stroke={c} strokeWidth="2" />
+          <path d="M0 18 C14 24 26 10 38 14 S60 28 80 24" fill="none" stroke="#3b82f6" strokeWidth="2" />
+          <path d="M0 34 C16 32 28 30 40 32 S62 26 80 30" fill="none" stroke="#8b5cf6" strokeWidth="2" />
+          {[[0, 28], [36, 18], [80, 14], [0, 18], [38, 14], [80, 24]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.8" fill={i < 3 ? c : '#3b82f6'} />)}
+        </svg>
+      );
+    default:
+      return <svg viewBox="0 0 80 40" className="w-full h-10">{grid}<path d="M0 28 C10 20 18 30 28 22 S44 8 54 14 S70 22 80 10" fill="none" stroke={c} strokeWidth="2" /></svg>;
+  }
+};
 
 const ToggleSwitch = ({ label, checked, onChange, className = "mb-3" }) => (
   <div className={`flex items-center justify-between gap-4 ${className}`}>
@@ -25,10 +155,31 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     const parts = path.split('.');
     let current = obj;
     for (let part of parts) {
-      if (current[part] === undefined) return null;
-      current = current[part];
+      if (current === undefined || current === null) return null;
+      if (part === 'length' && Array.isArray(current)) {
+        current = current.length;
+      } else {
+        current = current[part];
+      }
     }
     return current;
+  };
+
+  const formatDisplayVal = (val) => {
+    if (val === null || val === undefined) return 'N/A';
+    if (typeof val === 'number') {
+      return val % 1 !== 0 ? val.toFixed(2) : String(val);
+    }
+    if (typeof val === 'boolean') {
+      return val ? 'true' : 'false';
+    }
+    if (typeof val === 'object') {
+      if (val.value !== undefined) return formatDisplayVal(val.value);
+      if (val.actual !== undefined && val.target !== undefined) return `${val.actual}/${val.target}`;
+      if (Array.isArray(val)) return `[${val.length}]`;
+      return 'Object';
+    }
+    return String(val);
   };
   const [formData, setFormData] = useState({ title: '', dataPath: '', unit: '', nodeId: '' });
   const [dataSources, setDataSources] = useState([]);
@@ -68,6 +219,12 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         thresholdCondition: widgetItem.config.thresholdCondition || '>',
         iconName: widgetItem.config.iconName || 'Activity',
         decimals: widgetItem.config.decimals !== undefined ? widgetItem.config.decimals : '',
+        unitPosition: widgetItem.config.unitPosition || 'inline',
+        compactNotation: widgetItem.config.compactNotation || false,
+        showTrend: widgetItem.config.showTrend || false,
+        trendMode: widgetItem.config.trendMode || 'percent',
+        trendPositiveColor: widgetItem.config.trendPositiveColor || 'green',
+        alertGlow: widgetItem.config.alertGlow ?? true,
         timeframe: widgetItem.config.timeframe || '5m',
         lockTimeframe: widgetItem.config.lockTimeframe || false,
         yMin: widgetItem.config.yMin || '',
@@ -114,9 +271,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
   };
 
   const handleAddColorStop = () => {
-    const newStops = [...(formData.colorStops || [])];
-    newStops.push({ limit: 100, color: '#10b981' });
-    setFormData({ ...formData, colorStops: newStops });
+    const currentStops = [...(formData.colorStops || [])];
+    let nextLimit = 100;
+    if (currentStops.length > 0) {
+      const maxLimit = Math.max(...currentStops.map(s => parseFloat(s.limit) || 0));
+      if (maxLimit < 100) {
+        nextLimit = 100;
+      } else {
+        nextLimit = Math.min(100, Math.round(maxLimit * 0.75));
+      }
+    }
+    const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#06b6d4'];
+    const nextColor = colors[currentStops.length % colors.length];
+    currentStops.push({ limit: nextLimit, color: nextColor });
+    setFormData({ ...formData, colorStops: currentStops });
   };
 
   const handleRemoveColorStop = (index) => {
@@ -129,6 +297,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     const newStops = [...(formData.colorStops || [])];
     newStops[index] = { ...newStops[index], [field]: value };
     setFormData({ ...formData, colorStops: newStops });
+  };
+
+  const handleSortColorStops = () => {
+    const sorted = [...(formData.colorStops || [])].sort((a, b) => (parseFloat(a.limit) || 0) - (parseFloat(b.limit) || 0));
+    setFormData({ ...formData, colorStops: sorted });
   };
 
   const handleSave = () => {
@@ -210,28 +383,43 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
   const renderPreview = () => {
     const previewProps = {
       title: formData.title || 'Preview Title',
-      config: formData,
+      config: { ...formData, __isPreview: true },
     };
     
     // Retrieve real value if dataPath exists, else fallback to dummy
     const dsId = formData.dataPath || (formData.dataPaths && formData.dataPaths[0]) || widgetItem?.dataSourceId;
     let realValue = getNestedValue(metadata, dsId);
+    if (realValue !== null && typeof realValue === 'object' && realValue.value !== undefined) {
+      realValue = realValue.value;
+    }
     
     switch(widgetItem?.type) {
       case 'gauge':
-        return <GaugeWidget {...previewProps} value={realValue !== null ? realValue : 65} unit={formData.unit || ''} />;
       case 'capacityBar':
-        return <CapacityBarWidget {...previewProps} value={realValue !== null ? realValue : 142} unit={formData.unit || ''} />;
       case 'radialDonut':
-        return <RadialDonutWidget {...previewProps} value={realValue !== null ? realValue : 75} unit={formData.unit || ''} />;
+        return <GaugeWidget {...previewProps} value={realValue !== null ? realValue : 65} unit={formData.unit || ''} />;
       case 'trafficLight':
         return <TrafficLightWidget {...previewProps} value={realValue !== null ? realValue : 1} />; // 1 is warning state
       case 'metric':
         return <MetricWidget {...previewProps} value={realValue !== null ? realValue : 1024} unit={formData.unit || ''} />;
       case 'text':
         return <TextWidget {...previewProps} value={realValue !== null ? realValue : "System Nominal"} />;
-      case 'chart':
-        return <div className="w-full h-full bg-surface rounded-xl flex items-center justify-center border border-line-strong shadow-inner"><span className="text-fg-subtle font-mono text-sm">Chart Preview</span></div>;
+      case 'chart': {
+        const previewPaths = formData.dataPaths || [];
+        const dataPathNames = {};
+        previewPaths.forEach(id => {
+          const ds = dataSources.find(d => d.id === id);
+          if (ds) dataPathNames[id] = ds.name;
+        });
+        return (
+          <ChartWidget
+            title={previewProps.title}
+            config={{ ...previewProps.config, dataPathNames }}
+            paths={previewPaths}
+            metadata={metadata}
+          />
+        );
+      }
       default:
         return <div className="text-fg-subtle text-sm">Preview not available</div>;
     }
@@ -249,7 +437,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
             </div>
             <div>
               <h3 className="font-bold text-fg text-lg leading-tight">Widget Settings</h3>
-              <p className="text-xs text-fg-muted">Configure "{widgetItem.type}" widget properties</p>
+              <p className="text-xs text-fg-muted">Configure "{widgetItem?.type === 'metric' ? 'Number' : widgetItem?.type}" widget properties</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-full transition-colors">
@@ -342,7 +530,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         }
                         return allToRender.map(ds => {
                           const val = getNestedValue(metadata, ds.id);
-                          const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
+                          const displayVal = formatDisplayVal(val);
                           return (
                           <label key={ds.id} className={`flex items-center gap-3 p-2 rounded-md hover:bg-surface-2 cursor-pointer transition-colors ${ds.isDangling ? 'text-red-600/80 dark:text-red-400/80' : ''}`}>
                             <input 
@@ -372,11 +560,15 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
                     >
                       <option value="">-- Select Data Source --</option>
+                      {formData.dataPath && !filteredSources.some(ds => ds.id === formData.dataPath) && (
+                        <option value={formData.dataPath}>⚠️ Deleted Source ({formData.dataPath})</option>
+                      )}
                       {filteredSources.map(ds => {
-                        const val = getNestedValue(metadata, ds.id);
-                        const displayVal = val !== null && val !== undefined ? (typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : String(val)) : 'N/A';
+                        const isVideo = ds.dataType === 'video' || widgetItem?.type === 'video';
+                        const val = isVideo ? null : getNestedValue(metadata, ds.id);
+                        const displayVal = isVideo ? '' : ` [${formatDisplayVal(val)}]`;
                         return (
-                          <option key={ds.id} value={ds.id}>{ds.name} [{displayVal}]</option>
+                          <option key={ds.id} value={ds.id}>{ds.name}{displayVal}</option>
                         );
                       })}
                     </select>
@@ -390,33 +582,180 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
-                  <input 
-                    type="text" 
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                    placeholder="e.g. %, kg, pcs"
-                  />
-                </div>
-                {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem.type) && (
+              {widgetItem.type === 'chart' && (
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1">Display Template</label>
+                    <p className="text-xs text-fg-subtle mb-2.5">เลือกรูปแบบที่ตรงกับข้อมูลของคุณ แล้วปรับรายละเอียดต่อได้ในแท็บ Appearance</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {CHART_TEMPLATES.map(t => {
+                        const active = isTemplateActive(t, formData);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, ...t.config })}
+                            className={`text-left p-2.5 rounded-xl border transition-all group ${active ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/40' : 'border-line-strong/70 bg-surface-2/40 hover:border-blue-500/60 hover:bg-surface-2/70'}`}
+                          >
+                            <div className={`rounded-lg border px-1.5 py-1 mb-2 text-fg ${active ? 'border-blue-500/30 bg-surface' : 'border-line bg-canvas'}`}>
+                              <ChartTemplateThumb kind={t.thumb} color={formData.color} />
+                            </div>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className={`text-xs font-semibold ${active ? 'text-blue-500' : 'text-fg group-hover:text-blue-500'}`}>{t.name}</span>
+                              {active && <span className="text-[10px] font-semibold text-blue-500">✓ ใช้อยู่</span>}
+                            </div>
+                            <p className="text-[11px] text-fg-muted mt-0.5 leading-snug">{t.desc}</p>
+                            <p className="text-[10px] text-fg-subtle mt-1 leading-snug">เหมาะกับ: {t.useFor}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {formData.enableUpperLimit && (formData.threshold === '' || formData.threshold === undefined) && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+                        ⚠️ ยังไม่ได้กำหนดค่าเกณฑ์ ไปตั้งค่าที่แท็บ Limits &amp; Alerts → Upper Limit
+                      </p>
+                    )}
+                    {isTemplateActive(CHART_TEMPLATES.find(t => t.id === 'multi-compare'), formData) && (formData.dataPaths || []).length < 2 && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+                        ⚠️ Template นี้เหมาะกับข้อมูลตั้งแต่ 2 แหล่งขึ้นไป เลือกเพิ่มได้ใน Data Source Binding ด้านบน
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Time Range</label>
+                      <select
+                        name="timeframe"
+                        value={formData.timeframe || '5m'}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                      >
+                        <option value="5m">5 นาทีล่าสุด</option>
+                        <option value="15m">15 นาทีล่าสุด</option>
+                        <option value="1h">1 ชั่วโมงล่าสุด</option>
+                        <option value="24h">24 ชั่วโมงล่าสุด</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit (แสดงใน Tooltip)</label>
+                      <input
+                        type="text"
+                        name="unit"
+                        value={formData.unit}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
+                        placeholder="e.g. °C, pcs, fps"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {['metric', 'gauge', 'capacityBar', 'radialDonut', 'text', 'targetTracker'].includes(widgetItem?.type) && (
+                <div className={['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) ? "grid grid-cols-2 gap-4" : "w-full"}>
+                  <div>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
                     <input 
-                      type="number" 
-                      name="decimals"
-                      value={formData.decimals}
+                      type="text" 
+                      name="unit"
+                      value={formData.unit}
                       onChange={handleChange}
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                      placeholder="e.g. 0, 1, 2"
-                      min="0" max="10"
+                      placeholder="e.g. %, kg, pcs"
                     />
                   </div>
-                )}
-              </div>
+                  {widgetItem?.type === 'metric' && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Position</label>
+                      <select
+                        name="unitPosition"
+                        value={formData.unitPosition || 'inline'}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                      >
+                        <option value="inline">ต่อหลังตัวเลข (Behind / Inline)</option>
+                        <option value="below">อยู่ใต้ตัวเลข (Below Number)</option>
+                      </select>
+                    </div>
+                  )}
+                  {['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Decimal Places</label>
+                      <input 
+                        type="number" 
+                        name="decimals"
+                        value={formData.decimals}
+                        onChange={handleChange}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
+                        placeholder="e.g. 0, 1, 2"
+                        min="0" max="10"
+                      />
+                    </div>
+                  )}
+
+                  {widgetItem?.type === 'metric' && (
+                    <>
+                      <div className="col-span-2 p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 transition-colors hover:border-line-strong">
+                        <ToggleSwitch 
+                          label={
+                            <div>
+                              <span className="text-sm font-semibold text-fg">Compact Notation (K, M, B)</span>
+                              <p className="text-xs text-fg-subtle font-normal mt-0.5">ย่อตัวเลขจำนวนมาก เช่น 1.5K, 2.4M, 1.1B</p>
+                            </div>
+                          } 
+                          checked={formData.compactNotation || false} 
+                          onChange={(e) => setFormData({ ...formData, compactNotation: e.target.checked })} 
+                          className="mb-0"
+                        />
+                      </div>
+
+                      <div className="col-span-2 p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 space-y-3 transition-colors hover:border-line-strong">
+                        <ToggleSwitch 
+                          label={
+                            <div>
+                              <span className="text-sm font-semibold text-fg">Trend Indicator (ลูกศรความเปลี่ยนแปลง)</span>
+                              <p className="text-xs text-fg-subtle font-normal mt-0.5">แสดงทิศทางการเปลี่ยนแปลงเทียบกับค่าก่อนหน้า (▲ / ▼)</p>
+                            </div>
+                          } 
+                          checked={formData.showTrend || false} 
+                          onChange={(e) => setFormData({ ...formData, showTrend: e.target.checked })} 
+                          className="mb-0"
+                        />
+
+                        {formData.showTrend && (
+                          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200">
+                            <div>
+                              <label className="block text-xs font-medium text-fg-secondary mb-1">Display Mode</label>
+                              <select 
+                                name="trendMode"
+                                value={formData.trendMode || 'percent'}
+                                onChange={handleChange}
+                                className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-fg text-xs focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                              >
+                                <option value="percent">Percentage (+5.4%)</option>
+                                <option value="value">Difference Value (+12)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-fg-secondary mb-1">Positive Direction (▲ ขึ้น)</label>
+                              <select 
+                                name="trendPositiveColor"
+                                value={formData.trendPositiveColor || 'green'}
+                                onChange={handleChange}
+                                className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-fg text-xs focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                              >
+                                <option value="green">เขียว (Green = Good / Positive)</option>
+                                <option value="red">แดง (Red = Alert / Bad)</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -458,9 +797,11 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     >
                       <option value="half-circle">Modern Half-Circle</option>
                       <option value="horseshoe">Horseshoe with Needle</option>
+                      <option value="radial-donut">Radial Donut</option>
+                      <option value="capacity-bar">Capacity Bar (Linear Tube)</option>
                     </select>
                   </div>
-                  {formData.gaugeStyle !== 'horseshoe' && (
+                  {(formData.gaugeStyle === 'half-circle' || !formData.gaugeStyle) && (
                     <div>
                       <label className="block text-sm font-medium text-fg-secondary mb-1.5 flex justify-between">
                         <span>Tube Thickness</span>
@@ -476,6 +817,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         className="w-full accent-blue-500"
                       />
                       <p className="text-xs text-fg-subtle mt-1">Adjust the thickness of the gauge donut tube.</p>
+                    </div>
+                  )}
+                  {formData.gaugeStyle === 'capacity-bar' && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Bar Orientation</label>
+                      <select 
+                        name="orientation"
+                        value={formData.orientation || 'vertical'}
+                        onChange={(e) => setFormData({ ...formData, orientation: e.target.value })}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
+                      >
+                        <option value="vertical">Vertical</option>
+                        <option value="horizontal">Horizontal</option>
+                      </select>
                     </div>
                   )}
                 </div>
@@ -558,15 +913,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-xl border transition-colors ${formData.enableDynamicColors ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                  <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableDynamicColors ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                     <ToggleSwitch 
-                      label="Dynamic Colors & Ranges" 
+                      label={
+                        <div>
+                          <span className="text-sm font-semibold text-fg">Dynamic Colors & Ranges</span>
+                          <p className="text-xs text-fg-subtle font-normal mt-0.5">เปลี่ยนสีตามช่วงของค่าตัวเลข (Color Stops)</p>
+                        </div>
+                      }
                       checked={formData.enableDynamicColors} 
                       onChange={(e) => setFormData({ ...formData, enableDynamicColors: e.target.checked })} 
+                      className="mb-0"
                     />
                     
                     {formData.enableDynamicColors && (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                      <div className="space-y-4 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
 
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1.5">Color Display Mode</label>
@@ -581,49 +942,203 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       </select>
                     </div>
 
-                  <div className="space-y-2 pt-2">
-                    <label className="block text-xs font-medium text-fg-muted">Color Stops (Up to %)</label>
-                    {(formData.colorStops || []).map((stop, index) => (
-                      <div key={index} className="flex gap-2 items-center">
-                        <input
-                          type="number"
-                          value={stop.limit}
-                          onChange={(e) => handleUpdateColorStop(index, 'limit', e.target.value)}
-                          className="w-20 bg-surface border border-line-strong rounded px-2 py-1.5 text-fg text-sm text-center"
-                          placeholder="%"
-                        />
-                        <input
-                          type="color"
-                          value={stop.color}
-                          onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
-                          className="w-8 h-8 rounded cursor-pointer border border-line-strong"
-                        />
-                        <input
-                          type="text"
-                          value={stop.color}
-                          onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
-                          className="flex-1 bg-surface border border-line-strong rounded px-2 py-1.5 text-fg text-sm uppercase font-mono"
-                        />
-                        <button
-                          onClick={() => handleRemoveColorStop(index)}
-                          className="p-1.5 text-fg-subtle hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          title="Remove Stop"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                    {/* Interactive Visual Range Bar Preview */}
+                    {(() => {
+                      const stops = formData.colorStops || [];
+                      const sorted = [...stops].map((s, idx) => ({ ...s, origIndex: idx })).sort((a, b) => (parseFloat(a.limit) || 0) - (parseFloat(b.limit) || 0));
+                      let lastLimit = 0;
+                      const segments = sorted.map((s) => {
+                        const limit = Math.min(100, Math.max(0, parseFloat(s.limit) || 0));
+                        const width = Math.max(0, limit - lastLimit);
+                        const from = lastLimit;
+                        lastLimit = limit;
+                        return { ...s, from, to: limit, width };
+                      });
+                      const remainderWidth = Math.max(0, 100 - lastLimit);
+
+                      return (
+                        <div className="space-y-2 p-3 bg-surface rounded-xl border border-line-strong/80">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-fg flex items-center gap-1.5">
+                              <Sparkles size={13} className="text-amber-500" />
+                              <span>Live Range Visualizer (0% – 100%)</span>
+                            </label>
+                            {stops.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={handleSortColorStops}
+                                className="text-[11px] text-blue-500 hover:text-blue-600 flex items-center gap-1 hover:underline"
+                                title="เรียงลำดับ % จากน้อยไปมาก"
+                              >
+                                <ArrowUpDown size={11} /> Auto-sort
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Visual Progress Bar */}
+                          <div className="h-8 w-full bg-surface-3 rounded-lg overflow-hidden flex border border-line-strong shadow-inner relative select-none">
+                            {segments.map((seg, i) => (
+                              <div
+                                key={i}
+                                style={{ width: `${seg.width}%`, backgroundColor: seg.color }}
+                                className="h-full flex items-center justify-center relative transition-all duration-150 border-r border-black/20 last:border-r-0 group cursor-default"
+                                title={`Zone ${i + 1}: ${seg.from}% – ${seg.to}% (${seg.color})`}
+                              >
+                                {seg.width >= 12 && (
+                                  <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] truncate px-1">
+                                    {seg.from}-{seg.to}%
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {remainderWidth > 0 && (
+                              <div
+                                style={{ width: `${remainderWidth}%` }}
+                                className="h-full bg-surface-2 flex items-center justify-center text-fg-subtle text-[10px] italic border-dashed border-line-strong px-1"
+                                title={`Remaining: ${lastLimit}% – 100% (Default Color)`}
+                              >
+                                {remainderWidth >= 15 && `+${remainderWidth}%`}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Bar scale ticks */}
+                          <div className="flex justify-between text-[10px] text-fg-subtle font-mono px-0.5 select-none">
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Quick Presets */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-medium text-fg-muted">Quick Presets (ชุดสีสำเร็จรูป)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PRESET_COLOR_STOPS.map((preset, pIdx) => (
+                          <button
+                            key={pIdx}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, colorStops: preset.stops.map(s => ({ ...s })) })}
+                            className="p-2 rounded-lg border border-line-strong hover:border-blue-500/80 bg-surface hover:bg-surface-2/70 text-left transition-all group flex flex-col gap-1.5"
+                          >
+                            <span className="text-xs font-semibold text-fg group-hover:text-blue-500 transition-colors">
+                              {preset.name}
+                            </span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {preset.stops.map((st, sIdx) => (
+                                <div key={sIdx} className="flex items-center gap-1">
+                                  <span className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: st.color }} />
+                                  <span className="text-[10px] text-fg-subtle font-mono">{st.limit}%</span>
+                                  {sIdx < preset.stops.length - 1 && <span className="text-fg-subtle text-[10px]">·</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                    <button
-                      onClick={handleAddColorStop}
-                      className="w-full mt-2 py-2 border border-dashed border-line-strong rounded-lg text-sm text-fg-muted hover:text-fg hover:border-fg-subtle hover:bg-surface-2/50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <span className="text-lg leading-none mb-0.5">+</span> Add Color Stop
-                    </button>
-                    <p className="text-xs text-fg-subtle mt-2 leading-relaxed">
-                      Define the upper percentage limits (0-100) and their colors.<br/>
-                      E.g., <span className="text-green-600 dark:text-green-400">25% Green</span>, <span className="text-yellow-700 dark:text-yellow-400">50% Yellow</span>, <span className="text-red-600 dark:text-red-400">100% Red</span>.
-                    </p>
-                  </div>
+                    </div>
+
+                    {/* Zone Cards with Sliders and Swatches */}
+                    <div className="space-y-2.5 pt-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-fg">Threshold Zones (กำหนดช่วงและสี)</label>
+                        <span className="text-xs text-fg-subtle font-mono">{(formData.colorStops || []).length} zones</span>
+                      </div>
+
+                      {(formData.colorStops || []).map((stop, index) => {
+                        const prevLimit = index === 0 ? 0 : ((formData.colorStops || [])[index - 1]?.limit || 0);
+                        return (
+                          <div key={index} className="p-3 rounded-xl bg-surface border border-line-strong/80 space-y-2.5 transition-all hover:border-line-strong">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm" style={{ backgroundColor: stop.color }} />
+                                <span className="text-xs font-semibold text-fg">
+                                  Zone {index + 1}: <span className="text-blue-500 font-mono">{prevLimit}% → {stop.limit}%</span>
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveColorStop(index)}
+                                className="p-1 text-fg-subtle hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                                title="ลบช่วงนี้"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            {/* Range slider and direct input */}
+                            <div className="flex items-center gap-3">
+                              <span className="text-[11px] text-fg-subtle font-mono shrink-0">Upper:</span>
+                              <input
+                                type="range"
+                                min="1"
+                                max="100"
+                                value={stop.limit || 0}
+                                onChange={(e) => handleUpdateColorStop(index, 'limit', Number(e.target.value))}
+                                className="flex-1 accent-blue-500 h-2 bg-surface-3 rounded-lg cursor-pointer"
+                              />
+                              <div className="flex items-center gap-1 shrink-0">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="100"
+                                  value={stop.limit}
+                                  onChange={(e) => {
+                                    const val = e.target.value === '' ? '' : Math.min(100, Math.max(1, Number(e.target.value)));
+                                    handleUpdateColorStop(index, 'limit', val);
+                                  }}
+                                  className="w-14 bg-canvas border border-line-strong rounded px-2 py-1 text-xs text-center font-mono text-fg focus:border-blue-500 outline-none"
+                                />
+                                <span className="text-xs text-fg-subtle font-mono">%</span>
+                              </div>
+                            </div>
+
+                            {/* Color Picker & Quick Swatches */}
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-line-strong/30">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {QUICK_COLORS.map((qc) => (
+                                  <button
+                                    key={qc}
+                                    type="button"
+                                    onClick={() => handleUpdateColorStop(index, 'color', qc)}
+                                    style={{ backgroundColor: qc }}
+                                    className={`w-5 h-5 rounded-full border transition-transform ${stop.color?.toLowerCase() === qc.toLowerCase() ? 'scale-125 ring-2 ring-blue-500 ring-offset-1 ring-offset-surface border-white' : 'border-black/20 hover:scale-110'}`}
+                                    title={qc}
+                                  />
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <input
+                                  type="color"
+                                  value={stop.color}
+                                  onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
+                                  className="w-6 h-6 rounded cursor-pointer border border-line-strong bg-transparent"
+                                  title="Custom Color"
+                                />
+                                <input
+                                  type="text"
+                                  value={stop.color}
+                                  onChange={(e) => handleUpdateColorStop(index, 'color', e.target.value)}
+                                  className="w-20 bg-canvas border border-line-strong rounded px-1.5 py-0.5 text-[11px] text-fg font-mono uppercase text-center outline-none focus:border-blue-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={handleAddColorStop}
+                        className="w-full mt-2 py-2.5 border border-dashed border-line-strong rounded-xl text-xs font-medium text-fg-muted hover:text-blue-500 hover:border-blue-500/60 hover:bg-blue-500/5 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Plus size={14} /> Add Color Range Zone
+                      </button>
+                    </div>
                     </div>
                   )}
                   </div>
@@ -669,15 +1184,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-xl border transition-colors ${formData.enableVisualTweaks ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                  <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableVisualTweaks ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                     <ToggleSwitch 
-                      label="Visual Tweaks" 
+                      label={
+                        <div>
+                          <span className="text-sm font-semibold text-fg">Visual Tweaks</span>
+                          <p className="text-xs text-fg-subtle font-normal mt-0.5">ปรับแต่งเส้นกราฟ ความทึบ และจุดข้อมูล</p>
+                        </div>
+                      }
                       checked={formData.enableVisualTweaks} 
                       onChange={(e) => setFormData({ ...formData, enableVisualTweaks: e.target.checked })} 
+                      className="mb-0"
                     />
                     
                     {formData.enableVisualTweaks && (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                      <div className="space-y-4 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                         <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-fg-muted mb-1">Line Thickness (px)</label>
@@ -763,17 +1284,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
           <div className={activeTab === 'limits' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
             <div className="space-y-4">
               
-              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableUpperLimit ? 'bg-red-50 dark:bg-red-950/20 border-red-900/30' : 'bg-transparent border-transparent'}`}>
-                {formData.enableUpperLimit && <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50"></div>}
-                <div className="mb-2">
-                  <ToggleSwitch 
-                    label={<span className="text-red-600 dark:text-red-400 flex items-center gap-2">Upper Limit (Max)</span>}
-                    checked={formData.enableUpperLimit} 
-                    onChange={(e) => setFormData({ ...formData, enableUpperLimit: e.target.checked })} 
-                  />
-                </div>
+              <div className={`p-3.5 rounded-xl border relative overflow-hidden transition-colors ${formData.enableUpperLimit ? 'bg-red-500/5 dark:bg-red-950/25 border-red-500/40' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
+                {formData.enableUpperLimit && <div className="absolute top-0 left-0 w-1 h-full bg-red-500/60"></div>}
+                <ToggleSwitch 
+                  label={
+                    <div>
+                      <span className="text-sm font-semibold text-red-600 dark:text-red-400">Upper Limit (Max)</span>
+                      <p className="text-xs text-fg-subtle font-normal mt-0.5">เตือนเมื่อค่าเกินเกณฑ์สูงสุดที่กำหนด</p>
+                    </div>
+                  } 
+                  checked={formData.enableUpperLimit} 
+                  onChange={(e) => setFormData({ ...formData, enableUpperLimit: e.target.checked })} 
+                  className="mb-0"
+                />
                 {formData.enableUpperLimit && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
+                  <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-fg-muted mb-1.5">Value Trigger</label>
@@ -834,17 +1359,21 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 )}
               </div>
 
-              <div className={`p-4 rounded-xl border relative overflow-hidden transition-colors ${formData.enableLowerLimit ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-900/30' : 'bg-transparent border-transparent'}`}>
-                {formData.enableLowerLimit && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50"></div>}
-                <div className="mb-2">
-                  <ToggleSwitch 
-                    label={<span className="text-blue-600 dark:text-blue-400 flex items-center gap-2">Lower Limit (Min)</span>}
-                    checked={formData.enableLowerLimit} 
-                    onChange={(e) => setFormData({ ...formData, enableLowerLimit: e.target.checked })} 
-                  />
-                </div>
+              <div className={`p-3.5 rounded-xl border relative overflow-hidden transition-colors ${formData.enableLowerLimit ? 'bg-blue-500/5 dark:bg-blue-950/25 border-blue-500/40' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
+                {formData.enableLowerLimit && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/60"></div>}
+                <ToggleSwitch 
+                  label={
+                    <div>
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Lower Limit (Min)</span>
+                      <p className="text-xs text-fg-subtle font-normal mt-0.5">เตือนเมื่อค่าต่ำกว่าเกณฑ์ต่ำสุดที่กำหนด</p>
+                    </div>
+                  } 
+                  checked={formData.enableLowerLimit} 
+                  onChange={(e) => setFormData({ ...formData, enableLowerLimit: e.target.checked })} 
+                  className="mb-0"
+                />
                 {formData.enableLowerLimit && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-2">
+                  <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-fg-muted mb-1.5">Value Trigger (&lt;)</label>
@@ -890,16 +1419,38 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 </div>
                 )}
               </div>
+
+              {widgetItem.type === 'metric' && (
+                <div className="p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 transition-colors hover:border-line-strong">
+                  <ToggleSwitch 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Card Neon Glow on Alert</span>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">เพิ่มเอฟเฟกต์แสงเรืองรอบการ์ด (Neon Glow) เมื่อค่าเกินเกณฑ์ Alert</p>
+                      </div>
+                    } 
+                    checked={formData.alertGlow ?? true} 
+                    onChange={(e) => setFormData({ ...formData, alertGlow: e.target.checked })} 
+                    className="mb-0"
+                  />
+                </div>
+              )}
               
               {(widgetItem.type === 'gauge' || widgetItem.type === 'capacityBar') && (
-                <div className={`p-4 rounded-xl border transition-colors ${formData.enableDisplayScale ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableDisplayScale ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                   <ToggleSwitch 
-                    label="Display Scale Range" 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Display Scale Range</span>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">กำหนดค่าต่ำสุด (0%) และสูงสุด (100%) สำหรับสเกลเกจ</p>
+                      </div>
+                    } 
                     checked={formData.enableDisplayScale} 
                     onChange={(e) => setFormData({ ...formData, enableDisplayScale: e.target.checked })} 
+                    className="mb-0"
                   />
                   {formData.enableDisplayScale && (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                    <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                       <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1">Minimum Value (0%)</label>
@@ -930,14 +1481,20 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
               )}
               
               {widgetItem.type === 'chart' && (
-                <div className={`p-4 rounded-xl border transition-colors ${formData.enableYAxisConstraints ? 'bg-canvas/50 border-line' : 'bg-transparent border-transparent'}`}>
+                <div className={`p-3.5 rounded-xl border transition-colors ${formData.enableYAxisConstraints ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
                   <ToggleSwitch 
-                    label="Y-Axis Constraints" 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Y-Axis Constraints</span>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">ล็อกช่วงแกน Y ไม่ให้ปรับอัตโนมัติ</p>
+                      </div>
+                    } 
                     checked={formData.enableYAxisConstraints} 
                     onChange={(e) => setFormData({ ...formData, enableYAxisConstraints: e.target.checked })} 
+                    className="mb-0"
                   />
                   {formData.enableYAxisConstraints && (
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                    <div className="pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
                       <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-fg-muted mb-1">Fixed Min Value</label>
@@ -1050,7 +1607,8 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 <div 
                    className="w-full relative flex items-center justify-center"
                    style={{ 
-                     aspectRatio: `${(widgetItem?.w || 4) * 100 + ((widgetItem?.w || 4) - 1) * 12} / ${(widgetItem?.h || 3) * 75 + ((widgetItem?.h || 3) - 1) * 12}`,
+                     // Approximates a grid cell on a ~1200px wide dashboard: 24 cols (~42px) / 30px rows, 8px gaps
+                     aspectRatio: `${(widgetItem?.w || 8) * 42 + ((widgetItem?.w || 8) - 1) * 8} / ${(widgetItem?.h || 7) * 30 + ((widgetItem?.h || 7) - 1) * 8}`,
                      maxHeight: '350px'
                    }}
                 >

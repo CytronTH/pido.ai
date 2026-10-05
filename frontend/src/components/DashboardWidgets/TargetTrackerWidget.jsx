@@ -79,19 +79,21 @@ export default function TargetTrackerWidget({ title, data, config, projectId }) 
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
-        <div className="flex items-center gap-2">
-          <Target size={16} className={isComplete ? "text-amber-700 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"} />
-          <span className="text-sm font-semibold truncate text-fg">{title || 'Target Tracker'}</span>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Target size={16} className={`shrink-0 ${isComplete ? "text-amber-700 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"}`} />
+            <span className="text-xs sm:text-sm font-semibold truncate text-fg">{title || config?.title || 'Target Tracker'}</span>
+          </div>
+          <button 
+            onClick={handleReset}
+            className="p-1 rounded hover:bg-surface-3 hover:text-fg transition-colors text-fg-muted"
+            title="Reset Counts"
+          >
+            <RefreshCw size={14} />
+          </button>
         </div>
-        <button 
-          onClick={handleReset}
-          className="p-1 rounded hover:bg-surface-3 hover:text-fg transition-colors text-fg-muted"
-          title="Reset Counts"
-        >
-          <RefreshCw size={14} />
-        </button>
-      </div>
+      )}
       
       <div className="flex-1 p-3 flex flex-col gap-3 overflow-y-auto custom-scrollbar">
         

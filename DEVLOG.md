@@ -25,6 +25,238 @@
 - 
 -->
 
+## [2026-10-05] - แก้บั๊ก Pipeline Builder crash (`isCompact is not defined` ใน SnapshotNode)
+
+### 🐛 สาเหตุ & การแก้ไข
+- `SnapshotNode.jsx` อ้างอิงตัวแปร `isCompact` แต่ไม่ได้ประกาศไว้ (โหนดอื่นประกาศ `const isCompact = data?.viewMode === 'compact'`) ทำให้หน้า Pipeline Builder ล่มทั้งหน้าเมื่อมี Snapshot Node อยู่ใน graph
+- เพิ่มการประกาศตัวแปรตามแบบโหนดอื่น และปรับความกว้างโหมด compact (`w-48`) ให้สอดคล้องกัน
+- ตรวจโหนดทั้งหมดในโฟลเดอร์ `nodes/` แล้ว ไม่มีไฟล์อื่นที่มีปัญหาเดียวกัน
+
+## [2026-10-05] - Dashboard Version History (บันทึกเป็นเวอร์ชันพร้อมหมายเหตุ + กู้คืน)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ทุกครั้งที่ Save dashboard ต้องใส่บันทึกการเปลี่ยนแปลง และเก็บเป็นเวอร์ชัน
+- [x] ดูประวัติและกู้คืนเวอร์ชันเก่าได้
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Backend:**
+  - ตารางใหม่ `dashboard_versions` (`DashboardVersion` ใน `db/models.py`): `version_number` (unique ต่อโปรเจกต์), `note`, `layout_json`, `widget_count`, `restored_from_version`; ลบตาม project (CASCADE)
+  - Router `web_server/routers/dashboard_versions.py` ที่ `/api/projects/{id}/dashboard/versions`:
+    - `GET` รายการ (ใหม่สุดก่อน), `GET /{vid}` รายละเอียด + layout
+    - `POST` สร้างเวอร์ชัน + อัปเดต `Project.dashboard_layout_json` ใน transaction เดียว (note ห้ามว่าง, ≤200 ตัวอักษร)
+    - `POST /{vid}/restore` กู้คืนโดยสร้างเวอร์ชันใหม่ (ประวัติไม่หาย)
+    - เก็บล่าสุด 100 เวอร์ชันต่อโปรเจกต์; งาน DB รันผ่าน `asyncio.to_thread`
+  - เทสต์ `backend/test_dashboard_versions.py` (SQLite in-memory, ไม่แตะ DB จริง)
+- **Frontend (`components/DashboardVersions/`, `LiveDashboard.jsx`):**
+  - ติดตามสถานะ "ยังไม่ได้บันทึก" โดยเทียบ snapshot ของ layout + โหมดจัดวาง
+  - `SaveVersionModal`: บังคับใส่ note, สรุปการเปลี่ยนแปลง (เพิ่ม/ลบ/ย้าย/แก้ตั้งค่า/เปลี่ยนโหมด), ปุ่ม note ด่วน, Ctrl+Enter
+  - `VersionHistoryPanel`: timeline ของเวอร์ชัน, ป้าย "ปัจจุบัน", กู้คืนพร้อมยืนยัน, เตือนถ้ามีงานค้าง
+  - Toolbar: ปุ่ม History (แสดง vN), ป้าย "ยังไม่ได้บันทึก", Discard/Cancel, Save Version หรือ Done เมื่อไม่มีการแก้ไข
+  - เตือนก่อนปิด/รีโหลดแท็บถ้ามีงานค้าง (`beforeunload`)
+  - เลิกใช้การ POST `/api/projects` ทั้งก้อนตอน save dashboard → ใช้ endpoint เวอร์ชันแทน
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** สร้างตาราง `dashboard_versions` ใหม่ แทนการใช้ `ProjectRevision` ที่มีอยู่ (ยังไม่ได้ใช้งาน และเก็บ pipeline รวมด้วย)
+- **เหตุผล:** แยกประวัติ dashboard ออกจาก pipeline และกู้คืน dashboard ได้โดยไม่กระทบ pipeline
+- **เรื่องที่ตัดสินใจ:** เก็บเฉพาะ `lg` + `_grid` (breakpoint อื่นสร้างจาก `lg` อยู่แล้วตอนโหลด)
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- ต้องรีสตาร์ท backend เพื่อให้ endpoint ใหม่และตารางใหม่ทำงาน
+- ยังไม่ได้ป้องกันการสลับแท็บภายในแอปตอนมีงานค้าง (App ใช้ `BrowserRouter` ใช้ `useBlocker` ไม่ได้) ป้องกันเฉพาะปิด/รีโหลดหน้า
+- ยังไม่บันทึกชื่อผู้ใช้ที่ save เพราะ API ของ project ยังไม่ส่ง token
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบใน browser หลังรีสตาร์ท backend
+
+---
+
+## [2026-10-05] - Duplicate Widget และ Grid แบบ Grafana (Auto-arrange / Free placement)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] Duplicate widget พร้อมการตั้งค่าทั้งหมด
+- [x] Grid ละเอียดแบบ Grafana และสลับโหมด Auto-arrange / Free placement ได้
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Duplicate (`LiveDashboard.jsx`):** ปุ่ม Copy ในแถบเครื่องมือของ widget (Edit Mode) คัดลอก config ด้วย `structuredClone`, ต่อท้ายชื่อ "(Copy)" และวางไว้ทางขวาถ้ามีที่ว่าง ไม่งั้นวางใต้ตัวต้นฉบับ (`findDuplicatePosition`)
+- **Grid v2:** 24 คอลัมน์ / แถว 30px / ระยะห่าง 8px (เดิม 12 คอลัมน์ / 75px / 12px) และแสดงเส้นไกด์ grid จางๆ ตอน Edit Mode
+- **โหมดจัดวาง:** ปุ่มสลับใน toolbar → `compactType` = `'vertical'` (Auto-arrange) หรือ `null` (Free placement)
+- **บันทึก:** `dashboard_layout._grid = { version: 2, compact }`
+- **Migration:** layout ที่ไม่มี `_grid` (v1) จะถูกแปลงตอนโหลด (`migrateItemV1toV2`: x/w ×2, y/h ×87/38) และ `minW/minH` ของ widget ใหม่ถูกแปลงจากค่าเดิม
+- แถบปุ่ม widget ใช้ `draggableCancel=".widget-toolbar"` คลิกปุ่มแล้วไม่ลาก widget ไปด้วย
+- Preview ใน Widget Settings ใช้สัดส่วนของ grid ใหม่
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ใช้ react-grid-layout เดิม แค่ปรับ geometry + `compactType` แทนการเปลี่ยน library
+- **เหตุผล:** Grafana เองก็ใช้ react-grid-layout (24 cols) ไม่ต้องเพิ่ม dependency
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- ความสูงหลัง migrate อาจต่างจากเดิม ~±20px เพราะต้องปัดเป็นจำนวนแถว
+- layout จะถูกบันทึกเป็น v2 เมื่อกด Save Layout ครั้งถัดไป (ก่อนหน้านั้นจะ migrate ใหม่ทุกครั้งที่โหลด)
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบใน browser กับ dashboard ที่มีอยู่จริง
+
+---
+
+## [2026-10-05] - Chart Widget: Tooltip เวลาแบบอ่านง่าย, Live Preview และ Display Templates
+
+### 🎯 เป้าหมาย (Goals)
+- [x] Tooltip แสดงเวลาแบบ human-readable พร้อมชื่อตัวแปรข้อมูล
+- [x] แสดง Live Preview ของ Chart ใน Widget Settings (เดิมเป็นกล่องข้อความ "Chart Preview")
+- [x] เพิ่ม Display Template ให้ผู้ใช้เลือกรูปแบบกราฟได้ง่าย
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **`ChartWidget.jsx`:**
+  - `ChartTooltip` แสดง "วันนี้ / เมื่อวาน / วันที่" + `HH:mm:ss` + เวลาสัมพัทธ์ (เช่น "12 วินาทีที่แล้ว") และแต่ละแถวแสดงจุดสี + ชื่อแหล่งข้อมูล (จาก `config.dataPathNames`) + ค่าพร้อม unit
+  - โหมด preview (`config.__isPreview`) ใช้ข้อมูลตัวอย่างที่คงที่ (`buildSampleData`) ไม่ fetch API / ไม่ฟัง live
+  - ใช้ค่าตั้งค่าที่เดิมมีใน Settings แต่ widget ไม่ได้อ่าน: `strokeWidth`, `showDots`, `fillOpacity`, `useGradient`, `showGrid`, `gridStyle`, `thresholdColor/Label`, `thresholdMin*`, `enableUpperLimit/LowerLimit`, `enableYAxisConstraints`, `maxDataPoints`
+- **`WidgetSettingsModal.jsx`:**
+  - `CHART_TEMPLATES` 6 แบบ (Live Trend, Step/State, Volume Area, Count Bars, Threshold Monitor, Multi-Series Compare) พร้อม thumbnail SVG, คำอธิบาย และ "เหมาะกับ"
+  - template ที่ตรงกับค่าปัจจุบันจะไฮไลต์ "✓ ใช้อยู่" (`isTemplateActive`) และมีคำเตือนเมื่อ template ต้องการค่าเพิ่ม
+  - เพิ่มช่อง Time Range (5m/15m/1h/24h) และ Unit สำหรับ chart (เดิมไม่มีใน UI)
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** template เปลี่ยนเฉพาะค่าการแสดงผล ไม่แตะ data binding และไม่เก็บ template id ลง config
+- **เหตุผล:** ผู้ใช้ปรับต่อได้อิสระ และ config เดิมใช้งานได้ทันทีโดยไม่ต้อง migrate
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- `yAxisLogScale` และ `yAxisMargin` ยังไม่ถูกใช้ใน `ChartWidget`
+- Area chart เดิมจะแสดงแบบไล่สี (gradient) เพราะค่าเริ่มต้น `useGradient` เป็น true
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบใน browser
+
+---
+
+## [2026-10-04] - จัดหมวดหมู่ Available Widgets, แก้ไอคอน Video Stream และเพิ่ม Visual Range Editor สำหรับ Dynamic Colors
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ไอคอน Video Stream ในเมนู Available Widgets ที่แสดงผิด
+- [x] แบ่ง widget ในเมนู Available Widgets เป็นหมวดหมู่
+- [x] เปลี่ยนการตั้งค่า Dynamic Colors & Ranges จากช่องกรอกตัวเลข เป็นแบบ visualize
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **ไอคอน Video Stream:** label เดิมมี byte เสีย (`\xef\xbf\xbd` = U+FFFD) แทนที่ด้วย Lucide `<Video />`
+- **หมวดหมู่ widget (`LiveDashboard.jsx`):** เพิ่ม `WIDGET_CATEGORIES` 5 หมวด (Media & AI Vision / Metrics & Gauges / Charts & Analytics / Data & Telemetry / Controls & Actions) และสร้าง `WIDGET_TYPES` จาก `flatMap` เพื่อให้โค้ดเดิมยังใช้ได้
+- **Visual Range Editor (`WidgetSettingsModal.jsx`):**
+  - แถบพรีวิวช่วงสี 0–100% แบบ live
+  - Quick Presets (`PRESET_COLOR_STOPS`): Traffic Light, Cool to Hot, Battery, Pass/Alert
+  - การ์ดแต่ละโซน: slider + ช่องตัวเลข + swatch สีด่วน (`QUICK_COLORS`) + color picker
+  - ปุ่ม Auto-sort (`handleSortColorStops`) และ `handleAddColorStop` ที่เดาค่า limit/สีเริ่มต้นให้
+- ลบ import `RadialDonutWidget` / `CapacityBarWidget` ที่ไม่ได้ใช้แล้วหลังรวมเข้า Gauge
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** คงรูปแบบ `colorStops: { limit, color }[]` เดิม
+- **เหตุผล:** `GaugeWidget` / `CapacityBarWidget` sort ตาม `limit` อยู่แล้ว จึงเข้ากันได้ย้อนหลังโดยไม่ต้อง migrate config
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- warning เดิมจาก `dev`: duplicate key `unit` / `thresholdMin` ใน initial `formData` ของ `WidgetSettingsModal.jsx` (ยังไม่แก้ เพราะอยู่นอก scope)
+
+### ⏭️ ก้าวต่อไป (Next Steps)
+- ทดสอบ UI ในเบราว์เซอร์ และส่ง Code Review ก่อน merge เข้า `dev`
+
+---
+
+## [2026-10-04] - รวม Gauge/Radial Donut/Capacity Bar เป็น Widget เดียว และจัดระเบียบการ์ด Widget Settings ให้เป็นมาตรฐานเดียวกัน
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ยุบรวม Widget Gauge, Radial Donut และ Capacity Bar ให้มาอยู่ใน `⏱️ Gauge` Widget เดียว
+- [x] จัดระเบียบกล่องตั้งค่าฟีเจอร์ใน `WidgetSettingsModal.jsx` ทุกแท็บให้มีลักษณะดีไซน์สวยงามและเป็นมาตรฐานเดียวกัน (Consistent UI)
+- [x] คงความเข้ากันได้ย้อนหลัง (Backward Compatibility) ให้กับ Dashboard เก่าที่มี radialDonut หรือ capacityBar
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **รวม Gauge Widget Styles:**
+  - ยุบ `RadialDonut` และ `CapacityBar` มารวมไว้ใน `GaugeWidget.jsx` โดยรองรับ 4 สไตล์ผ่าน dropdown `Gauge Style`:
+    1. `half-circle`: Modern Half-Circle Gauge
+    2. `horseshoe`: Horseshoe with Needle
+    3. `radial-donut`: Radial Donut Chart
+    4. `capacity-bar`: Capacity Bar (Linear Tube ปรับได้ทั้ง Horizontal / Vertical)
+  - ใน `LiveDashboard.jsx`: นำ `radialDonut` และ `capacityBar` ออกจากรายการ Add Widget และแมป render ย้อนหลังมาที่ `GaugeWidget` อัตโนมัติ
+  - ใน `WidgetSettingsModal.jsx`: ปรับปรุง Preview ให้แสดงผลทุกสไตล์ได้อย่างถูกต้องแม่นยำ
+- **จัดระเบียบกล่องตั้งค่า (Consistent Setting Cards):**
+  - ปรับดีไซน์กล่องสวิตช์ Toggle และกล่องตั้งค่าในทุกแท็บ (General, Appearance, Limits & Alerts) ให้ใช้โครงสร้าง `p-3.5 rounded-xl border border-line-strong/60 bg-surface-2/40 hover:border-line-strong transition-colors`
+  - มี Title (`text-sm font-semibold text-fg`) และคำอธิบายย่อย Subtitle (`text-xs text-fg-subtle font-normal mt-0.5`) ชัดเจนทุกกล่อง
+  - เมื่อเปิดสวิตช์ ส่วนปรับแต่งย่อยจะแสดงผลต่อท้ายด้วยเส้นคั่น `pt-3 border-t border-line-strong/50` อย่างเป็นระเบียบ เรียบร้อย และกลมกลืน
+
+---
+
+## [2026-10-04] - เพิ่มฟีเจอร์ Trend Indicator, Compact Notation และ Card Alert Glow ให้กับ Number Widget
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ฟีเจอร์ที่ 1: Trend / Delta Indicator (ลูกศรขึ้น/ลง ▲/▼ พร้อม % หรือค่าความต่างเมื่อเทียบกับค่าก่อนหน้า)
+- [x] ฟีเจอร์ที่ 4: Compact Notation (ตัวย่อ K, M, B เช่น 1.5K, 2.3M, 1.2B)
+- [x] ฟีเจอร์ที่ 5: Background Card Glow on Alert (แสงนีออนเรืองเตือนรอบขอบการ์ดเมื่อค่าเกินเกณฑ์/Trigger Alert)
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Trend / Delta Indicator (ฟีเจอร์ที่ 1):**
+  - ใน `MetricWidget.jsx`: ใช้ `useRef` และ `useEffect` ตรวจสอบความเปลี่ยนแปลงของค่า scalar แบบเรียลไทม์ คำนวณความต่าง (`diff`) และเปอร์เซ็นต์ (`pct`)
+  - รองรับการปรับ `trendMode` ทั้งแบบ Percentage (`+5.4%`) และแบบ Difference Value (`+12`)
+  - รองรับการตั้งค่าสีทิศทางบวก `trendPositiveColor`: เลือกได้ว่าจะให้ลูกศรขึ้นเป็นสีเขียว (Green = Good) หรือสีแดง (Red = Alert/Bad เช่น วัดความร้อนหรือ error)
+  - จัดวาง badge ร่วมกับ unit ได้ทั้งโหมด `inline` (วางไว้ใต้ตัวเลขอย่างสวยงาม) และโหมด `below` (วางเคียงข้าง unit)
+  - รองรับ Mock Trend Preview ใน `WidgetSettingsModal.jsx` เมื่อเปิดใช้งาน ให้ผู้ใช้เห็นตัวอย่างผลลัพธ์ทันทีขณะตั้งค่า
+- **Compact Notation (ฟีเจอร์ที่ 4):**
+  - เพิ่มฟังก์ชัน `formatCompact(num, decimals)` ย่อตัวเลขขนาดใหญ่ (≥1K -> K, ≥1M -> M, ≥1B -> B) พร้อมจัดการทศนิยมและเครื่องหมายลบ
+  - เพิ่ม toggle สวิตช์ในแท็บ General ของ Settings Modal
+- **Background Card Glow on Alert (ฟีเจอร์ที่ 5):**
+  - ออกแบบเอฟเฟกต์แสงนีออนเรือง (Neon Card Glow) เมื่อ Widget อยู่ในสถานะ Alert ด้วย `border-2 border-red-500 bg-gradient-to-b from-red-500/15 via-red-950/20 to-surface shadow-[0_0_30px_rgba(239,68,68,0.45)] animate-pulse`
+  - เพิ่มตัวเลือกเปิด/ปิด Card Neon Glow ในแท็บ Limits & Alerts ของ Settings Modal
+
+---
+
+## [2026-10-04] - พัฒนาฟีเจอร์ Number Widget (อัปเกรดจาก Metric) บน Dashboard
+
+### 🎯 เป้าหมาย (Goals)
+- [x] เปลี่ยนชื่อ Metric Widget เป็น Number เพื่อความเข้าใจง่ายสำหรับผู้ใช้ใหม่
+- [x] เพิ่มฟีเจอร์เลือกตำแหน่งของ Unit Suffix / Label (ต่อหลังตัวเลข หรือ อยู่ใต้ตัวเลข)
+- [x] ปรับช่องไฟตัวอักษรของ Unit Suffix / Label ไม่ให้ติดกันเกินไป (`tracking-wider`)
+- [x] ใส่เครื่องหมายจุลภาค (Comma `,`) คั่นหลักพันให้อัตโนมัติ
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **เปลี่ยนชื่อเป็น Number:** เปลี่ยน Label ใน `LiveDashboard.jsx` เป็น `🔢 Number` และอัปเดตชื่อใน Header และ Setting Modal
+- **ฟีเจอร์ Unit Position:** เพิ่มตัวเลือก `unitPosition` ใน `WidgetSettingsModal.jsx` เลือกระหว่าง "ต่อหลังตัวเลข (Behind / Inline)" หรือ "อยู่ใต้ตัวเลข (Below Number)"
+- **แก้ปัญหาตัวอักษร Unit ชิดกัน:** เพิ่ม `tracking-wider font-semibold ml-2.5` ให้ตัวอักษร Unit มีช่องไฟสวยงาม ชัดเจน ไม่โดน tracking-tighter ของตัวเลขดึง
+- **ใส่ Comma คั่นหลักพันอัตโนมัติ:** ใช้ฟังก์ชัน `formatWithCommas` แยกส่วนหน้าจุดทศนิยมและคั่นหลักพันด้วย regex `/\B(?=(\d{3})+(?!\d))/g` สวยงามและแม่นยำ
+
+---
+
+## [2026-10-04] - แก้บั๊ก Dashboard Widgets (Data Source Binding N/A, Video Widget Data Path ผีหลอก, และ ROI / AI FPS Overlay หาย)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ปัญหา dropdown Data Source Binding ใน Widget Settings Modal ขึ้น `[N/A]` ทั้งที่ pipeline ส่งค่าแบบเรียลไทม์
+- [x] แก้ปัญหา Video Widget เล่นวิดีโอแม้ dataPath ไม่มีอยู่จริงบน pipeline (หรือถูกลบ/ไม่ได้เชื่อมต่อ)
+- [x] แก้ปัญหา Video Widget ไม่วาด ROI Zone, AI FPS (มุมขวาบน) และ Bounding Box บนหน้า Dashboard
+- [x] ตรวจสอบและแก้ไขการส่งค่า props ให้ Dashboard widgets ทั้งหมดบน Live Dashboard
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **บั๊ก Data Source Binding N/A:** ใน `LiveDashboard.jsx` ลืมส่ง prop `metadata={metadata}` ให้ `<WidgetSettingsModal>` ทำให้ metadata เป็น `{}` เสมอ แก้โดยส่ง metadata เข้าไป และปรับปรุง `getNestedValue` กับ `formatDisplayVal` ใน `WidgetSettingsModal.jsx`
+- **บั๊ก Video เล่นแม้ไม่มี dataPath จริงบน pipeline:** 
+  - เดิมที `VideoWidget.jsx` มี fallback ต่อตรงไปหา raw camera `shared_${config.camera_id}` หรือใช้ `config.stream_id` เก่าที่ค้างอยู่ใน widget config ทำให้ยังคงดึงสตรีมขึ้นมาเล่นได้แม้ node ใน pipeline ถูกลบไปแล้ว
+  - แก้โดยให้ `LiveDashboard.jsx` ส่ง `dataSources` (สตรีมวิดีโอที่ pipeline expose ออกมาจริง) ให้ `VideoWidget.jsx`
+  - หาก `dataPath` ไม่ได้เชื่อมต่อหรือไม่อยู่บน pipeline อีกต่อไป (`isDanglingPath`) จะตัดการเชื่อมต่อ WHEP ทันที และแสดง UI แจ้งเตือน "Data path not found on pipeline" ป้องกันการเล่นวิดีโอผีหลอก
+- **บั๊ก ROI และ AI FPS ไม่แสดงบน Video Widget:**
+  - ใน `App.jsx` มีการดักจับข้อความ high-frequency metadata (`ai_metadata`) แล้ว dispatch ออกไปเป็น CustomEvent ที่ระดับ window เพื่อหลีกเลี่ยงการ re-render React DOM ที่ 30fps แต่ใน `VideoWidget.jsx` ยังคงรอรับค่าจาก React prop `metadata` อย่างเดียว ทำให้ canvas loop ไม่เคยได้รับข้อมูล AI ล่าสุด
+  - เพิ่ม Event Listener `ai_metadata` ใน `VideoWidget.jsx` อัปเดต `latestMetadataRef` แบบ zero-copy ไม่กระตุก React
+  - แก้ไขใน `backend/ai_engine/hailo_worker.py` ให้แนบ `metadata["roi"]` เสมอเมื่อมีการเปิดใช้งาน ROI (`roi_enabled` หรือ `show_roi`)
+  - วาด ROI Zone (กรอบเส้นประสีส้มพร้อมป้าย ROI ZONE), AI FPS สีเขียว/เหลือง/แดงที่มุมขวาบน และ Bounding Box บน Canvas ได้อย่างสมบูรณ์
+- **บั๊ก Video Widget showTitle ปิดแล้วไม่หาย:**
+  - เดิมใน `VideoWidget.jsx` แสดง icon กล้องและ title text เสมอโดยไม่ได้เช็ค `config?.showTitle`
+  - ครอบด้วย `{config?.showTitle !== false && (...)}` ซ่อน title และ icon กล้องอย่างถูกต้องเมื่อผู้ใช้ปิด Show Title ใน settings
+- **ปรับปรุง Data Source Dropdown สำหรับ Video:**
+  - วิดีโอสตรีมไม่มีค่าตัวเลขแบบ realtime ค่า `[${displayVal}]` จึงแสดงเป็น `[N/A]` หรือค่าว่างซึ่งทำให้สับสน
+  - ปรับใน `WidgetSettingsModal.jsx` ไม่ให้แสดงวงเล็บค่า realtime สำหรับ source ที่เป็น `video` แสดงเฉพาะชื่อ data path สะอาดตา
+- **ปรับปรุง Title Style ของทุก Dashboard Widget ให้เป็นมาตรฐานเดียวกัน:**
+  - กำหนดมาตรฐาน Header Bar ทุก Widget เป็น `bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0`
+  - ไอคอนขนาด 16px (`shrink-0`) พร้อมสี accent ตามประเภท widget
+  - ข้อความ Title ใช้ `text-xs sm:text-sm font-semibold text-fg truncate` แทน uppercase และสีจางเดิม
+  - รองรับการปิด Show Title (`config.showTitle === false`) สอดคล้องกันทุกตัว (`GaugeWidget`, `MetricWidget`, `ChartWidget`, `CapacityBarWidget`, `RadialDonutWidget`, `TrafficLightWidget`, `TextWidget`, `TextFeedWidget`, `TargetTrackerWidget`, `HistoricalChartWidget`, `ActionButtonsWidget`, `AlertsFeedWidget`, `PipelineStatusWidget`, `SystemResourceWidget`, `SnapshotsWidget`, `LogWidget`, `HeatmapWidget`)
+- **แก้ปัญหา Gauge Widget มี Inner Shadow ที่กรอบ:**
+  - ตรวจพบว่า `GaugeWidget.jsx` มีการใส่คลาส `shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]` แบบ hardcoded บนการ์ดด้านนอก ทำให้เกิดเงามืดวงในรอบขอบกรอบ
+  - แก้ไขโดยเอา inset shadow ออก แล้วเปลี่ยนมาใช้เงา `shadow-xl` และ `border-line` มาตรฐานเหมือน widget อื่นๆ
+- **Widget Props อื่นๆ:** เชื่อมต่อ props `value`, `unit`, `config` ให้ `GaugeWidget`, `TrafficLightWidget`, `RadialDonutWidget`, `CapacityBarWidget`, `TargetTrackerWidget`, และ `MetricWidget` บน `LiveDashboard.jsx`
+- ทดสอบ build ด้วย Vite ผ่านฉลุย 100% และ oxlint 0 errors
+
+---
+
 ## [2026-10-04] - ยกเครื่องระบบ Theme เป็น Semantic Design Tokens (Light/Dark/System) และจัดระเบียบ Git Remote / Repository
 
 ### 🎯 เป้าหมาย (Goals)

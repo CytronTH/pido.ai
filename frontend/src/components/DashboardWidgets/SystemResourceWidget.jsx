@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Cpu, MemoryStick, Thermometer } from 'lucide-react';
 
-export default function SystemResourceWidget() {
+export default function SystemResourceWidget({ config = {} }) {
   const [metrics, setMetrics] = useState({ cpu_percent: 0, ram_percent: 0, temp_c: 0 });
   const [connected, setConnected] = useState(false);
 
@@ -29,13 +29,15 @@ export default function SystemResourceWidget() {
 
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-      <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
-        <div className="flex items-center gap-2">
-          <Activity size={16} className="text-orange-700 dark:text-orange-400" />
-          <span className="text-sm font-semibold text-fg">System Resources</span>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Activity size={16} className="text-orange-700 dark:text-orange-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-fg truncate">{config?.title || 'System Resources'}</span>
+          </div>
+          <div className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
         </div>
-        <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-      </div>
+      )}
       
       <div className="flex-1 p-4 flex flex-col justify-around">
         

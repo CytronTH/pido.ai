@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, RefreshCw, Maximize2, Minimize2, X } from 'lucide-react';
+import { Camera, RefreshCw, Maximize2, Minimize2, X, VideoOff } from 'lucide-react';
 
 /**
  * WHEP (WebRTC-HTTP Egress Protocol) hook.
@@ -132,7 +132,7 @@ function useWhepStream(whepUrl, videoRef) {
   return { status, reconnect: connect, stream, streamRef };
 }
 
-export default function VideoWidget({ metadata, projectId, config }) {
+export default function VideoWidget({ metadata, projectId, config, dataSources = [], dataSourcesLoaded = false }) {
   const canvasRef = useRef(null);
   const videoRef  = useRef(null);
   const modalCanvasRef = useRef(null);
@@ -141,19 +141,62 @@ export default function VideoWidget({ metadata, projectId, config }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [qualityLabel, setQualityLabel] = useState(null); // e.g. "480p", "360p"
 
+  // Look up this widget's dataPath in the project's exposed pipeline sources
+  const matchedSource = config?.dataPath
+    ? dataSources.find(ds => ds.id === config.dataPath)
+    : null;
+
+  // A data path is "dangling" if dataSources has loaded, but config.dataPath is not among them
+  const isDanglingPath = Boolean(dataSourcesLoaded && config?.dataPath && !matchedSource);
+
+  // Widget is considered properly configured only if dataPath is set AND exists on the pipeline
+  const isConfigured = Boolean(config?.dataPath && (dataSourcesLoaded ? matchedSource : true));
+
+  // Determine effective stream ID from the pipeline node
+  const effectiveStreamId = matchedSource?.stream_id || config?.stream_id;
+
   // ── WHEP URL ───────────────────────────────────────────────────────────────
-  const whepUrl = projectId && config?.dataPath
-    ? `http://${window.location.hostname}:8889/${projectId}_${config.stream_id || config.dataPath}/whep`
-    : (config?.camera_id ? `http://${window.location.hostname}:8889/shared_${config.camera_id}/whep` : null);
+  // ONLY connect to WHEP if dataPath is configured and valid on the pipeline!
+  // No rogue fallback to shared camera if dataPath is missing or deleted from pipeline!
+  const whepUrl = (projectId && isConfigured && (effectiveStreamId || config?.dataPath))
+    ? `http://${window.location.hostname}:8889/${projectId}_${effectiveStreamId || config.dataPath}/whep`
+    : null;
 
   const { status, reconnect, stream, streamRef } = useWhepStream(whepUrl, videoRef);
 
   const lastBoxesRef = useRef({ items: [], time: 0 });
   const latestMetadataRef = useRef(null);
 
+  // 1) Update latestMetadataRef from React prop (for lower frequency / fallback)
   useEffect(() => {
-    latestMetadataRef.current = metadata;
+    if (metadata && (metadata.data || metadata.detections || metadata.fps !== undefined || metadata.roi)) {
+      latestMetadataRef.current = metadata;
+    }
   }, [metadata]);
+
+  // 2) Listen to high-frequency WebSocket 'ai_metadata' event dispatched by App.jsx
+  useEffect(() => {
+    const handleAiMetadata = (e) => {
+      const data = e.detail;
+      if (!data) return;
+
+      const targetStreamId = effectiveStreamId || config?.stream_id;
+      const targetCameraId = config?.camera_id || matchedSource?.camera_id;
+
+      // Match metadata by stream_id or camera_id
+      const matches = !data.camera_id ||
+        !targetStreamId ||
+        data.camera_id === targetStreamId ||
+        (targetCameraId && data.camera_id === targetCameraId);
+
+      if (matches) {
+        latestMetadataRef.current = data;
+      }
+    };
+
+    window.addEventListener('ai_metadata', handleAiMetadata);
+    return () => window.removeEventListener('ai_metadata', handleAiMetadata);
+  }, [effectiveStreamId, config?.stream_id, config?.camera_id, matchedSource]);
 
   // Sync stream to modal video when expanded
   useEffect(() => {
@@ -198,8 +241,9 @@ export default function VideoWidget({ metadata, projectId, config }) {
       const currentMetadata = latestMetadataRef.current;
       if (!currentMetadata) return;
 
+      const targetStreamId = effectiveStreamId || config?.stream_id;
       const isMatchingCamera = config?.has_ai !== false &&
-        (!currentMetadata.camera_id || currentMetadata.camera_id === config?.stream_id);
+        (!currentMetadata.camera_id || !targetStreamId || currentMetadata.camera_id === targetStreamId || (config?.camera_id && currentMetadata.camera_id === config.camera_id));
       if (!isMatchingCamera) return;
 
       // Draw ROI if present in metadata
@@ -327,10 +371,14 @@ export default function VideoWidget({ metadata, projectId, config }) {
       {/* Header */}
       <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Camera size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="text-xs sm:text-sm font-semibold text-fg truncate">
-            {config?.title || 'Live Video Stream'}
-          </span>
+          {config?.showTitle !== false && (
+            <>
+              <Camera size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="text-xs sm:text-sm font-semibold text-fg truncate">
+                {config?.title || 'Live Video Stream'}
+              </span>
+            </>
+          )}
           <span
             className="inline-block w-2 h-2 rounded-full shrink-0"
             style={{ background: statusColor[status] ?? '#6b7280' }}
@@ -364,10 +412,22 @@ export default function VideoWidget({ metadata, projectId, config }) {
 
       {/* Video + Canvas overlay */}
       <div className="flex-1 relative bg-black min-h-0 flex items-center justify-center">
-        {!config?.dataPath && !config?.camera_id ? (
-          <div className="flex flex-col items-center gap-2 text-fg-muted text-sm">
+        {isDanglingPath ? (
+          <div className="flex flex-col items-center gap-2 text-fg-muted text-sm p-4 text-center">
+            <VideoOff size={32} className="text-red-500/70" />
+            <span className="font-semibold text-fg">Data path not found on pipeline</span>
+            <span className="text-xs font-mono text-red-400/80">{config?.dataPath}</span>
+            <p className="text-[11px] text-fg-subtle max-w-xs">
+              This video node is disconnected or does not exist in the active pipeline.
+            </p>
+          </div>
+        ) : !config?.dataPath ? (
+          <div className="flex flex-col items-center gap-2 text-fg-muted text-sm p-4 text-center">
             <Camera size={32} className="text-fg-faint" />
-            <p>Please bind a video source in settings</p>
+            <span className="font-semibold text-fg">No Video Source Bound</span>
+            <p className="text-xs text-fg-subtle">
+              Please click widget settings to bind a pipeline video stream.
+            </p>
           </div>
         ) : (
           <div
@@ -477,7 +537,13 @@ export default function VideoWidget({ metadata, projectId, config }) {
 
             {/* Modal Video Player Area */}
             <div className="flex-1 relative bg-black min-h-0 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-              {!config?.dataPath && !config?.camera_id ? (
+              {isDanglingPath ? (
+                <div className="flex flex-col items-center gap-2 text-fg-muted text-sm p-4 text-center">
+                  <VideoOff size={36} className="text-red-500/70" />
+                  <span className="font-semibold text-fg">Data path not found on pipeline</span>
+                  <span className="text-xs font-mono text-red-400/80">{config?.dataPath}</span>
+                </div>
+              ) : !config?.dataPath ? (
                 <div className="flex flex-col items-center gap-2 text-fg-muted text-sm">
                   <Camera size={36} className="text-fg-faint" />
                   <p>Please bind a video source in settings</p>

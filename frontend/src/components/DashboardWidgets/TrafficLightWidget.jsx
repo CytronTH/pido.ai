@@ -1,4 +1,5 @@
 import React from 'react';
+import { TrafficCone } from 'lucide-react';
 
 export default function TrafficLightWidget({ title, value, config = {} }) {
   let status = 'error'; 
@@ -15,10 +16,19 @@ export default function TrafficLightWidget({ title, value, config = {} }) {
   }
 
   return (
-    <div className="flex flex-col h-full rounded-xl overflow-hidden p-4 bg-surface border border-line-strong/50 shadow-well transition-colors duration-300 relative items-center justify-center">
-      {title && <div className="absolute top-4 left-4 text-xs font-semibold text-fg-muted uppercase tracking-widest opacity-80">{title}</div>}
+    <div className="flex flex-col h-full rounded-xl overflow-hidden bg-surface border border-line shadow-xl transition-colors duration-300 relative">
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0 w-full z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            <TrafficCone size={16} className="text-yellow-700 dark:text-yellow-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-fg truncate">
+              {title || config?.title || 'Traffic Light'}
+            </span>
+          </div>
+        </div>
+      )}
       
-      <div className="flex gap-6 items-center mt-4 w-full justify-center">
+      <div className="flex-1 flex gap-6 items-center p-4 w-full justify-center">
           <div className="flex flex-col gap-2 bg-gradient-to-b from-[#1a2235] to-[#0b0e14] p-3 rounded-[30px] border border-line-strong/50 shadow-[0_10px_20px_rgba(0,0,0,0.5),inset_0_0_15px_rgba(0,0,0,0.8)] relative">
             {/* Glass reflection */}
             <div className="absolute top-2 left-2 bottom-2 w-1.5 bg-white/5 rounded-full blur-[1px]"></div>

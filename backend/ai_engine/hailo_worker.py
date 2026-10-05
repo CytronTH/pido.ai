@@ -203,7 +203,8 @@ class HailoPipelineWorker:
                         cam_id, 
                         cam_entity, 
                         loop=loop, 
-                        loop_count=getattr(first_stream, 'loop_count', 1)
+                        loop_count=getattr(first_stream, 'loop_count', 1),
+                        speed=speed if video_src_type == "file" else 1.0
                     )
                     self.acquired_cameras.append(cam_id)
                     source_bin = (
@@ -705,7 +706,7 @@ class HailoPipelineWorker:
             if self.metadata_callback:
                 # We send the metadata to the frontend
                 metadata = {"type": ai_task, "data": parsed_results, "camera_id": camera_id, "fps": current_fps, "msg": msg}
-                if stream_cfg and getattr(stream_cfg, 'roi_enabled', False) and getattr(stream_cfg, 'show_roi', False) and getattr(stream_cfg, 'roi', None):
+                if stream_cfg and (getattr(stream_cfg, 'roi_enabled', False) or getattr(stream_cfg, 'show_roi', False)) and getattr(stream_cfg, 'roi', None):
                     metadata["roi"] = stream_cfg.roi
                 if msg.get("metadata"):
                     metadata["bbox_draw_mode"] = msg["metadata"].get("bbox_draw_mode", "frontend")

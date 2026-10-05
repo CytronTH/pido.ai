@@ -38,6 +38,22 @@ class ProjectRevision(SQLModel, table=True):
     dashboard_layout_json: str = Field(default="{}")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class DashboardVersion(SQLModel, table=True):
+    """Immutable snapshot of a project's dashboard layout, created on every manual save."""
+    __tablename__ = "dashboard_versions"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    project_id: str = Field(index=True, foreign_key="project.id", ondelete="CASCADE")
+    version_number: int = Field(index=True)
+    note: str = Field(default="")
+    layout_json: str = Field(default="{}")
+    widget_count: int = Field(default=0)
+    restored_from_version: Optional[int] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "version_number", name="uix_dashboard_version_number"),
+    )
+
 class Camera(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     name: str

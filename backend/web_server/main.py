@@ -4,6 +4,8 @@ import json
 import yaml
 import re
 import hashlib
+import uuid
+import threading
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
@@ -179,8 +181,10 @@ app.include_router(project_backup_router)
 
 from .routers.auth import router as auth_router
 from .routers.users import router as users_router
+from .routers.dashboard_versions import router as dashboard_versions_router
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(dashboard_versions_router)
 
 
 @app.get("/")
@@ -333,7 +337,9 @@ def write_entities(data):
         session.commit()
 
 @app.get("/api/entities")
-async def get_entities():
+async def get_entities() -> Dict[str, Any]:
+    # Ensure every video file on disk is registered as a camera entity before listing
+    await asyncio.to_thread(sync_video_entities)
     return read_entities()
 
 @app.post("/api/entities")
@@ -731,6 +737,76 @@ VIDEOS_DIR.mkdir(exist_ok=True)
 MAX_VIDEO_SIZE = 1 * 1024 * 1024 * 1024  # 1 GB
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mkv", ".mov", ".webm"}
 
+
+def _new_video_camera_id() -> str:
+    """Generate a collision-free ID for a file-type camera entity."""
+    return f"cam_file_{uuid.uuid4().hex[:12]}"
+
+
+# Serializes sync runs: concurrent GET /api/entities + /api/videos calls would
+# otherwise both see a file as unregistered and create duplicate entities.
+_video_sync_lock = threading.Lock()
+
+
+def _find_video_camera_id(path: Path) -> Optional[str]:
+    """Return the ID of the file-type camera entity registered for ``path``."""
+    with Session(db.engine) as session:
+        cam = session.exec(
+            select(Camera).where(Camera.type == "file", Camera.path == str(path))
+        ).first()
+        return cam.id if cam else None
+
+
+def sync_video_entities() -> int:
+    """
+    Reconcile video files in VIDEOS_DIR with file-type Camera entities.
+
+    - Registers any video file on disk that has no matching camera entity.
+    - Re-points file entities whose path no longer exists (e.g. after the project
+      directory was moved/renamed) to the file of the same name in VIDEOS_DIR.
+
+    Returns the number of entities created or updated.
+    """
+    try:
+        disk_files: Dict[str, Path] = {
+            f.name: f for f in VIDEOS_DIR.iterdir()
+            if f.is_file() and f.suffix.lower() in ALLOWED_VIDEO_EXTENSIONS
+        }
+    except OSError as e:
+        logger.error(f"Video sync: cannot list videos dir {VIDEOS_DIR}: {e}")
+        return 0
+
+    changed = 0
+    with _video_sync_lock, Session(db.engine) as session:
+        file_cams = session.exec(select(Camera).where(Camera.type == "file")).all()
+        registered_paths = {c.path for c in file_cams}
+
+        # 1. Repair stale paths (file moved into the current VIDEOS_DIR)
+        for cam in file_cams:
+            if cam.path and not Path(cam.path).exists():
+                candidate = disk_files.get(Path(cam.path).name)
+                if candidate and str(candidate) not in registered_paths:
+                    logger.info(f"Video sync: re-pointing camera '{cam.id}' from {cam.path} to {candidate}")
+                    registered_paths.discard(cam.path)
+                    cam.path = str(candidate)
+                    registered_paths.add(cam.path)
+                    session.add(cam)
+                    changed += 1
+
+        # 2. Register unregistered files
+        for name, f in sorted(disk_files.items()):
+            if str(f) not in registered_paths:
+                cam_id = _new_video_camera_id()
+                logger.info(f"Video sync: registering '{name}' as camera '{cam_id}'")
+                session.add(Camera(id=cam_id, name=name, type="file", path=str(f), is_enabled=True))
+                registered_paths.add(str(f))
+                changed += 1
+
+        if changed:
+            session.commit()
+    return changed
+
+
 @app.post("/api/videos/upload")
 async def upload_video(video_file: UploadFile = File(...)):
     try:
@@ -738,32 +814,30 @@ async def upload_video(video_file: UploadFile = File(...)):
         if suffix not in ALLOWED_VIDEO_EXTENSIONS:
             return {"status": "error", "message": f"Unsupported format. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}"}
         
-        save_path = VIDEOS_DIR / video_file.filename
+        # Strip any directory components to prevent path traversal (e.g. "../../x.mp4")
+        safe_name = Path(video_file.filename).name
+        save_path = VIDEOS_DIR / safe_name
+        # Write to a hidden .part file first so the entity sync never registers a
+        # half-written or rejected (oversized) upload.
+        tmp_path = VIDEOS_DIR / f".{safe_name}.part"
         size = 0
-        with open(save_path, "wb") as f:
+        with open(tmp_path, "wb") as f:
             while chunk := await video_file.read(1024 * 1024):  # 1MB chunks
                 size += len(chunk)
                 if size > MAX_VIDEO_SIZE:
                     f.close()
-                    save_path.unlink(missing_ok=True)
+                    tmp_path.unlink(missing_ok=True)
                     return {"status": "error", "message": "File exceeds 1GB limit"}
                 f.write(chunk)
-        
-        # Register as a camera entity of type "file"
-        entities = read_entities()
-        new_cam_id = f"cam_file_{int(time.time())}"
-        if "cameras" not in entities:
-            entities["cameras"] = []
-        
-        entities["cameras"].append({
-            "id": new_cam_id,
-            "name": video_file.filename,
-            "type": "file",
-            "path": str(save_path)
-        })
-        write_entities(entities)
-        
-        return {"status": "success", "camera_id": new_cam_id, "filename": video_file.filename, "size_bytes": size}
+        tmp_path.replace(save_path)
+
+        # Register via the shared sync path (reuses the existing entity when the
+        # same file is re-uploaded, so no duplicates are created).
+        await asyncio.to_thread(sync_video_entities)
+        new_cam_id = await asyncio.to_thread(_find_video_camera_id, save_path)
+
+        logger.info(f"Video uploaded: {safe_name} ({size} bytes) as camera '{new_cam_id}'")
+        return {"status": "success", "camera_id": new_cam_id, "filename": safe_name, "size_bytes": size}
     except Exception as e:
         logger.error(f"Failed to upload video: {e}")
         return {"status": "error", "message": str(e)}
@@ -771,6 +845,7 @@ async def upload_video(video_file: UploadFile = File(...)):
 @app.get("/api/videos")
 async def list_videos():
     try:
+        await asyncio.to_thread(sync_video_entities)
         files = []
         for f in VIDEOS_DIR.iterdir():
             if f.is_file() and f.suffix.lower() in ALLOWED_VIDEO_EXTENSIONS:

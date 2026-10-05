@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Server, Zap } from 'lucide-react';
 
-export default function PipelineStatusWidget({ connected, metadata }) {
+export default function PipelineStatusWidget({ connected, metadata, config = {} }) {
   const [fps, setFps] = useState(0);
 
   useEffect(() => {
@@ -12,12 +12,14 @@ export default function PipelineStatusWidget({ connected, metadata }) {
 
   return (
     <div className="flex flex-col h-full bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-      <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
-        <div className="flex items-center gap-2">
-          <Server size={16} className="text-indigo-600 dark:text-indigo-400" />
-          <span className="text-sm font-semibold text-fg">Pipeline Status</span>
+      {config?.showTitle !== false && (
+        <div className="bg-surface-2/80 px-3 py-2 flex items-center justify-between border-b border-line-strong shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Server size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-fg truncate">{config?.title || 'Pipeline Status'}</span>
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="flex-1 p-4 flex flex-col justify-center space-y-4">
         
