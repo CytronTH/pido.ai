@@ -9,7 +9,7 @@ const initialNodes = [
 
 const cleanNodeData = (data) => {
   if (!data || typeof data !== 'object') return {};
-  const { selected, dragging, position, positionAbsolute, width, height, isPaused, positions, viewMode, isDirty, isInvalid, ...rest } = data;
+  const { selected, dragging, position, positionAbsolute, width, height, isPaused, positions, viewMode, isDirty, isInvalid, showPreviewWindow, previewPosition, ...rest } = data;
   return rest;
 };
 

@@ -125,8 +125,8 @@ export default function DebugWebSocket() {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
             }
-          } else if (data.type === 'logic_state' || data.type === 'rate_limit_state' || data.type === 'flow_counter_update' || data.type === 'counter_update') {
-            if (data.node_id && (logics.has(data.node_id) || advancedDebugMode)) {
+          } else if (data.type === 'logic_state' || data.type === 'rate_limit_state' || data.type === 'flow_counter_update' || data.type === 'counter_update' || data.type === 'snapshot_capture') {
+            if (data.node_id && (logics.has(data.node_id) || advancedDebugMode || data.type === 'snapshot_capture')) {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
               if (setDebugData) setDebugData(data.node_id, data);

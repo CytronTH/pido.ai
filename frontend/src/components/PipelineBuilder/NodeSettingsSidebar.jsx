@@ -87,6 +87,11 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
       setIsDirty(true);
       return next;
     });
+
+    // Immediate UI toggle: if showPreviewWindow is changed, update the store right away without requiring Save
+    if (updates.showPreviewWindow !== undefined) {
+      updateNodeData(selectedNode.id, { showPreviewWindow: updates.showPreviewWindow });
+    }
   };
 
   const handleSave = () => {

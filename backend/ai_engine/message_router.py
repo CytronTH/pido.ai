@@ -855,12 +855,24 @@ class SnapshotNode(PipelineNode):
         self.cap_thread = threading.Thread(target=self._capture_loop, args=(rtsp_url,), daemon=True)
         self.cap_thread.start()
 
-    def _capture_loop(self, rtsp_url):
+    def _capture_loop(self, rtsp_url: str) -> None:
         import cv2, time
         logger.info(f"SnapshotNode [{self.node_id}] starting zero-latency buffer on {rtsp_url}")
+        
+        # Clean GStreamer pipeline that negotiates properly with OpenCV CAP_GSTREAMER
+        gst_pipeline = (
+            f"rtspsrc location={rtsp_url} protocols=tcp latency=0 ! "
+            f"rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink"
+        )
+        
         while self.cap_running:
-            cap = cv2.VideoCapture(rtsp_url)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            if not cap.isOpened():
+                # If stream is not yet ready on MediaMTX, wait 0.5s and retry zero-latency pipeline
+                time.sleep(0.5)
+                continue
+                
+            logger.info(f"SnapshotNode [{self.node_id}] zero-latency GStreamer buffer connected successfully")
             fail_count = 0
             while self.cap_running and cap.isOpened():
                 ret, frame = cap.read()
@@ -868,16 +880,16 @@ class SnapshotNode(PipelineNode):
                     fail_count = 0
                     self.latest_frame = frame
                     self.frame_buffer.append((time.time(), frame))
-                    if len(self.frame_buffer) > 45: # approx 1.5s buffer at 30fps
+                    if len(self.frame_buffer) > 60: # approx 2s buffer at 30fps
                         self.frame_buffer.pop(0)
                 else:
                     fail_count += 1
-                    if fail_count > 50:
+                    if fail_count > 30:
                         break
-                    time.sleep(0.02)
+                    time.sleep(0.01)
             cap.release()
             if self.cap_running:
-                time.sleep(1.0)
+                time.sleep(0.5)
 
     def cleanup(self):
         if self.cap_running:
@@ -979,6 +991,25 @@ class SnapshotNode(PipelineNode):
                                 logger.error(f"Draw flow lines error: {e}")
 
                     bbox_draw_mode = self._get_bbox_draw_mode(msg, camera_id)
+                    snapshot_url = f"/api/snapshots/{filepath.name}"
+
+                    def _broadcast_capture() -> None:
+                        if self.router.metadata_callback:
+                            try:
+                                self.router.metadata_callback({
+                                    "type": "snapshot_capture",
+                                    "node_id": self.node_id,
+                                    "project_id": self.router.project_id,
+                                    "label": self.label,
+                                    "camera_id": camera_id,
+                                    "snapshot_path": snapshot_url,
+                                    "filename": filepath.name,
+                                    "timestamp": time.time(),
+                                    "tags": self.tags,
+                                    "trigger_payload": payload,
+                                })
+                            except Exception as broadcast_err:
+                                logger.error(f"Snapshot broadcast error for node {self.node_id}: {broadcast_err}")
 
                     if self.zero_latency and self.latest_frame is not None:
                         # Synchronize RTSP latency with JSON speed
@@ -986,6 +1017,7 @@ class SnapshotNode(PipelineNode):
                         
                         import threading
                         def delayed_capture():
+                            logger.info(f"SnapshotNode [{self.node_id}] capture triggered: syncDelay={sync_delay_ms}ms, buffer_len={len(self.frame_buffer)}")
                             if sync_delay_ms > 0:
                                 time.sleep(sync_delay_ms / 1000.0) # Wait for video frame to catch up
                                 target_frame = self.latest_frame
@@ -1004,6 +1036,7 @@ class SnapshotNode(PipelineNode):
                                 target_frame = self.latest_frame
                                 
                             _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, target_frame, bbox_draw_mode)
+                            _broadcast_capture()
                         
                         t = threading.Thread(target=delayed_capture, daemon=True)
                         t.start()
@@ -1015,8 +1048,11 @@ class SnapshotNode(PipelineNode):
                         self._threads = [t for t in self._threads if t.is_alive()]
                         
                         if len(self._threads) < 5:
-                            t = threading.Thread(target=_capture_and_draw, args=(rtsp_url, filepath, detections, self.router.project_id, self.label, None, bbox_draw_mode))
-                            t.daemon = True
+                            def async_fallback():
+                                _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, None, bbox_draw_mode)
+                                _broadcast_capture()
+
+                            t = threading.Thread(target=async_fallback, daemon=True)
                             t.start()
                             self._threads.append(t)
                     
@@ -1036,7 +1072,7 @@ class SnapshotNode(PipelineNode):
                         camera_id=camera_id,
                         snapshot_path=str(filepath)
                     )
-                    msg["snapshot_path"] = f"/api/snapshots/{filepath.name}"
+                    msg["snapshot_path"] = snapshot_url
                     msg["snapshot_tags"] = self.tags
                 except Exception as e:
                     logger.error(f"Snapshot error: {e}")
@@ -1350,15 +1386,14 @@ class MessageRouter:
                         new_node.last_emit_time = getattr(old_node, 'last_emit_time', 0.0)
                         new_node.last_ws_val = getattr(old_node, 'last_ws_val', None)
                         new_node.first_true = getattr(old_node, 'first_true', None)
-                    # Preserve SnapshotNode capture thread if running
-                    if hasattr(old_node, 'cap_running') and old_node.cap_running and hasattr(new_node, 'cap_running'):
-                        new_node.cap_running = old_node.cap_running
-                        new_node.cap_thread = old_node.cap_thread
-                        new_node.latest_frame = old_node.latest_frame
-                        new_node.frame_buffer = old_node.frame_buffer
-                        new_node.current_rtsp_url = getattr(old_node, 'current_rtsp_url', None)
-                        old_node.cap_running = False
-                        old_node.cap_thread = None
+                    # Preserve SnapshotNode frame cache and cleanly restart loop on new node
+                    if hasattr(old_node, 'cap_running') and hasattr(new_node, 'cap_running'):
+                        new_node.latest_frame = getattr(old_node, 'latest_frame', None)
+                        new_node.frame_buffer = list(getattr(old_node, 'frame_buffer', []))
+                        try:
+                            old_node.cleanup()
+                        except Exception as e:
+                            logger.error(f"Error cleaning up old SnapshotNode {nid}: {e}")
 
             # Update nodes' router reference
             for node in new_nodes.values():

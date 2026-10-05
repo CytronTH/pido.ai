@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Tag, Plus, X, Layers } from 'lucide-react';
+import { Tag, Plus, X, Layers, Camera, Eye } from 'lucide-react';
+import usePipelineStore from '../../../store/usePipelineStore';
 
 const SUGGESTED_TAGS = ['ok', 'ng', 'defect', 'inspection', 'alert'];
 
-export default function SnapshotNodeSettings({ data, onChange }) {
+export default function SnapshotNodeSettings({ data, onChange, nodeId }) {
   const zeroLatency = data?.zeroLatency ?? true;
   const triggerEdge = data?.triggerEdge || 'rising';
   const syncDelay = data?.syncDelay ?? 0;
@@ -195,6 +196,57 @@ export default function SnapshotNodeSettings({ data, onChange }) {
           </div>
         </div>
       )}
+
+      {/* Canvas Photo Preview Window Toggle */}
+      <div className="flex flex-col gap-2.5 bg-canvas p-3 rounded-lg border border-line">
+        <div className="flex items-start justify-between">
+          <div className="pr-4">
+            <label className="text-sm font-medium block mb-1 text-fg flex items-center gap-1.5">
+              <Camera size={14} className="text-pink-500" />
+              Photo Preview Window
+            </label>
+            <p className="text-[10px] leading-relaxed text-fg-subtle">
+              Show a floating realtime preview window on the canvas displaying photos captured by this snapshot node.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={Boolean(data?.showPreviewWindow)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                onChange({ showPreviewWindow: checked });
+                const targetId = nodeId || data?.id;
+                if (targetId) {
+                  usePipelineStore.getState().updateNodeData(targetId, { showPreviewWindow: checked });
+                }
+              }}
+            />
+            <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+          </label>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const nextVal = !Boolean(data?.showPreviewWindow);
+            onChange({ showPreviewWindow: nextVal });
+            const targetId = nodeId || data?.id;
+            if (targetId) {
+              usePipelineStore.getState().updateNodeData(targetId, { showPreviewWindow: nextVal });
+            }
+          }}
+          className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm ${
+            Boolean(data?.showPreviewWindow)
+              ? 'bg-pink-600 text-white hover:bg-pink-500 shadow-pink-600/30'
+              : 'bg-surface-2 hover:bg-surface-3 text-fg border border-line'
+          }`}
+        >
+          <Eye size={13} />
+          <span>{Boolean(data?.showPreviewWindow) ? 'Close Canvas Photo Preview' : 'Open Photo Preview on Canvas'}</span>
+        </button>
+      </div>
 
       {/* Bounding Box Mode Info */}
       <div className="flex flex-col gap-2 bg-canvas p-3 rounded-lg border border-line">
