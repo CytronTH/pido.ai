@@ -179,8 +179,10 @@ app.include_router(project_backup_router)
 
 from .routers.auth import router as auth_router
 from .routers.users import router as users_router
+from .routers.dashboard_versions import router as dashboard_versions_router
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(dashboard_versions_router)
 
 
 @app.get("/")
