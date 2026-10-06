@@ -36,7 +36,7 @@ const COMPATIBILITY_TARGETS = {
   inputNode: ['aiNode', 'dashboardVideoNode', 'snapshotNode', 'debugNode'],
 
   aiNode: [
-    'logicNode', 'flowCounterNode', 'targetTrackerNode', 'unitThroughputNode',
+    'logicNode', 'flowCounterNode', 'targetTrackerNode',
     'functionNode', 'rateLimitNode', 'databaseWriterNode', 'collectionWriterNode',
     'snapshotNode', 'dashboardVideoNode', 'dashboardLogNode', 'debugNode'
   ],
@@ -113,7 +113,7 @@ const COMPATIBILITY_SOURCES = {
   counterNode: ['logicNode', 'digitalInputNode', 'flowCounterNode', 'functionNode', 'rateLimitNode'],
   flowCounterNode: ['aiNode'],
   targetTrackerNode: ['flowCounterNode', 'counterNode', 'aiNode', 'logicNode', 'unitThroughputNode'],
-  unitThroughputNode: ['flowCounterNode', 'counterNode', 'aiNode', 'logicNode'],
+  unitThroughputNode: ['flowCounterNode', 'counterNode', 'logicNode'],
   snapshotNode: ['inputNode', 'logicNode', 'aiNode', 'digitalInputNode', 'counterNode'],
   actionNode: ['logicNode', 'snapshotNode', 'counterNode', 'targetTrackerNode', 'flowCounterNode', 'digitalInputNode', 'functionNode'],
   databaseWriterNode: ['counterNode', 'flowCounterNode', 'unitThroughputNode', 'targetTrackerNode', 'logicNode', 'aiNode', 'functionNode'],

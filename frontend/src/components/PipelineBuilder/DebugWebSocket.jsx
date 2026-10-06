@@ -19,7 +19,14 @@ export default function DebugWebSocket() {
     
     // 1. Self-subscribing nodes (nodes that have their own live UI)
     nodes.forEach(n => {
-      if (n.type === 'flowCounterNode' || n.type === 'shelfSlotMonitorNode' || n.type === 'forkliftZoneNode' || n.type === 'counterNode') {
+      if (
+        n.type === 'flowCounterNode' ||
+        n.type === 'shelfSlotMonitorNode' ||
+        n.type === 'forkliftZoneNode' ||
+        n.type === 'counterNode' ||
+        n.type === 'unitThroughputNode' ||
+        n.type === 'targetTrackerNode'
+      ) {
         const list = logics.get(n.id) || [];
         list.push(n.id);
         logics.set(n.id, list);
@@ -36,7 +43,16 @@ export default function DebugWebSocket() {
         const sourceNode = nodes.find(n => n.id === edge.source);
         if (!sourceNode) return;
         
-        if (sourceNode.type === 'logicNode' || sourceNode.type === 'rateLimitNode' || sourceNode.type === 'flowCounterNode' || sourceNode.type === 'counterNode' || sourceNode.type === 'shelfSlotMonitorNode' || sourceNode.type === 'forkliftZoneNode') {
+        if (
+          sourceNode.type === 'logicNode' ||
+          sourceNode.type === 'rateLimitNode' ||
+          sourceNode.type === 'flowCounterNode' ||
+          sourceNode.type === 'counterNode' ||
+          sourceNode.type === 'shelfSlotMonitorNode' ||
+          sourceNode.type === 'forkliftZoneNode' ||
+          sourceNode.type === 'unitThroughputNode' ||
+          sourceNode.type === 'targetTrackerNode'
+        ) {
           const list = logics.get(sourceNode.id) || [];
           list.push(debugNode.id);
           logics.set(sourceNode.id, list);
@@ -125,7 +141,15 @@ export default function DebugWebSocket() {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
             }
-          } else if (data.type === 'logic_state' || data.type === 'rate_limit_state' || data.type === 'flow_counter_update' || data.type === 'counter_update' || data.type === 'snapshot_capture') {
+          } else if (
+            data.type === 'logic_state' ||
+            data.type === 'rate_limit_state' ||
+            data.type === 'flow_counter_update' ||
+            data.type === 'counter_update' ||
+            data.type === 'snapshot_capture' ||
+            data.type === 'unit_throughput_update' ||
+            data.type === 'target_tracker_update'
+          ) {
             if (data.node_id && (logics.has(data.node_id) || advancedDebugMode || data.type === 'snapshot_capture')) {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
