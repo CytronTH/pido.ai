@@ -40,6 +40,36 @@ export default function SnapshotNodeSettings({ data, onChange, nodeId }) {
     }
   };
 
+  const nodes = usePipelineStore((state) => state.nodes);
+  const edges = usePipelineStore((state) => state.edges);
+
+  // Trace backwards along pipeline edges to determine AI model bboxDrawMode
+  const effectiveBboxDrawMode = React.useMemo(() => {
+    if (!nodeId) return 'frontend';
+    const visited = new Set();
+    const queue = [nodeId];
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (visited.has(curr)) continue;
+      visited.add(curr);
+
+      const inEdges = edges.filter((e) => e.target === curr);
+      for (const edge of inEdges) {
+        const srcNode = nodes.find((n) => n.id === edge.source);
+        if (!srcNode) continue;
+        if (srcNode.type === 'aiNode' || srcNode.type === 'forkliftZoneNode') {
+          return srcNode.data?.bboxDrawMode || 'frontend';
+        }
+        queue.push(srcNode.id);
+      }
+    }
+    const anyAi = nodes.find((n) => n.type === 'aiNode');
+    return anyAi?.data?.bboxDrawMode || 'frontend';
+  }, [nodeId, nodes, edges]);
+
+  const isFrontendDraw = effectiveBboxDrawMode === 'frontend';
+  const drawBbox = data?.drawBbox ?? true;
+
   return (
     <div className="flex flex-col gap-5">
       
@@ -248,22 +278,47 @@ export default function SnapshotNodeSettings({ data, onChange, nodeId }) {
         </button>
       </div>
 
-      {/* Bounding Box Mode Info */}
-      <div className="flex flex-col gap-2 bg-canvas p-3 rounded-lg border border-line">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-fg flex items-center gap-1.5">
-            <Layers size={14} className="text-pink-500" />
-            Bounding Box Overlay
+      {/* Draw Bounding Box on Snapshot Toggle (Only visible in Frontend Draw Mode) */}
+      {isFrontendDraw && (
+        <div className="flex items-start justify-between bg-canvas p-3 rounded-lg border border-line animate-in fade-in duration-200">
+          <div className="pr-4">
+            <label className="text-sm font-medium block mb-1 text-fg flex items-center gap-1.5">
+              <Layers size={14} className="text-pink-500" />
+              Draw Bounding Box on Snapshot
+            </label>
+            <p className="text-[10px] leading-relaxed text-fg-subtle">
+              Burn AI detection bounding boxes and labels into the snapshot image using OpenCV when triggered.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={drawBbox}
+              onChange={(e) => onChange({ drawBbox: e.target.checked })}
+            />
+            <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
           </label>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-medium">
-            Follows AI Model
-          </span>
         </div>
-        <p className="text-[10px] leading-relaxed text-fg-subtle">
-          Snapshot recording adheres to the <strong className="text-fg-secondary">Draw Mode</strong> setting in the AI Model node.
-          When AI Model is set to <em>Backend</em>, frames are saved with backend-rendered bounding boxes. When set to <em>Frontend</em>, clean frames without boxes are saved.
-        </p>
-      </div>
+      )}
+
+      {/* Bounding Box Mode Info (Shown when in Backend Draw Mode) */}
+      {!isFrontendDraw && (
+        <div className="flex flex-col gap-2 bg-canvas p-3 rounded-lg border border-line">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-fg flex items-center gap-1.5">
+              <Layers size={14} className="text-pink-500" />
+              Bounding Box Overlay
+            </label>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-medium">
+              Backend Mode (Burned-in)
+            </span>
+          </div>
+          <p className="text-[10px] leading-relaxed text-fg-subtle">
+            AI Model is set to <strong className="text-fg-secondary">Backend Draw Mode</strong>. Bounding boxes are already burned into every frame of the video stream by GStreamer hailooverlay.
+          </p>
+        </div>
+      )}
 
     </div>
   );

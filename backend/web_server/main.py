@@ -1189,6 +1189,13 @@ async def deploy_pipeline(payload: PipelinePayload):
     logger.info(f"Received pipeline deployment for {project_id}: {len(payload.nodes)} nodes (mode: {deploy_mode})")
     
     try:
+        import importlib
+        import ai_engine.message_router
+        import ai_engine.pipeline_parser
+        importlib.reload(ai_engine.message_router)
+        importlib.reload(ai_engine.pipeline_parser)
+        from ai_engine.pipeline_parser import PipelineParser
+
         base_dir = Path(__file__).resolve().parent.parent
         parser = PipelineParser(base_dir)
 

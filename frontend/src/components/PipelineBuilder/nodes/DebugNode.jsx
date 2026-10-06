@@ -202,7 +202,17 @@ export default memo(({ data, isConnectable, id }) => {
       }
       
       currentStreamId = `cam_${srcId}${streamSuffix}`;
-      whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+      const drawMode = sourceNode.data?.bboxDrawMode || 'frontend';
+      const inputNode = nodes.find(n => n.id === srcId);
+      const cameraId = inputNode?.data?.entityId;
+
+      // If frontend draw mode: stream the clean raw input video (which is already in exact sync with WebSocket Bbox metadata!)
+      // If backend draw mode: stream the AI output video (which contains burned-in hailooverlay boxes)
+      if (drawMode === 'frontend' && cameraId && !isWikiMode) {
+        whepUrl = `http://${window.location.hostname}:8889/shared_${cameraId}/whep`;
+      } else {
+        whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+      }
     }
   } else if (sourceNode?.type === 'forkliftZoneNode') {
     // Trace backwards to find upstream aiNode and inputNode
@@ -229,7 +239,15 @@ export default memo(({ data, isConnectable, id }) => {
           }
         }
         currentStreamId = `cam_${srcId}${streamSuffix}`;
-        whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+
+        const drawMode = targetAiNode.data?.bboxDrawMode || 'frontend';
+        const inputNode = nodes.find(n => n.id === srcId);
+        const cameraId = inputNode?.data?.entityId;
+        if (drawMode === 'frontend' && cameraId && !isWikiMode) {
+          whepUrl = `http://${window.location.hostname}:8889/shared_${cameraId}/whep`;
+        } else {
+          whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+        }
       }
     } else if (activeProjectId) {
       const anyInput = nodes.find(n => n.type === 'inputNode');
@@ -301,9 +319,36 @@ export default memo(({ data, isConnectable, id }) => {
 
   useEffect(() => {
     if (debugData && currentStreamId && isStreamActive && !isWaitingForDeploy && !isVideoEnd) {
-      latestDataRef.current = debugData[currentStreamId];
+      if (debugData[currentStreamId]) {
+        latestDataRef.current = debugData[currentStreamId];
+      }
     }
   }, [debugData, currentStreamId, isStreamActive, isWaitingForDeploy, isVideoEnd]);
+
+  // High-frequency WebSocket 'ai_metadata' listener (avoids React state re-render lag)
+  useEffect(() => {
+    const handleAiMeta = (e) => {
+      const msg = e.detail;
+      if (!msg) return;
+      if (!isStreamActive || isWaitingForDeploy || isVideoEnd) return;
+
+      const matches = !msg.camera_id ||
+        !currentStreamId ||
+        msg.camera_id === currentStreamId ||
+        (inputNode?.data?.entityId && msg.camera_id === inputNode.data.entityId);
+
+      if (matches) {
+        latestDataRef.current = msg;
+      }
+    };
+
+    window.addEventListener('ai_metadata', handleAiMeta);
+    window.addEventListener('pido_ws_message', handleAiMeta);
+    return () => {
+      window.removeEventListener('ai_metadata', handleAiMeta);
+      window.removeEventListener('pido_ws_message', handleAiMeta);
+    };
+  }, [currentStreamId, inputNode, isStreamActive, isWaitingForDeploy, isVideoEnd]);
 
   useEffect(() => {
     if (!isStreamActive || isWaitingForDeploy || isVideoEnd) {
@@ -429,7 +474,7 @@ export default memo(({ data, isConnectable, id }) => {
         if (items.length > 0) {
           lastBoxesRef.current = { items, time: now };
         } else {
-          if (now - lastBoxesRef.current.time < 300) {
+          if (now - lastBoxesRef.current.time < 120) {
             items = lastBoxesRef.current.items;
           } else {
             lastBoxesRef.current = { items: [], time: now };
@@ -437,7 +482,7 @@ export default memo(({ data, isConnectable, id }) => {
         }
 
         const taskType = payload?.type || "detection";
-        const drawMode = payload?.bbox_draw_mode || "frontend";
+        const drawMode = payload?.bbox_draw_mode || sourceNode?.data?.bboxDrawMode || "frontend";
 
         if (taskType === "detection") {
           items.forEach(det => {
