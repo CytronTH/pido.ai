@@ -4,8 +4,8 @@ import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isSidebar }) {
   const debugState = usePipelineStore((state) => state.debugData?.[nodeId]) || {};
-  const liveRate = debugState?.throughput ?? data?.throughput ?? 0;
-  const liveCount = debugState?.current_unit ?? data?.current_unit ?? 0;
+  const liveRate = debugState?.throughput ?? debugState?.current_rate_per_minute ?? data?.throughput ?? 0;
+  const liveCount = debugState?.current_unit ?? debugState?.total_units ?? data?.current_unit ?? 0;
   const isRunning = debugState?.is_running ?? data?.is_running ?? false;
 
   const handleReset = async () => {

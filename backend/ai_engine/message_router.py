@@ -450,7 +450,17 @@ class TargetTrackerNode(PipelineNode):
                 "is_complete": self.is_complete
             })
             
-        msg["payload"] = self.is_complete
+        msg["payload"] = {
+            "is_complete": self.is_complete,
+            "value": self.is_complete,
+            "progress_percent": progress,
+            "actual": self.actual,
+            "target": self.target,
+            "current_count": self.actual,
+            "target_count": self.target,
+            "current_rate_per_minute": self.current_rate_per_minute,
+            "eta_seconds": self.eta_seconds
+        }
         return msg
 
     def reset_counts(self):
@@ -522,22 +532,46 @@ class UnitThroughputNode(PipelineNode):
         now = time.time()
         
         payload = msg.get("payload", {})
-        if isinstance(payload, dict) and "detections" in payload:
-            detections = payload.get("detections", [])
-        elif isinstance(payload, list):
-            detections = payload
-        else:
-            detections = []
-            
-        active_tracks = self.tracker.update(detections)
-        
+        detections = []
         newly_counted = 0
-        
-        for track in active_tracks:
-            if not getattr(track, 'throughput_counted', False):
-                track.throughput_counted = True
-                newly_counted += 1
-                self.last_object_time = now
+
+        # When connected directly to aiNode (conflict mode), do not count raw detections.
+        # User must connect via FlowCounter, LogicNode, or CounterNode for accurate counting.
+        is_direct_ai = False
+        if isinstance(payload, dict) and "detections" in payload:
+            is_direct_ai = True
+        elif isinstance(payload, list) and len(payload) > 0 and isinstance(payload[0], dict) and "bbox" in payload[0]:
+            is_direct_ai = True
+
+        self._has_conflict = is_direct_ai
+
+        if not is_direct_ai:
+            if isinstance(payload, dict) and "newly_counted" in payload:
+                # Upstream is FlowCounterNode
+                newly_counted = int(payload.get("newly_counted", 0))
+                if newly_counted > 0:
+                    self.last_object_time = now
+            elif isinstance(payload, bool):
+                # Upstream is LogicNode (count rising edge)
+                last_bool = getattr(self, '_last_bool_payload', False)
+                if payload and not last_bool:
+                    newly_counted = 1
+                    self.last_object_time = now
+                self._last_bool_payload = payload
+            elif isinstance(payload, (int, float)):
+                # Upstream is CounterNode (count increments)
+                last_cnt = getattr(self, '_last_numeric_payload', None)
+                if last_cnt is not None and payload > last_cnt:
+                    newly_counted = int(payload - last_cnt)
+                    self.last_object_time = now
+                self._last_numeric_payload = payload
+            elif isinstance(payload, dict) and "count" in payload:
+                last_cnt = getattr(self, '_last_numeric_payload', None)
+                curr_cnt = payload.get("count", 0)
+                if last_cnt is not None and curr_cnt > last_cnt:
+                    newly_counted = int(curr_cnt - last_cnt)
+                    self.last_object_time = now
+                self._last_numeric_payload = curr_cnt
 
         # Evaluate Start Trigger
         if not self.is_running:
@@ -592,9 +626,17 @@ class UnitThroughputNode(PipelineNode):
             self._last_is_running = self.is_running
             self._emit_telemetry(msg)
         
+        rate_per_min = self.throughput
+        if self.rate_unit == "second":
+            rate_per_min = round(self.throughput * 60, self.decimal_places)
+        elif self.rate_unit == "hour":
+            rate_per_min = round(self.throughput / 60, self.decimal_places)
+
         msg["payload"] = {
             "current_unit": self.current_count,
+            "total_units": self.current_count,
             "throughput": self.throughput,
+            "current_rate_per_minute": rate_per_min,
             "is_running": self.is_running,
             "rate_unit": self.rate_unit
         }
@@ -607,12 +649,21 @@ class UnitThroughputNode(PipelineNode):
             if not camera_id and msg:
                 camera_id = msg.get("metadata", {}).get("camera_id", "default")
                 
+            rate_per_min = self.throughput
+            if self.rate_unit == "second":
+                rate_per_min = round(self.throughput * 60, self.decimal_places)
+            elif self.rate_unit == "hour":
+                rate_per_min = round(self.throughput / 60, self.decimal_places)
+
             self.router.metadata_callback({
                 "type": "unit_throughput_update",
                 "node_id": self.node_id,
                 "current_unit": self.current_count,
+                "total_units": self.current_count,
                 "throughput": self.throughput,
+                "current_rate_per_minute": rate_per_min,
                 "is_running": self.is_running,
+                "rate_unit": self.rate_unit,
                 "camera_id": camera_id,
                 "msg": msg
             })
@@ -1394,6 +1445,14 @@ class MessageRouter:
                             old_node.cleanup()
                         except Exception as e:
                             logger.error(f"Error cleaning up old SnapshotNode {nid}: {e}")
+                    # Preserve UnitThroughputNode state
+                    if hasattr(old_node, 'current_count') and hasattr(new_node, 'current_count') and getattr(new_node, 'node_type', '') == 'unitThroughputNode':
+                        new_node.current_count = old_node.current_count
+                        new_node.is_running = getattr(old_node, 'is_running', False)
+                        new_node.start_time = getattr(old_node, 'start_time', None)
+                        new_node.throughput = getattr(old_node, 'throughput', 0.0)
+                        if hasattr(old_node, 'tracker') and hasattr(new_node, 'tracker'):
+                            new_node.tracker = old_node.tracker
 
             # Update nodes' router reference
             for node in new_nodes.values():

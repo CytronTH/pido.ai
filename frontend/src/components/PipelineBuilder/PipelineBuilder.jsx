@@ -61,6 +61,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
   const [currentProject, setCurrentProject] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [suggestionMenu, setSuggestionMenu] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
   
   const { 
     nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, 
@@ -101,6 +102,32 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     setIsProjectRunning: state.setIsProjectRunning,
     updateNodeData: state.updateNodeData,
   })));
+
+  const isValidConnection = useCallback(
+    (connection) => {
+      // Allow all valid node connections; conflict nodes will show warning aura and banner
+      return true;
+    },
+    []
+  );
+
+  const handleConnect = useCallback(
+    (connection) => {
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+
+      if (sourceNode?.type === 'aiNode' && targetNode?.type === 'unitThroughputNode') {
+        setToastMessage({
+          type: 'error',
+          text: '⚠️ คำเตือน: ต่อ AI Model เข้ากับ Unit Throughput โดยตรง (ระบบจะไม่นับจำนวน แนะนำให้ต่อผ่าน Flow Counter)'
+        });
+        setTimeout(() => setToastMessage(null), 5000);
+      }
+
+      onConnect(connection);
+    },
+    [nodes, onConnect]
+  );
 
   React.useEffect(() => {
     if (!projectId) return;
@@ -209,7 +236,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     if (suggestionMenu.sourceNodeId) {
       // Connect to the new node based on what handle we dragged from
       const isFromSource = suggestionMenu.sourceHandleType === 'source';
-      onConnect({
+      handleConnect({
         source: isFromSource ? suggestionMenu.sourceNodeId : newNodeId,
         target: isFromSource ? newNodeId : suggestionMenu.sourceNodeId,
         sourceHandle: isFromSource ? suggestionMenu.sourceHandleId : null,
@@ -218,7 +245,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     }
 
     setSuggestionMenu(null);
-  }, [suggestionMenu, addNode, onConnect]);
+  }, [suggestionMenu, addNode, handleConnect]);
 
   // Tap-to-add node handler for mobile & desktop
   const handleTapAddNode = useCallback(
@@ -256,7 +283,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployMenuOpen, setDeployMenuOpen] = useState(false);
   const [isRevisionsModalOpen, setIsRevisionsModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
   const deployMenuRef = useRef(null);
 
   useEffect(() => {
@@ -300,15 +326,17 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           data.mode === 'flow_restart' ? '🔄 Flow Restarted' :
           '✅ Full Pipeline Deployed';
         setToastMessage({ type: 'success', text: modeLabel });
+        setTimeout(() => setToastMessage(null), 4000);
       } else {
         setToastMessage({ type: 'error', text: data.message || 'Failed to deploy pipeline.' });
+        setTimeout(() => setToastMessage(null), 7000);
       }
     } catch (err) {
       console.error(err);
       setToastMessage({ type: 'error', text: 'Error connecting to backend.' });
+      setTimeout(() => setToastMessage(null), 7000);
     } finally {
       setIsDeploying(false);
-      setTimeout(() => setToastMessage(null), 4000);
     }
   };
 
@@ -503,12 +531,20 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         return !data.slots || data.slots.length === 0;
       case 'forkliftZoneNode':
         return !data.zones || data.zones.length === 0;
+      case 'unitThroughputNode': {
+        const incomingEdge = edges.find((e) => e.target === node.id);
+        if (incomingEdge) {
+          const src = nodes.find((n) => n.id === incomingEdge.source);
+          if (src?.type === 'aiNode') return true;
+        }
+        return false;
+      }
       case 'rateLimitNode':
         return !data.interval;
       default:
         return false; // Assume valid by default
     }
-  }, []);
+  }, [nodes, edges]);
 
   const styledNodes = React.useMemo(() => {
     return nodes.reduce((acc, node) => {
@@ -537,11 +573,39 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
       }
       return acc;
     }, []);
-  }, [nodes, dirtyNodeIds, pipelineViewMode, isNodeInvalid]);
+  }, [nodes, edges, dirtyNodeIds, pipelineViewMode, isNodeInvalid]);
 
   const mainEdges = React.useMemo(() => {
-    return edges.filter(edge => !edge.data?.isTutorialMock);
-  }, [edges]);
+    return edges
+      .filter((edge) => !edge.data?.isTutorialMock)
+      .map((edge) => {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+        if (sourceNode?.type === 'aiNode' && targetNode?.type === 'unitThroughputNode') {
+          return {
+            ...edge,
+            animated: true,
+            className: `${edge.className || ''} conflict-edge`,
+            style: {
+              ...edge.style,
+              stroke: '#ef4444',
+              strokeWidth: 3.5,
+              filter: 'drop-shadow(0 0 6px #ef4444) drop-shadow(0 0 14px rgba(239, 68, 68, 0.8))',
+              strokeDasharray: '6,6',
+            },
+          };
+        }
+        return edge;
+      });
+  }, [edges, nodes]);
+
+  const conflictConnections = React.useMemo(() => {
+    return edges.filter((edge) => {
+      const src = nodes.find((n) => n.id === edge.source);
+      const tgt = nodes.find((n) => n.id === edge.target);
+      return src?.type === 'aiNode' && tgt?.type === 'unitThroughputNode';
+    });
+  }, [edges, nodes]);
 
   return (
     <div className="flex h-full bg-canvas rounded-xl overflow-hidden border border-line shadow-2xl animate-in fade-in duration-500 relative">
@@ -857,7 +921,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             onEdgesChange={onEdgesChange}
             onNodeDragStop={() => syncCurrentPositions()}
             onSelectionDragStop={() => syncCurrentPositions()}
-            onConnect={onConnect}
+            isValidConnection={isValidConnection}
+            onConnect={handleConnect}
             onConnectEnd={handleConnectEnd}
             onPaneClick={() => {
               setSuggestionMenu(null);
@@ -909,6 +974,31 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           )}
 
           <DebugWebSocket />
+
+          {/* Conflict Nodes Floating Warning Banner (Bottom-Right of Canvas) */}
+          {conflictConnections.length > 0 && (
+            <div className="absolute bottom-4 right-4 sm:bottom-32 sm:right-4 z-40 max-w-xs sm:max-w-sm bg-rose-950/90 text-rose-100 border border-rose-500/80 rounded-xl p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto">
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 shrink-0 mt-0.5 animate-pulse">
+                  <AlertTriangle size={18} />
+                </div>
+                <div className="flex-1 flex flex-col gap-1 text-xs">
+                  <div className="font-bold text-rose-200 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span>ตรวจพบ Node Conflict</span>
+                      <span className="inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-800/80 font-mono text-rose-200">
+                      {conflictConnections.length} จุด
+                    </span>
+                  </div>
+                  <p className="text-rose-300/90 text-[11px] leading-relaxed">
+                    AI Model เชื่อมต่อกับ Unit Throughput โดยตรง — Unit Throughput จะไม่นับชิ้นงาน (กรุณาต่อผ่าน Flow Counter เพื่อขีดเส้นนับ)
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Realtime Floating Photo Preview Windows for Snapshot Nodes */}
           {nodes

@@ -527,12 +527,30 @@ const usePipelineStore = create((set, get) => ({
       },
       
       onConnect: (connection) => {
-        const newEdges = addEdge({ ...connection, type: 'buttonEdge', animated: false, style: { stroke: '#3b82f6', strokeWidth: 2 } }, get().edges);
+        const sourceNode = get().nodes.find((n) => n.id === connection.source);
+        const targetNode = get().nodes.find((n) => n.id === connection.target);
+        const isConflict = sourceNode?.type === 'aiNode' && targetNode?.type === 'unitThroughputNode';
+
+        const newEdges = addEdge({
+          ...connection,
+          type: 'buttonEdge',
+          animated: isConflict,
+          className: isConflict ? 'conflict-edge' : '',
+          style: isConflict
+            ? {
+                stroke: '#ef4444',
+                strokeWidth: 3.5,
+                filter: 'drop-shadow(0 0 6px #ef4444) drop-shadow(0 0 14px rgba(239, 68, 68, 0.8))',
+                strokeDasharray: '6,6',
+              }
+            : { stroke: '#3b82f6', strokeWidth: 2 }
+        }, get().edges);
         const dirtyIds = getDirtyNodeIds(get().nodes, newEdges, get().lastDeployedNodes, get().lastDeployedEdges);
         set({
           edges: newEdges,
           dirtyNodeIds: dirtyIds,
         });
+        return true;
       },
       
       addNode: (node) => {

@@ -191,6 +191,74 @@ export default memo(({ data, selected, isConnectable, id }) => {
       );
     }
 
+    // Unit Throughput Node output
+    if (meta.type === 'unit_throughput_update') {
+      const isRunning = meta.is_running ?? false;
+      const rate = Number(meta.throughput ?? meta.current_rate_per_minute ?? 0).toFixed(1);
+      const units = meta.current_unit ?? meta.total_units ?? 0;
+      const unitLabel = meta.rate_unit || 'minute';
+
+      return (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+              ⏱️ Unit Throughput:
+            </span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                isRunning
+                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                  : 'bg-surface-3 text-fg-muted border border-line'
+              }`}
+            >
+              {isRunning ? '● RUNNING' : '○ PAUSED'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 ml-2 text-xs">
+            <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
+              <span className="text-fg-subtle">Rate:</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{rate}</span>
+              <span className="text-fg-faint text-[10px]">/{unitLabel.substring(0, 1)}</span>
+            </div>
+            <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
+              <span className="text-fg-subtle">Units:</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold font-mono">{units}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Target Tracker Node output
+    if (meta.type === 'target_tracker_update') {
+      const actual = meta.actual ?? 0;
+      const target = meta.target ?? 0;
+      const progress = meta.progress_percent ?? 0;
+      const isComplete = meta.is_complete ?? false;
+
+      return (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+              🎯 Target Tracker:
+            </span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                isComplete
+                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                  : 'bg-amber-950 text-amber-300 border border-amber-700'
+              }`}
+            >
+              {isComplete ? '✓ COMPLETE' : `${progress.toFixed(1)}%`}
+            </span>
+            <span className="text-fg-muted text-[11px] font-mono">
+              ({actual} / {target})
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     // Default pretty JSON (fallback)
     return (
       <pre className="text-fg-secondary whitespace-pre-wrap font-mono m-0" style={{ fontSize: `${fontSize}px` }}>
