@@ -30,11 +30,20 @@ export default function ResourceMonitor() {
           const cpuVal = data.system?.cpu_percent ?? data.cpu_percent ?? 0;
           const npuVal = data.system?.npu_percent ?? data.npu_percent ?? 0;
           const tempVal = data.system?.temp_c ?? data.temp_c ?? 0;
+          const internalCpu = data.attribution?.internal_cpu_percent ?? 0;
+          const externalCpu = data.attribution?.external_cpu_percent ?? 0;
 
           setHistory((prev) => {
             const now = new Date();
             const timeStr = `${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-            const next = [...prev, { time: timeStr, cpu: cpuVal, npu: npuVal, temp: tempVal }];
+            const next = [...prev, {
+              time: timeStr,
+              cpu: cpuVal,
+              internalCpu: internalCpu,
+              externalCpu: externalCpu,
+              npu: npuVal,
+              temp: tempVal
+            }];
             return next.slice(-40);
           });
         } catch (err) {
@@ -63,6 +72,8 @@ export default function ResourceMonitor() {
   const npuPercent = telemetry?.system?.npu_percent ?? telemetry?.npu_percent ?? 0;
   const ramPercent = telemetry?.system?.ram_percent ?? telemetry?.ram_percent ?? 0;
   const tempC = telemetry?.system?.temp_c ?? telemetry?.temp_c ?? 0;
+  const isHealthy = telemetry?.system?.hardware_health?.healthy !== false;
+  const healthMessage = telemetry?.system?.hardware_health?.message || 'Optimal';
 
   const isRamHigh = ramPercent > 80;
   const isTempHigh = tempC > 75;
@@ -76,8 +87,16 @@ export default function ResourceMonitor() {
         type="button"
         onClick={() => setIsModalOpen(true)}
         className="hidden sm:flex items-center gap-3 md:gap-4 bg-surface/90 hover:bg-surface-2 border border-line hover:border-line-strong rounded-xl px-3.5 py-1.5 shadow-lg transition-all cursor-pointer group"
-        title="Click to view detailed CPU & NPU breakdown by Process, Pipeline, and Node"
+        title="Click to view detailed CPU, NPU, and External OS workload breakdown"
       >
+        {/* Hardware Health Alert icon if throttled or low voltage */}
+        {!isHealthy && (
+          <div className="flex items-center gap-1 text-red-500 animate-pulse font-mono text-[11px]" title={`Hardware Alert: ${healthMessage}`}>
+            <Zap size={14} className="fill-red-500" />
+            <span className="hidden lg:inline text-[10px] font-bold">ALERT</span>
+          </div>
+        )}
+
         {/* CPU */}
         <div className="flex items-center gap-1.5" title="CPU Usage (Click for details)">
           <Cpu size={15} className="text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-110 transition-transform" />
