@@ -279,42 +279,63 @@ export default function SnapshotPreviewFloatingWindow({
             {/* Refresh Button */}
             <button
               type="button"
-              onClick={fetchLatestSnapshot}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                fetchLatestSnapshot();
+              }}
               disabled={isLoading}
-              className="p-1 rounded-lg text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors"
+              className="p-1 rounded-lg text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors cursor-pointer"
               title="Refresh latest snapshot"
             >
-              <RefreshCw size={12} className={isLoading ? 'animate-spin text-pink-500' : ''} />
+              <RefreshCw size={12} className={`pointer-events-none ${isLoading ? 'animate-spin text-pink-500' : ''}`} />
             </button>
 
             {/* Size Toggle (Small / Large) */}
             <button
               type="button"
-              onClick={() => setIsLargeSize(!isLargeSize)}
-              className="p-1 rounded-lg text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors hidden sm:block"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsLargeSize(!isLargeSize);
+              }}
+              className="p-1 rounded-lg text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors hidden sm:block cursor-pointer"
               title={isLargeSize ? 'Compact size' : 'Expand size'}
             >
-              {isLargeSize ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+              {isLargeSize ? <Minimize2 size={12} className="pointer-events-none" /> : <Maximize2 size={12} className="pointer-events-none" />}
             </button>
 
             {/* Minimize / Collapse Window Body */}
             <button
               type="button"
-              onClick={() => setIsMinimized(!isMinimized)}
-              className="p-1 rounded-lg text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors font-mono text-xs leading-none"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMinimized(!isMinimized);
+              }}
+              className="p-1 rounded-lg text-fg-subtle hover:text-fg hover:bg-surface-2 transition-colors font-mono text-xs leading-none cursor-pointer"
               title={isMinimized ? 'Expand photo preview' : 'Minimize preview body'}
             >
-              <span className="font-bold">{isMinimized ? '+' : '—'}</span>
+              <span className="font-bold pointer-events-none">{isMinimized ? '+' : '—'}</span>
             </button>
 
             {/* Close Button */}
             <button
               type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg text-fg-subtle hover:text-red-500 hover:bg-red-500/10 transition-colors ml-0.5"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onClose) {
+                  onClose();
+                } else if (nodeId) {
+                  usePipelineStore.getState().updateNodeData(nodeId, { showPreviewWindow: false });
+                }
+              }}
+              className="p-1 rounded-lg text-fg-subtle hover:text-red-500 hover:bg-red-500/10 transition-colors ml-0.5 cursor-pointer"
               title="Close preview window"
             >
-              <X size={14} />
+              <X size={14} className="pointer-events-none" />
             </button>
           </div>
         </div>

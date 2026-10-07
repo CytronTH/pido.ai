@@ -13,39 +13,8 @@ import NodeSuggestionMenu from './NodeSuggestionMenu';
 import ProjectRevisionsModal from '../ProjectRevisionsModal';
 import SnapshotPreviewFloatingWindow from './SnapshotPreviewFloatingWindow';
 
-import { nodeTypes, edgeTypes } from './nodeTypes';
+import { nodeTypes, edgeTypes, DEFAULT_NODE_NAMES } from './nodeTypes';
 import { useResolvedTheme } from '../../utils/theme';
-
-const DEFAULT_NODE_NAMES = {
-  inputNode: 'Input Source',
-  aiNode: 'AI Model',
-  logicNode: 'Logic Filter',
-  actionNode: 'Action / Alert',
-  functionNode: 'Function',
-  transformNode: 'Transform',
-  rateLimitNode: 'Rate Limit',
-  counterNode: 'Event Counter',
-  flowCounterNode: 'Flow Counter',
-  unitThroughputNode: 'Unit Throughput',
-  targetTrackerNode: 'Target Tracker',
-  forkliftZoneNode: 'Forklift Safety Monitor',
-  shelfSlotMonitorNode: 'Shelf Slot Monitor',
-  snapshotNode: 'Snapshot',
-  databaseWriterNode: 'Database Writer',
-  collectionWriterNode: 'Collection Writer',
-  dashboardChartNode: 'Chart',
-  dashboardLogNode: 'Dashboard Log',
-  dashboardMetricNode: 'Number / Metric',
-  dashboardTextNode: 'Text Value',
-  dashboardVideoNode: 'Video Stream',
-  debugNode: 'Debug node',
-  debugOutputNode: 'Debug Output',
-  digitalInputNode: 'Digital Input',
-  digitalOutputNode: 'Digital Output',
-  buzzerNode: 'Active Buzzer',
-  ledNode: 'LED Driver',
-  rs485Node: 'RS485 Modbus',
-};
 
 let id = 0;
 const getId = () => `dndnode_${Date.now()}_${id++}`;
@@ -71,7 +40,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
     deleteNodes, deleteEdge, pipelineViewMode, setPipelineViewMode,
     syncCurrentPositions, autoSaveStatus,
     activeSidebarNodeId, setActiveSidebarNodeId, beautifyPipeline,
-    checkProjectStatus, setIsProjectRunning
+    checkProjectStatus, setIsProjectRunning, updateNodeData
   } = usePipelineStore(useShallow((state) => ({
     nodes: state.nodes,
     edges: state.edges,
