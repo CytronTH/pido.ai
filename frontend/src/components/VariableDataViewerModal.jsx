@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Terminal, Activity, Table as TableIcon } from 'lucide-react';
+import { X, RefreshCw, Terminal, Activity, Table as TableIcon, AlertTriangle, CheckCircle2, Unlink } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
 import { chartTheme } from '../utils/theme';
-import { parseDbTime, formatDbTime, formatValue, apiError } from '../utils/dbFormat';
+import { parseDbTime, formatDbTime, formatValue, apiError, getVariableConnectionStatus } from '../utils/dbFormat';
 
 const HISTORY_LIMIT = 200;
 
-export default function VariableDataViewerModal({ isOpen, onClose, onDeleted, projectId, variable, nodeMap = {} }) {
+export default function VariableDataViewerModal({
+  isOpen,
+  onClose,
+  onDeleted,
+  projectId,
+  variable,
+  nodeMap = {},
+  pipeline = { nodes: [], edges: [] },
+}) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,7 +98,11 @@ export default function VariableDataViewerModal({ isOpen, onClose, onDeleted, pr
 
   if (!isOpen || !variable) return null;
 
-  const nodeInfo = nodeMap[variable.node_id] || { label: 'Unknown Node', type: 'unknown' };
+  const connStatus = getVariableConnectionStatus(variable, pipeline);
+  const nodeInfo = nodeMap[variable.node_id] || {
+    label: connStatus.writerNode?.data?.label || 'Unknown Node',
+    type: 'unknown',
+  };
 
   // Calculate data span to show effective retention
   let spanText = "No data";
@@ -112,10 +124,22 @@ export default function VariableDataViewerModal({ isOpen, onClose, onDeleted, pr
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-line">
           <div>
-            <h3 className="text-lg font-bold flex items-center gap-2 text-fg">
-              <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
-              {variable.variable_name}
-            </h3>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-fg">
+                <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
+                {variable.variable_name}
+              </h3>
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${connStatus.badgeClass}`}>
+                {connStatus.status === 'connected' ? (
+                  <CheckCircle2 size={12} className="shrink-0" />
+                ) : connStatus.status === 'no_input' ? (
+                  <Unlink size={12} className="shrink-0" />
+                ) : (
+                  <AlertTriangle size={12} className="shrink-0" />
+                )}
+                {connStatus.label}
+              </span>
+            </div>
             <p className="text-xs text-fg-muted flex items-center gap-2 mt-1">
               <span className="font-semibold text-fg-secondary">{nodeInfo.label}</span> ({nodeInfo.type}) &bull; <Terminal size={12} className="ml-1" /> <span className="font-mono text-[10px]">{variable.node_id}</span> &bull; Latest: {formatValue(variable.value)}
             </p>
@@ -140,6 +164,30 @@ export default function VariableDataViewerModal({ isOpen, onClose, onDeleted, pr
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-canvas p-4 sm:p-6 flex flex-col gap-6">
+          {/* Connection Alert Banner */}
+          {!connStatus.connected && (
+            <div className={`p-3.5 rounded-xl border flex items-start gap-3 shadow-sm ${
+              connStatus.status === 'disconnected'
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300'
+            }`}>
+              <AlertTriangle size={18} className={`shrink-0 mt-0.5 ${
+                connStatus.status === 'disconnected' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+              }`} />
+              <div className="flex-1">
+                <h5 className="font-bold text-xs uppercase tracking-wider">
+                  {connStatus.status === 'disconnected'
+                    ? 'Alert: Variable Not Connected to Database Writer Node'
+                    : 'Alert: Database Writer Node Disconnected'}
+                </h5>
+                <p className="text-xs mt-0.5 leading-relaxed opacity-95">
+                  {connStatus.reason}. {connStatus.status === 'disconnected'
+                    ? 'Historical data is retained for inspection, but new values will not be recorded until a Database Writer node is added and connected in the pipeline.'
+                    : 'The Database Writer node is present in the pipeline but needs an input wire connected to begin receiving data.'}
+                </p>
+              </div>
+            </div>
+          )}
           {/* Chart Section */}
           <div className="bg-surface border border-line rounded-xl p-4 shadow-sm h-72 flex flex-col">
             <div className="flex items-center justify-between mb-2">

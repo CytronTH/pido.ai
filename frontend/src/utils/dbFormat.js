@@ -53,3 +53,95 @@ export function downloadCsv(filename, headers, rows) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Evaluates whether a variable is properly connected to an active Database Writer node in the pipeline.
+ *
+ * @param {Object} variable - { node_id, variable_name, ... }
+ * @param {Object} pipeline - { nodes: Array, edges: Array }
+ * @returns {Object} status details
+ */
+export function getVariableConnectionStatus(variable, pipeline) {
+  if (!pipeline || !Array.isArray(pipeline.nodes)) {
+    return {
+      status: 'unknown',
+      connected: true,
+      label: 'Checking...',
+      badgeClass: 'bg-surface text-fg-subtle border-line',
+      iconType: 'checking',
+      reason: 'Checking pipeline connection status...',
+      writerNode: null,
+    };
+  }
+
+  const nodes = pipeline.nodes || [];
+  const edges = pipeline.edges || [];
+  const varName = (variable?.variable_name || '').trim();
+
+  // 1. Match writer node by node_id
+  let writerNode = nodes.find(
+    n => n.id === variable?.node_id && (n.type === 'databaseWriterNode' || n.type === 'databaseWriter')
+  );
+
+  // 2. If not found by node_id, attempt to match by configured variableName
+  if (!writerNode && varName) {
+    writerNode = nodes.find(
+      n => (n.type === 'databaseWriterNode' || n.type === 'databaseWriter') &&
+           (n.data?.variableName || '').trim() === varName
+    );
+  }
+
+  // Case A: No Database Writer node found in pipeline
+  if (!writerNode) {
+    return {
+      status: 'disconnected',
+      connected: false,
+      label: 'Not Connected',
+      badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30 shadow-sm shadow-rose-500/10',
+      iconType: 'disconnected',
+      reason: 'No Database Writer node found in pipeline',
+      writerNode: null,
+    };
+  }
+
+  // Case B: Node matched by ID, but its variableName was changed to something else
+  const writerVarName = (writerNode.data?.variableName || '').trim();
+  if (writerVarName && varName && writerVarName !== varName) {
+    return {
+      status: 'mismatch',
+      connected: false,
+      label: 'Renamed in Node',
+      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10',
+      iconType: 'warning',
+      reason: `Node renamed to "${writerVarName}" in pipeline`,
+      writerNode,
+    };
+  }
+
+  // Case C: Node exists and variable matches, but has NO incoming edge
+  const hasIncoming = edges.some(e => e.target === writerNode.id);
+  if (!hasIncoming) {
+    return {
+      status: 'no_input',
+      connected: false,
+      label: 'No Input Wire',
+      badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 shadow-sm shadow-amber-500/10',
+      iconType: 'warning',
+      reason: 'Database Writer node has no input connection in pipeline',
+      writerNode,
+    };
+  }
+
+  // Case D: Successfully connected
+  const nodeLabel = writerNode.data?.label || writerNode.data?.variableName || 'Database Writer';
+  return {
+    status: 'connected',
+    connected: true,
+    label: variable?.isFromPipelineOnly ? 'Connected (Awaiting Data)' : 'Connected',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+    iconType: 'connected',
+    reason: `Connected to ${nodeLabel}`,
+    writerNode,
+  };
+}
+

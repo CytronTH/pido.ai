@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Database, Activity, Library, ScrollText } from 'lucide-react';
 import ProjectVariableMonitor from './ProjectVariableMonitor';
@@ -17,35 +17,39 @@ const ACTIVE_CLS = {
   blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40 shadow-sm shadow-blue-500/10',
 };
 
-/** Builds { nodeId: { label, type } } from the project's pipeline for human-readable node names. */
-function useNodeMap(projectId) {
-  const [nodeMap, setNodeMap] = useState({});
-  useEffect(() => {
-    if (!projectId) return undefined;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        const project = Array.isArray(data) ? data.find(p => p.id === projectId) : null;
-        const mapping = {};
-        (project?.pipeline?.nodes || []).forEach(n => {
-          mapping[n.id] = { label: n.data?.label || n.data?.variableName || n.type, type: n.type };
-        });
-        if (!cancelled) setNodeMap(mapping);
-      } catch (e) {
-        console.error('Failed to fetch project node mapping:', e);
-      }
-    })();
-    return () => { cancelled = true; };
+/** Builds { nodeMap, nodes, edges, project } from the project's pipeline for node mapping and connection checks. */
+function useProjectPipeline(projectId) {
+  const [pipelineInfo, setPipelineInfo] = useState({ nodeMap: {}, nodes: [], edges: [], project: null });
+
+  const fetchPipeline = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      const project = Array.isArray(data) ? data.find(p => p.id === projectId) : null;
+      const mapping = {};
+      const nodes = project?.pipeline?.nodes || [];
+      const edges = project?.pipeline?.edges || [];
+      nodes.forEach(n => {
+        mapping[n.id] = { label: n.data?.label || n.data?.variableName || n.type, type: n.type };
+      });
+      setPipelineInfo({ nodeMap: mapping, nodes, edges, project });
+    } catch (e) {
+      console.error('Failed to fetch project pipeline info:', e);
+    }
   }, [projectId]);
-  return nodeMap;
+
+  useEffect(() => {
+    fetchPipeline();
+  }, [fetchPipeline]);
+
+  return { ...pipelineInfo, refreshPipeline: fetchPipeline };
 }
 
 export default function ProjectDatabase({ projectId }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = TABS.some(t => t.key === searchParams.get('tab')) ? searchParams.get('tab') : 'variables';
-  const nodeMap = useNodeMap(projectId);
+  const pipelineInfo = useProjectPipeline(projectId);
   const activeTab = TABS.find(t => t.key === tab);
 
   const selectTab = (key) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('tab', key); return p; }, { replace: true });
@@ -91,7 +95,12 @@ export default function ProjectDatabase({ projectId }) {
       {/* Tab content */}
       {tab === 'variables' && (
         <div className="p-3 sm:p-4 md:p-6 animate-in fade-in duration-300">
-          <ProjectVariableMonitor projectId={projectId} nodeMap={nodeMap} />
+          <ProjectVariableMonitor
+            projectId={projectId}
+            nodeMap={pipelineInfo.nodeMap}
+            pipeline={pipelineInfo}
+            onRefreshPipeline={pipelineInfo.refreshPipeline}
+          />
         </div>
       )}
       {tab === 'collections' && (
