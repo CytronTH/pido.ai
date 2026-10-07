@@ -27,6 +27,8 @@ class CameraStreamInstance:
         self.duration_sec: Optional[float] = None
         self.speed: float = 1.0
         self.src_fps: Optional[float] = None
+        self.is_finished = False
+        self.finish_time = 0.0
 
 
 MIN_PLAYBACK_SPEED = 0.25
@@ -89,16 +91,40 @@ class CameraManager:
             return None
 
     def get_stream_info(self, camera_id: str) -> dict:
-        """Returns info like current_loop for file streams."""
+        """Returns info like current_loop and is_finished for file streams."""
         with self.lock:
             stream = self.streams.get(camera_id)
-            if stream and stream.proc and stream.camera_type == "file" and stream.start_time > 0 and stream.duration_sec:
-                # Calculate loop based on elapsed time (minus the 4s tpad delay).
-                # At speed S, one pass of the file takes duration/S seconds of wall-clock time.
-                elapsed = max(0, time.time() - stream.start_time - 4.0)
-                loop_wall_sec = stream.duration_sec / (stream.speed or 1.0)
-                current_loop = int(elapsed // loop_wall_sec) + 1
-                return {"duration": stream.duration_sec, "current_loop": current_loop, "speed": stream.speed}
+            if stream and stream.camera_type == "file":
+                is_proc_done = stream.proc and stream.proc.poll() is not None
+                is_running = stream.proc and stream.proc.poll() is None
+                now = time.time()
+
+                current_loop = 1
+                if stream.start_time > 0 and stream.duration_sec:
+                    elapsed = max(0, now - stream.start_time - 4.0)
+                    loop_wall_sec = stream.duration_sec / (stream.speed or 1.0)
+                    calc_loop = int(elapsed // loop_wall_sec) + 1
+                    if not stream.loop:
+                        target_loops = stream.loop_count or 1
+                        current_loop = min(calc_loop, target_loops)
+                        if is_proc_done:
+                            current_loop = target_loops
+                            stream.is_finished = True
+                    else:
+                        current_loop = calc_loop
+                elif is_proc_done and not stream.loop:
+                    current_loop = stream.loop_count or 1
+                    stream.is_finished = True
+
+                return {
+                    "duration": stream.duration_sec,
+                    "current_loop": current_loop,
+                    "loop_count": stream.loop_count,
+                    "loop": stream.loop,
+                    "speed": stream.speed,
+                    "is_finished": stream.is_finished or (is_proc_done and not stream.loop),
+                    "is_running": is_running
+                }
             return {}
 
     def acquire(self, camera_id: str, camera_entity: Optional[Dict[str, Any]] = None, loop: bool = True, loop_count: int = 1, speed: float = 1.0) -> str:

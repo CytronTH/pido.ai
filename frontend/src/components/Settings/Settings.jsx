@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Camera, BrainCircuit, Archive, ArrowUpCircle
 } from 'lucide-react';
@@ -8,11 +9,18 @@ import UpdateManager from './UpdateManager';
 import BackupManager from './BackupManager';
 
 export default function Settings() {
+  const location = useLocation();
   const [entities, setEntities] = useState({ cameras: [], models: [], integrations: [] });
   const [loading, setLoading] = useState(true);
   
   // 3 Primary Tabs: 'sources' (Source Manager), 'models' (Model Manager), 'backup_updater' (Backup & Updater)
-  const [activeTab, setActiveTab] = useState('sources');
+  const [activeTab, setActiveTab] = useState(() => location.state?.tab || 'sources');
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state?.tab]);
   
   // Sub-tab for Backup & Updater: 'backups' | 'updates'
   const [backupUpdaterSubTab, setBackupUpdaterSubTab] = useState('backups');
