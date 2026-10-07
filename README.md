@@ -130,21 +130,29 @@ pido-ai/
 
 ### Running the Application
 
-PiDo.AI comes with an automated startup script. By default, it runs in **Production Mode** serving both Frontend UI and Backend APIs on a single port (`8000`), minimizing RAM usage on the Raspberry Pi:
+PiDo.AI provides two startup scripts tailored for production deployments and active development:
+
+#### 🚀 Production Mode (Recommended for End Users)
+Optimized for Raspberry Pi deployment. Serves both Frontend UI and Backend APIs on a single port (`8000`), minimizing RAM consumption:
+
+```bash
+chmod +x start-prod.sh
+./start-prod.sh
+```
+
+- **Web UI & API:** `http://localhost:8000` (or `http://<raspberry-pi-ip>:8000`)
+- **MediaMTX Streams:** Port `8554` (RTSP), `8889` (WebRTC WHEP)
+
+#### 🛠️ Development Mode (For Developers)
+Runs Vite hot-reloading development server alongside the backend:
 
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-**Accessing PiDo.AI:**
-- **Web UI & API:** `http://localhost:8000` (or `http://<raspberry-pi-ip>:8000`)
-- **MediaMTX Streams:** Port `8554` (RTSP), `8889` (WebRTC WHEP)
-
-> **💡 Developer Mode:** To run the Vite hot-reloading development server alongside the backend, run:
-> ```bash
-> ./start.sh --dev
-> ```
+- **Frontend UI (Hot Reload):** `http://localhost:5173`
+- **Backend API:** `http://localhost:8000`
 
 ---
 
