@@ -19,6 +19,37 @@ import CollectionWriterNode from './nodes/CollectionWriterNode';
 import UnitThroughputNode from './nodes/UnitThroughputNode';
 import ButtonEdge from './edges/ButtonEdge';
 
+export const DEFAULT_NODE_NAMES = {
+  inputNode: 'Input Source',
+  aiNode: 'AI Model',
+  logicNode: 'Logic Filter',
+  actionNode: 'Action / Alert',
+  functionNode: 'Function',
+  transformNode: 'Transform',
+  rateLimitNode: 'Rate Limit',
+  counterNode: 'Event Counter',
+  flowCounterNode: 'Flow Counter',
+  unitThroughputNode: 'Unit Throughput',
+  targetTrackerNode: 'Target Tracker',
+  forkliftZoneNode: 'Forklift Safety Monitor',
+  shelfSlotMonitorNode: 'Shelf Slot Monitor',
+  snapshotNode: 'Snapshot',
+  databaseWriterNode: 'Database Writer',
+  collectionWriterNode: 'Collection Writer',
+  dashboardChartNode: 'Chart',
+  dashboardLogNode: 'Dashboard Log',
+  dashboardMetricNode: 'Number / Metric',
+  dashboardTextNode: 'Text Value',
+  dashboardVideoNode: 'Video Stream',
+  debugNode: 'Debug node',
+  debugOutputNode: 'Debug Output',
+  digitalInputNode: 'Digital Input',
+  digitalOutputNode: 'Digital Output',
+  buzzerNode: 'Active Buzzer',
+  ledNode: 'LED Driver',
+  rs485Node: 'RS485 Modbus',
+};
+
 export const edgeTypes = {
   buttonEdge: memo(ButtonEdge),
 };
@@ -43,3 +74,4 @@ export const nodeTypes = {
   collectionWriterNode: memo(CollectionWriterNode),
   unitThroughputNode: memo(UnitThroughputNode),
 };
+
