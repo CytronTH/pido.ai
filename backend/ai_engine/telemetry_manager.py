@@ -77,6 +77,10 @@ class NodeMetrics:
                 self.extra.update(extra)
             self.last_seen = time.time()
 
+    def record_queue_drop(self, count: int = 1) -> None:
+        with self.lock:
+            self.queue_drop_count += count
+
     def roll_up(self, time_window_sec: float = 1.0, num_cores: int = 4) -> Dict[str, Any]:
         now = time.time()
         with self.lock:
@@ -131,6 +135,7 @@ class NodeMetrics:
                 "npu_percent": self.npu_percent,
                 "fps": self.fps,
                 "latency_ms": self.latency_ms,
+                "queue_drops": self.queue_drop_count,
                 "last_active": round(now - self.last_seen, 1)
             }
             if self.node_type == "aiNode":
@@ -138,6 +143,10 @@ class NodeMetrics:
                 res["cpu_postprocess_ms"] = self.extra.get("cpu_postprocess_ms", 0.0)
                 res["python_probe_ms"] = self.extra.get("python_probe_ms", 0.0)
                 res["model"] = self.extra.get("model", "")
+                res["total_latency_ms"] = round(
+                    self.npu_latency_ms + self.extra.get("cpu_postprocess_ms", 0.0) + self.extra.get("python_probe_ms", 0.0),
+                    2
+                )
             elif self.freq_hz > 0 or self.node_type in ("logicNode", "functionNode", "counterNode", "targetTrackerNode"):
                 res["freq_hz"] = self.freq_hz
                 res["cpu_time_ms"] = self.cpu_time_ms
@@ -298,6 +307,16 @@ class TelemetryManager:
     ) -> None:
         node = self._get_node(pipeline_id, node_id, node_type)
         node.record_execution(duration_sec, cpu_sec=cpu_sec)
+
+    def record_queue_drop(
+        self,
+        pipeline_id: str,
+        node_id: str,
+        node_type: str = "aiNode",
+        count: int = 1
+    ) -> None:
+        node = self._get_node(pipeline_id, node_id, node_type)
+        node.record_queue_drop(count)
 
     # ── Hardware Reading Functions (Raspberry Pi 5) ──────────────────────────
 

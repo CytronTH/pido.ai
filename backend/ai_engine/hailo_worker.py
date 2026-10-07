@@ -386,51 +386,114 @@ class HailoPipelineWorker:
                 for i, cam_stream in group:
                     if getattr(cam_stream, 'has_ai_node', False):
                         filter_elem = pipeline.get_by_name(f"filter_{i}")
+                        ai_nid = getattr(cam_stream, 'ai_node_id', f"ai_{i}")
                         if filter_elem:
-                            pad = filter_elem.get_static_pad("src")
-                            probe_id = pad.add_probe(Gst.PadProbeType.BUFFER, functools.partial(self.on_buffer_probe, camera_id=cam_stream.stream_id))
-                            self._probes.append((pad, probe_id))
+                            f_sink = filter_elem.get_static_pad("sink")
+                            f_src = filter_elem.get_static_pad("src")
+                            if f_src:
+                                probe_id = f_src.add_probe(Gst.PadProbeType.BUFFER, functools.partial(self.on_buffer_probe, camera_id=cam_stream.stream_id))
+                                self._probes.append((f_src, probe_id))
+
+                            # Precision C++ post-processing latency probe around filter_{i}
+                            if f_sink and f_src:
+                                filter_entry_map = {}
+
+                                def _make_filter_in(f_map):
+                                    def _cb(pad, info):
+                                        buf = info.get_buffer()
+                                        if buf:
+                                            k = buf.pts if buf.pts != Gst.CLOCK_TIME_NONE else id(buf)
+                                            f_map[k] = time.perf_counter()
+                                            if len(f_map) > 60:
+                                                for old_k in list(f_map.keys())[:20]:
+                                                    f_map.pop(old_k, None)
+                                        return Gst.PadProbeReturn.OK
+                                    return _cb
+
+                                def _make_filter_out(f_map, nid):
+                                    def _cb(pad, info):
+                                        buf = info.get_buffer()
+                                        if buf:
+                                            k = buf.pts if buf.pts != Gst.CLOCK_TIME_NONE else None
+                                            t_in = f_map.pop(k, None) if k is not None else None
+                                            if t_in is None and id(buf) in f_map:
+                                                t_in = f_map.pop(id(buf))
+                                            elif t_in is None and f_map:
+                                                first_k = next(iter(f_map))
+                                                t_in = f_map.pop(first_k)
+                                            if t_in is not None:
+                                                post_dur_ms = round((time.perf_counter() - t_in) * 1000.0, 2)
+                                                try:
+                                                    telemetry_mgr.record_gstreamer_node_metric(
+                                                        self.project_id,
+                                                        nid,
+                                                        "aiNode",
+                                                        extra={"cpu_postprocess_ms": post_dur_ms}
+                                                    )
+                                                except Exception:
+                                                    pass
+                                        return Gst.PadProbeReturn.OK
+                                    return _cb
+
+                                p_f1 = f_sink.add_probe(Gst.PadProbeType.BUFFER, _make_filter_in(filter_entry_map))
+                                p_f2 = f_src.add_probe(Gst.PadProbeType.BUFFER, _make_filter_out(filter_entry_map, ai_nid))
+                                self._probes.append((f_sink, p_f1))
+                                self._probes.append((f_src, p_f2))
                         else:
                             logger.warning(f"Could not find filter_{i} to attach metadata probe.")
 
-                        # Attach NPU timing probes around hailonet_{i}
+                        # Attach NPU timing probes around hailonet_{i} (PTS-synchronized)
                         hailonet_elem = pipeline.get_by_name(f"hailonet_{i}")
                         if hailonet_elem:
                             h_sink = hailonet_elem.get_static_pad("sink")
                             h_src = hailonet_elem.get_static_pad("src")
                             if h_sink and h_src:
-                                entry_q = deque(maxlen=30)
-                                ai_nid = getattr(cam_stream, 'ai_node_id', f"ai_{i}")
+                                hailo_entry_map = {}
                                 hef_fname = os.path.basename(getattr(cam_stream, 'hef_path', 'model.hef'))
                                 
-                                def _make_hailo_in(q):
+                                def _make_hailo_in(entry_map):
                                     def _cb(pad, info):
-                                        q.append(time.perf_counter())
+                                        buf = info.get_buffer()
+                                        if buf:
+                                            k = buf.pts if buf.pts != Gst.CLOCK_TIME_NONE else id(buf)
+                                            entry_map[k] = time.perf_counter()
+                                            if len(entry_map) > 60:
+                                                for old_k in list(entry_map.keys())[:20]:
+                                                    entry_map.pop(old_k, None)
                                         return Gst.PadProbeReturn.OK
                                     return _cb
 
-                                def _make_hailo_out(q, nid, mname):
+                                def _make_hailo_out(entry_map, nid, mname):
                                     def _cb(pad, info):
-                                        if q:
-                                            t_in = q.popleft()
-                                            dur_ms = (time.perf_counter() - t_in) * 1000.0
-                                            try:
-                                                telemetry_mgr.record_npu_inference(self.project_id, nid, dur_ms, model=mname)
-                                            except Exception:
-                                                pass
+                                        buf = info.get_buffer()
+                                        if buf:
+                                            k = buf.pts if buf.pts != Gst.CLOCK_TIME_NONE else None
+                                            t_in = entry_map.pop(k, None) if k is not None else None
+                                            if t_in is None and id(buf) in entry_map:
+                                                t_in = entry_map.pop(id(buf))
+                                            elif t_in is None and entry_map:
+                                                first_k = next(iter(entry_map))
+                                                t_in = entry_map.pop(first_k)
+                                            if t_in is not None:
+                                                dur_ms = (time.perf_counter() - t_in) * 1000.0
+                                                try:
+                                                    telemetry_mgr.record_npu_inference(self.project_id, nid, dur_ms, model=mname)
+                                                except Exception:
+                                                    pass
                                         return Gst.PadProbeReturn.OK
                                     return _cb
 
-                                p1 = h_sink.add_probe(Gst.PadProbeType.BUFFER, _make_hailo_in(entry_q))
-                                p2 = h_src.add_probe(Gst.PadProbeType.BUFFER, _make_hailo_out(entry_q, ai_nid, hef_fname))
+                                p1 = h_sink.add_probe(Gst.PadProbeType.BUFFER, _make_hailo_in(hailo_entry_map))
+                                p2 = h_src.add_probe(Gst.PadProbeType.BUFFER, _make_hailo_out(hailo_entry_map, ai_nid, hef_fname))
                                 self._probes.append((h_sink, p1))
                                 self._probes.append((h_src, p2))
 
-                # Attach bus watch for EOS and errors
+                # Attach bus watch for EOS, errors, and QoS buffer drops
                 bus = pipeline.get_bus()
                 bus.add_signal_watch()
                 bus.connect("message::eos", self._on_eos)
                 bus.connect("message::error", self._on_bus_error)
+                bus.connect("message::qos", self._on_qos)
                 
                 self.pipelines.append(pipeline)
             except GLib.Error as e:
@@ -493,6 +556,19 @@ class HailoPipelineWorker:
         err, debug = message.parse_error()
         logger.error(f"GStreamer Bus Error: {err.message} | Debug: {debug}")
 
+    def _on_qos(self, bus, message):
+        """Track GStreamer QoS buffer drops to detect pipeline congestion and frame drops."""
+        try:
+            fmt, processed, dropped = message.parse_qos_stats()
+            if dropped > 0:
+                if hasattr(self, 'config') and self.config and self.config.camera_streams:
+                    for cs in self.config.camera_streams:
+                        ai_nid = getattr(cs, 'ai_node_id', None)
+                        if ai_nid:
+                            telemetry_mgr.record_queue_drop(self.project_id, ai_nid, "aiNode", count=dropped)
+        except Exception:
+            pass
+
     def on_buffer_probe(self, pad, info, camera_id=None):
         """
         Extracts Hailo ROI metadata, applies logic filters, and triggers actions.
@@ -516,11 +592,16 @@ class HailoPipelineWorker:
                 if stream_cfg:
                     ai_task = getattr(stream_cfg, "ai_task", "detection")
                     
-            # Calculate FPS
+            # Calculate FPS and inter-frame arrival latency
             now = time.time()
             if camera_id not in self.fps_counters:
-                self.fps_counters[camera_id] = {"count": 0, "start": now, "fps": 0}
+                self.fps_counters[camera_id] = {"count": 0, "start": now, "fps": 0, "last_ts": now, "arrival_ms": 33.3}
             
+            last_ts = self.fps_counters[camera_id].get("last_ts", now)
+            frame_dt_ms = round((now - last_ts) * 1000.0, 1) if (now > last_ts and (now - last_ts) < 1.0) else 33.3
+            self.fps_counters[camera_id]["last_ts"] = now
+            self.fps_counters[camera_id]["arrival_ms"] = frame_dt_ms
+
             self.fps_counters[camera_id]["count"] += 1
             elapsed = now - self.fps_counters[camera_id]["start"]
             if elapsed >= 1.0:
@@ -744,12 +825,13 @@ class HailoPipelineWorker:
                         if real_cam_id:
                             extra_info = camera_mgr.get_stream_info(real_cam_id)
                             logger.info(f"DEBUG: real_cam_id={real_cam_id}, extra_info={extra_info}")
+                    input_lat = self.fps_counters.get(camera_id, {}).get("arrival_ms", 33.3) if camera_id else 33.3
                     telemetry_mgr.record_gstreamer_node_metric(
                         self.project_id,
                         in_nid,
                         "inputNode",
                         fps=c_fps,
-                        latency_ms=1.5,
+                        latency_ms=input_lat,
                         extra=extra_info
                     )
                 if 'stream_cfg' in locals() and stream_cfg:
