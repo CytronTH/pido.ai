@@ -7,7 +7,7 @@ import Settings from './components/Settings/Settings';
 import ProjectList from './components/Home/ProjectList';
 import ResourceMonitor from './components/ResourceMonitor';
 import ErrorBoundary from './components/ErrorBoundary';
-import LogsViewer from './components/LogsViewer';
+import ProjectDatabase from './components/ProjectDatabase';
 import NodeWiki from './components/Wiki/NodeWiki';
 import DatabaseMonitoring from './components/DatabaseMonitoring';
 import LoginForm from './components/auth/LoginForm';
@@ -15,6 +15,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import UserManagement from './components/users/UserManagement';
 import useAuthStore from './store/useAuthStore';
 import useThemeStore from './store/useThemeStore';
+import usePipelineStore from './store/usePipelineStore';
 import logoImg from './assets/logo-menu.svg';
 import logoDarkImg from './assets/logo-menu-dark.svg';
 import SystemClock from './components/SystemClock';
@@ -86,13 +87,16 @@ function AppContent() {
   useEffect(() => {
     if (!activeProject) {
       setProjectStatus(null);
+      usePipelineStore.getState().setIsProjectRunning(false);
       return;
     }
     const fetchStatus = async () => {
       try {
         const res = await fetch('/api/projects/status');
         const data = await res.json();
-        setProjectStatus(data[activeProject.id] || { status: 'stopped' });
+        const currentStatus = data[activeProject.id] || { status: 'stopped' };
+        setProjectStatus(currentStatus);
+        usePipelineStore.getState().setIsProjectRunning(currentStatus.status === 'running');
       } catch (err) {
         // ignore errors during polling
       }
@@ -107,9 +111,11 @@ function AppContent() {
       if (isRunning) {
         await fetch(`/api/pipeline/stop/${id}`, { method: 'POST' });
         setProjectStatus(prev => ({...prev, status: 'stopped'}));
+        usePipelineStore.getState().setIsProjectRunning(false);
       } else {
         await fetch(`/api/projects/${id}/start`, { method: 'POST' });
         setProjectStatus(prev => ({...prev, status: 'running'}));
+        usePipelineStore.getState().setIsProjectRunning(true);
       }
     } catch (err) {
       console.error("Failed to toggle project", err);
@@ -637,7 +643,7 @@ function AppContent() {
             <Route path="/project/:projectId/logs" element={
                activeProject ? (
                  <div className="h-full bg-canvas">
-                   <LogsViewer projectId={activeProject.id} />
+                   <ProjectDatabase projectId={activeProject.id} />
                  </div>
                ) : null
             } />

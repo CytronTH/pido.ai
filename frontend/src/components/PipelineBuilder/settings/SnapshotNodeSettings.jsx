@@ -1,13 +1,165 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Tag, Plus, X, Layers, Camera, Eye } from 'lucide-react';
+import usePipelineStore from '../../../store/usePipelineStore';
 
-export default function SnapshotNodeSettings({ data, onChange }) {
-  const zeroLatency = data?.zeroLatency ?? false;
-  const drawBbox = data?.drawBbox ?? true;
+const SUGGESTED_TAGS = ['ok', 'ng', 'defect', 'inspection', 'alert'];
+
+export default function SnapshotNodeSettings({ data, onChange, nodeId }) {
+  const zeroLatency = data?.zeroLatency ?? true;
   const triggerEdge = data?.triggerEdge || 'rising';
-  const syncDelay = data?.syncDelay ?? 250;
+  const syncDelay = data?.syncDelay ?? 0;
+  const tags = Array.isArray(data?.tags) ? data.tags : [];
+
+  const [tagInput, setTagInput] = useState('');
+
+  const addTag = (textToAdd) => {
+    const raw = (textToAdd || tagInput).trim();
+    if (!raw) return;
+
+    // Support comma-separated strings
+    const newItems = raw
+      .split(',')
+      .map(t => t.trim().replace(/^#+/, ''))
+      .filter(t => t.length > 0 && !tags.includes(t));
+
+    if (newItems.length > 0) {
+      onChange({ tags: [...tags, ...newItems] });
+    }
+    setTagInput('');
+  };
+
+  const removeTag = (indexToRemove) => {
+    const nextTags = tags.filter((_, idx) => idx !== indexToRemove);
+    onChange({ tags: nextTags });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
+  const nodes = usePipelineStore((state) => state.nodes);
+  const edges = usePipelineStore((state) => state.edges);
+
+  // Trace backwards along pipeline edges to determine AI model bboxDrawMode
+  const effectiveBboxDrawMode = React.useMemo(() => {
+    if (!nodeId) return 'frontend';
+    const visited = new Set();
+    const queue = [nodeId];
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (visited.has(curr)) continue;
+      visited.add(curr);
+
+      const inEdges = edges.filter((e) => e.target === curr);
+      for (const edge of inEdges) {
+        const srcNode = nodes.find((n) => n.id === edge.source);
+        if (!srcNode) continue;
+        if (srcNode.type === 'aiNode' || srcNode.type === 'forkliftZoneNode') {
+          return srcNode.data?.bboxDrawMode || 'frontend';
+        }
+        queue.push(srcNode.id);
+      }
+    }
+    const anyAi = nodes.find((n) => n.type === 'aiNode');
+    return anyAi?.data?.bboxDrawMode || 'frontend';
+  }, [nodeId, nodes, edges]);
+
+  const isFrontendDraw = effectiveBboxDrawMode === 'frontend';
+  const drawBbox = data?.drawBbox ?? true;
 
   return (
     <div className="flex flex-col gap-5">
+      
+      {/* Event Tags Section */}
+      <div className="flex flex-col gap-2 bg-canvas p-3 rounded-lg border border-line">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-fg flex items-center gap-1.5">
+            <Tag size={14} className="text-pink-500" />
+            Snapshot Tags
+          </label>
+          <span className="text-[10px] text-fg-subtle">
+            {tags.length} tag{tags.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        <p className="text-[10px] leading-relaxed text-fg-subtle">
+          Tags attached to recorded snapshots for filtering in Event Logs. Press Enter or comma to add.
+        </p>
+
+        {/* Tag Input Field */}
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle text-xs font-mono">#</span>
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="e.g. defect, ok, line-1"
+              className="w-full bg-surface border border-line rounded-lg pl-6 pr-3 py-1.5 text-xs text-fg focus:outline-none focus:border-pink-500 placeholder-fg-subtle"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => addTag()}
+            disabled={!tagInput.trim()}
+            className="px-2.5 py-1.5 bg-pink-600 hover:bg-pink-500 disabled:opacity-40 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition-all active:scale-95"
+            title="Add Tag"
+          >
+            <Plus size={13} />
+            <span>Add</span>
+          </button>
+        </div>
+
+        {/* Existing Tag Chips */}
+        <div className="flex flex-wrap gap-1.5 min-h-[28px] pt-1">
+          {tags.length === 0 ? (
+            <span className="text-[11px] text-fg-subtle italic">No tags attached</span>
+          ) : (
+            tags.map((t, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/30 group animate-in fade-in"
+              >
+                <span>#{t}</span>
+                <button
+                  type="button"
+                  onClick={() => removeTag(idx)}
+                  className="text-pink-500/60 hover:text-pink-600 dark:hover:text-pink-300 transition-colors"
+                  title="Remove tag"
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+
+        {/* Suggested Quick Tags */}
+        <div className="pt-2 border-t border-line/60 flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-fg-subtle">Suggested:</span>
+          {SUGGESTED_TAGS.map((st) => {
+            const isAdded = tags.includes(st);
+            return (
+              <button
+                key={st}
+                type="button"
+                disabled={isAdded}
+                onClick={() => addTag(st)}
+                className={`text-[10px] px-1.5 py-0.5 rounded border transition-all ${
+                  isAdded
+                    ? 'opacity-40 bg-surface-2 text-fg-subtle border-transparent cursor-not-allowed'
+                    : 'bg-surface hover:bg-surface-2 text-fg-muted hover:text-fg border-line hover:border-pink-500/50'
+                }`}
+              >
+                +{st}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       
       {/* Trigger Edge Selector */}
       <div className="flex flex-col gap-1.5">
@@ -75,24 +227,98 @@ export default function SnapshotNodeSettings({ data, onChange }) {
         </div>
       )}
 
-      {/* Draw Bbox Toggle */}
-      <div className="flex items-start justify-between bg-canvas p-3 rounded-lg border border-line">
-        <div className="pr-4">
-          <label className="text-sm font-medium block mb-1 text-fg">Draw Bounding Boxes</label>
+      {/* Canvas Photo Preview Window Toggle */}
+      <div className="flex flex-col gap-2.5 bg-canvas p-3 rounded-lg border border-line">
+        <div className="flex items-start justify-between">
+          <div className="pr-4">
+            <label className="text-sm font-medium block mb-1 text-fg flex items-center gap-1.5">
+              <Camera size={14} className="text-pink-500" />
+              Photo Preview Window
+            </label>
+            <p className="text-[10px] leading-relaxed text-fg-subtle">
+              Show a floating realtime preview window on the canvas displaying photos captured by this snapshot node.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={Boolean(data?.showPreviewWindow)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                onChange({ showPreviewWindow: checked });
+                const targetId = nodeId || data?.id;
+                if (targetId) {
+                  usePipelineStore.getState().updateNodeData(targetId, { showPreviewWindow: checked });
+                }
+              }}
+            />
+            <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+          </label>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const nextVal = !Boolean(data?.showPreviewWindow);
+            onChange({ showPreviewWindow: nextVal });
+            const targetId = nodeId || data?.id;
+            if (targetId) {
+              usePipelineStore.getState().updateNodeData(targetId, { showPreviewWindow: nextVal });
+            }
+          }}
+          className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm ${
+            Boolean(data?.showPreviewWindow)
+              ? 'bg-pink-600 text-white hover:bg-pink-500 shadow-pink-600/30'
+              : 'bg-surface-2 hover:bg-surface-3 text-fg border border-line'
+          }`}
+        >
+          <Eye size={13} />
+          <span>{Boolean(data?.showPreviewWindow) ? 'Close Canvas Photo Preview' : 'Open Photo Preview on Canvas'}</span>
+        </button>
+      </div>
+
+      {/* Draw Bounding Box on Snapshot Toggle (Only visible in Frontend Draw Mode) */}
+      {isFrontendDraw && (
+        <div className="flex items-start justify-between bg-canvas p-3 rounded-lg border border-line animate-in fade-in duration-200">
+          <div className="pr-4">
+            <label className="text-sm font-medium block mb-1 text-fg flex items-center gap-1.5">
+              <Layers size={14} className="text-pink-500" />
+              Draw Bounding Box on Snapshot
+            </label>
+            <p className="text-[10px] leading-relaxed text-fg-subtle">
+              Burn AI detection bounding boxes and labels into the snapshot image using OpenCV when triggered.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={drawBbox}
+              onChange={(e) => onChange({ drawBbox: e.target.checked })}
+            />
+            <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+          </label>
+        </div>
+      )}
+
+      {/* Bounding Box Mode Info (Shown when in Backend Draw Mode) */}
+      {!isFrontendDraw && (
+        <div className="flex flex-col gap-2 bg-canvas p-3 rounded-lg border border-line">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-fg flex items-center gap-1.5">
+              <Layers size={14} className="text-pink-500" />
+              Bounding Box Overlay
+            </label>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-medium">
+              Backend Mode (Burned-in)
+            </span>
+          </div>
           <p className="text-[10px] leading-relaxed text-fg-subtle">
-            Overlays detection bounding boxes on the saved snapshot image if detection data is available in the message payload.
+            AI Model is set to <strong className="text-fg-secondary">Backend Draw Mode</strong>. Bounding boxes are already burned into every frame of the video stream by GStreamer hailooverlay.
           </p>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-          <input
-            type="checkbox"
-            className="sr-only peer"
-            checked={drawBbox}
-            onChange={(e) => onChange({ drawBbox: e.target.checked })}
-          />
-          <div className="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-fg after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white border-line-strong after:border-fg-secondary after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
-        </label>
-      </div>
+      )}
 
     </div>
   );

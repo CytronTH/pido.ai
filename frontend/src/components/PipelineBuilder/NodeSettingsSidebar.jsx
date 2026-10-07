@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import usePipelineStore from '../../store/usePipelineStore';
 import { X, Save, Undo } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
+import { DEFAULT_NODE_NAMES } from './nodeTypes';
 
 // Map node types to their settings components
 import InputNodeSettings from './settings/InputNodeSettings';
@@ -16,6 +17,10 @@ import DashboardWidgetSettings from './settings/DashboardWidgetSettings';
 import DashboardVideoNodeSettings from './settings/DashboardVideoNodeSettings';
 import SnapshotNodeSettings from './settings/SnapshotNodeSettings';
 import TargetTrackerNodeSettings from './settings/TargetTrackerNodeSettings';
+import RateLimitNodeSettings from './settings/RateLimitNodeSettings';
+import FunctionNodeSettings from './settings/FunctionNodeSettings';
+import DebugNodeSettings from './settings/DebugNodeSettings';
+import DebugOutputNodeSettings from './settings/DebugOutputNodeSettings';
 
 const settingsComponents = {
   inputNode: InputNodeSettings,
@@ -32,6 +37,10 @@ const settingsComponents = {
   dashboardVideoNode: DashboardVideoNodeSettings,
   snapshotNode: SnapshotNodeSettings,
   targetTrackerNode: TargetTrackerNodeSettings,
+  rateLimitNode: RateLimitNodeSettings,
+  functionNode: FunctionNodeSettings,
+  debugNode: DebugNodeSettings,
+  debugOutputNode: DebugOutputNodeSettings,
 };
 
 export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose }) {
@@ -64,7 +73,12 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
   // Initialize draft data when the selected node changes
   useEffect(() => {
     if (selectedNode) {
-      setDraftData(JSON.parse(JSON.stringify(selectedNode.data)));
+      const defaultName = DEFAULT_NODE_NAMES[selectedNode.type] || selectedNode.type;
+      const initialData = JSON.parse(JSON.stringify(selectedNode.data || {}));
+      if (initialData.label === undefined || initialData.label === '') {
+        initialData.label = defaultName;
+      }
+      setDraftData(initialData);
       setIsDirty(false);
     }
   }, [activeId, selectedNode?.data]); // Re-sync if external changes happen
@@ -79,6 +93,11 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
       setIsDirty(true);
       return next;
     });
+
+    // Immediate UI toggle: if showPreviewWindow is changed, update the store right away without requiring Save
+    if (updates.showPreviewWindow !== undefined) {
+      updateNodeData(selectedNode.id, { showPreviewWindow: updates.showPreviewWindow });
+    }
   };
 
   const handleSave = () => {
@@ -121,7 +140,7 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
             <input
               type="text"
               value={draftData.label !== undefined ? draftData.label : ''}
-              placeholder={selectedNode.type}
+              placeholder={DEFAULT_NODE_NAMES[selectedNode.type] || selectedNode.type}
               onChange={(e) => handleDataChange({ label: e.target.value })}
               className="bg-surface-2 border border-line-strong focus:border-blue-500 text-sm font-semibold rounded px-2.5 py-1.5 w-full outline-none transition-colors text-fg"
             />

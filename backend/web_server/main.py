@@ -8,10 +8,11 @@ import uuid
 import threading
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from .websocket_manager import manager
 
 import sys
@@ -176,19 +177,34 @@ snapshots_dir = "/home/pi/pido-ai/snapshots"
 os.makedirs(snapshots_dir, exist_ok=True)
 app.mount("/api/snapshots", StaticFiles(directory=snapshots_dir), name="snapshots")
 
+# Frontend production build static assets
+frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if frontend_dist.is_dir():
+    assets_dir = frontend_dist / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="frontend_assets")
+    videos_dir = frontend_dist / "videos"
+    if videos_dir.is_dir():
+        app.mount("/videos", StaticFiles(directory=str(videos_dir)), name="frontend_videos")
+
 from .project_backup import router as project_backup_router
 app.include_router(project_backup_router)
 
 from .routers.auth import router as auth_router
 from .routers.users import router as users_router
 from .routers.dashboard_versions import router as dashboard_versions_router
+from .routers.project_data import router as project_data_router
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(dashboard_versions_router)
+app.include_router(project_data_router)
 
 
-@app.get("/")
+@app.get("/", response_model=None)
 async def root():
+    index_file = frontend_dist / "index.html"
+    if frontend_dist.is_dir() and index_file.is_file():
+        return FileResponse(str(index_file))
     return {"status": "ok", "message": "PiDo.AI Backend is running."}
 
 @app.websocket("/ws/metadata/{project_id}")
@@ -355,43 +371,214 @@ import tempfile
 from fastapi.responses import Response, FileResponse
 from fastapi import HTTPException
 
-@app.get("/api/camera-snapshot")
-async def camera_snapshot(camera_id: str):
+class CameraTestRequest(BaseModel):
+    url: str
+    type: str = "rtsp"
+
+
+class CameraPreviewRequest(BaseModel):
+    path: Optional[str] = None
+    type: Optional[str] = "rtsp"
+
+
+@app.post("/api/cameras/test-connection")
+async def test_camera_connection(req: CameraTestRequest):
     """
-    Capture a single JPEG frame from a camera/RTSP/file source for the ROI editor.
-    Uses ffmpeg to grab one frame and returns it as image/jpeg.
+    Test connectivity to a CCTV RTSP stream, local camera device, or video file.
+    Uses ffprobe with a strict 5s timeout and returns stream metadata.
     """
+    url = req.url.strip()
+    cam_type = req.type.lower()
+
+    if not url:
+        raise HTTPException(status_code=400, detail="Source URL or path is required")
+
+    def _probe():
+        if cam_type == "rtsp" or url.startswith("rtsp://") or url.startswith("rtsps://"):
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-rtsp_transport", "tcp",
+                "-rw_timeout", "5000000",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name,width,height,r_frame_rate",
+                "-of", "json",
+                url
+            ]
+        elif cam_type == "local":
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-f", "v4l2",
+                "-i", url,
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name,width,height,r_frame_rate",
+                "-of", "json"
+            ]
+        else:
+            # File
+            cmd = [
+                "ffprobe", "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name,width,height,r_frame_rate",
+                "-of", "json",
+                url
+            ]
+
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=8)
+
+    try:
+        result = await asyncio.to_thread(_probe)
+        if result.returncode != 0:
+            err_msg = result.stderr.strip() or "Connection failed"
+            return {
+                "status": "error",
+                "connected": False,
+                "message": f"Connection test failed: {err_msg[-200:]}"
+            }
+
+        data = json.loads(result.stdout)
+        streams = data.get("streams", [])
+        if not streams:
+            return {
+                "status": "error",
+                "connected": False,
+                "message": "No video stream detected from source."
+            }
+
+        vstream = streams[0]
+        fps_val = None
+        raw_fps = vstream.get("r_frame_rate", "")
+        if "/" in raw_fps:
+            num, den = raw_fps.split("/", 1)
+            fps_val = round(float(num) / float(den), 1) if float(den) else None
+        elif raw_fps:
+            try:
+                fps_val = round(float(raw_fps), 1)
+            except ValueError:
+                fps_val = None
+
+        return {
+            "status": "success",
+            "connected": True,
+            "details": {
+                "codec": vstream.get("codec_name", "unknown"),
+                "width": vstream.get("width"),
+                "height": vstream.get("height"),
+                "fps": fps_val,
+                "resolution": f"{vstream.get('width', '?')}x{vstream.get('height', '?')}"
+            }
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "error",
+            "connected": False,
+            "message": "Connection timed out after 8s. Please verify host, port, credentials, and network reachability."
+        }
+    except Exception as e:
+        logger.error(f"Error testing camera connection: {e}")
+        return {
+            "status": "error",
+            "connected": False,
+            "message": str(e)
+        }
+
+
+@app.post("/api/cameras/{camera_id}/preview/start")
+async def start_camera_preview(camera_id: str, req: Optional[CameraPreviewRequest] = None):
+    """
+    Start central ingestion for camera preview via camera_mgr.
+    Provides a shared RTSP and WebRTC (WHEP) endpoint for realtime playback.
+    """
+    from media_server.camera_manager import camera_mgr
     entities = read_entities()
     camera = next((c for c in entities.get("cameras", []) if c.get("id") == camera_id), None)
+
     if not camera:
-        # Graceful fallback: if camera_id is missing or invalid (e.g. AI model ID passed), pick first available camera
-        enabled_cams = [c for c in entities.get("cameras", []) if c.get("is_enabled", True)]
-        if enabled_cams:
-            camera = enabled_cams[0]
-            logger.warning(f"Camera '{camera_id}' not found, falling back to '{camera.get('id')}'")
-        elif entities.get("cameras"):
-            camera = entities["cameras"][0]
-            logger.warning(f"Camera '{camera_id}' not found, falling back to '{camera.get('id')}'")
+        if req and req.path:
+            camera = {
+                "id": camera_id,
+                "type": req.type or "rtsp",
+                "path": req.path,
+                "name": f"Preview {camera_id}",
+                "is_enabled": True
+            }
         else:
-            raise HTTPException(status_code=404, detail="Camera entity not found")
+            raise HTTPException(status_code=404, detail=f"Camera '{camera_id}' not found")
 
-    if not camera.get("is_enabled", True):
-        raise HTTPException(status_code=400, detail=f"Camera '{camera.get('name', camera_id)}' is disabled. Please enable it in Settings.")
+    try:
+        rtsp_url = await asyncio.to_thread(camera_mgr.acquire, camera_id, camera)
+        return {
+            "status": "success",
+            "camera_id": camera_id,
+            "rtsp_url": rtsp_url,
+            "stream_path": f"shared_{camera_id}"
+        }
+    except Exception as e:
+        logger.error(f"Failed to acquire camera preview for '{camera_id}': {e}")
+        return {"status": "error", "message": str(e)}
 
-    src_type = camera.get("type", "local")
-    src_path = camera.get("path", "/dev/video0")
 
-    # Check if stream is currently active in camera_mgr (Dual-mode snapshot)
+@app.post("/api/cameras/{camera_id}/preview/stop")
+async def stop_camera_preview(camera_id: str):
+    """
+    Release central ingestion reference for camera preview.
+    """
     from media_server.camera_manager import camera_mgr
-    active_rtsp = camera_mgr.get_rtsp_url(camera.get("id", camera_id))
+    try:
+        await asyncio.to_thread(camera_mgr.release, camera_id)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Failed to release camera preview for '{camera_id}': {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/camera-snapshot")
+async def camera_snapshot(
+    camera_id: Optional[str] = None,
+    path: Optional[str] = None,
+    type: Optional[str] = None
+):
+    """
+    Capture a single JPEG frame from a camera/RTSP/file source for thumbnail and preview.
+    Uses ffmpeg to grab one frame and returns it as image/jpeg.
+    """
+    src_type = "local"
+    src_path = "/dev/video0"
+    active_rtsp = None
+
+    if camera_id:
+        entities = read_entities()
+        camera = next((c for c in entities.get("cameras", []) if c.get("id") == camera_id), None)
+        if not camera:
+            enabled_cams = [c for c in entities.get("cameras", []) if c.get("is_enabled", True)]
+            if enabled_cams:
+                camera = enabled_cams[0]
+            elif entities.get("cameras"):
+                camera = entities["cameras"][0]
+            else:
+                raise HTTPException(status_code=404, detail="Camera entity not found")
+
+        if not camera.get("is_enabled", True):
+            raise HTTPException(status_code=400, detail=f"Camera '{camera.get('name', camera_id)}' is disabled.")
+
+        src_type = camera.get("type", "local")
+        src_path = camera.get("path", "/dev/video0")
+
+        from media_server.camera_manager import camera_mgr
+        active_rtsp = camera_mgr.get_rtsp_url(camera.get("id", camera_id))
+    elif path:
+        src_path = path
+        src_type = type or ("rtsp" if path.startswith("rtsp://") or path.startswith("rtsps://") else "local")
+    else:
+        raise HTTPException(status_code=400, detail="Either camera_id or path is required")
 
     if active_rtsp:
-        input_args = ["-rtsp_transport", "tcp", "-i", active_rtsp]
+        input_args = ["-rtsp_transport", "tcp", "-timeout", "5000000", "-i", active_rtsp]
     elif src_type == "local":
         input_args = ["-f", "v4l2", "-i", src_path]
     elif src_type == "rtsp":
         input_args = [
             "-rtsp_transport", "tcp",
+            "-timeout", "5000000",
             "-i", src_path,
         ]
     elif src_type == "file":
@@ -399,7 +586,7 @@ async def camera_snapshot(camera_id: str):
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported source type: {src_type}")
 
-    try:
+    def _run_snapshot():
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp_path = tmp.name
 
@@ -415,45 +602,57 @@ async def camera_snapshot(camera_id: str):
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            timeout=10
+            timeout=8
         )
         if result.returncode != 0:
             err = result.stderr.decode(errors="replace")[-400:]
-            logger.error(f"ffmpeg snapshot failed for {camera_id}: {err}")
-            raise HTTPException(status_code=500, detail=f"ffmpeg error: {err}")
+            raise RuntimeError(f"ffmpeg error: {err}")
 
         with open(tmp_path, "rb") as f:
             jpeg_bytes = f.read()
 
         import os
         os.unlink(tmp_path)
+        return jpeg_bytes
 
-        return Response(content=jpeg_bytes, media_type="image/jpeg")
-
+    try:
+        jpeg_bytes = await asyncio.to_thread(_run_snapshot)
+        return Response(
+            content=jpeg_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="ffmpeg timed out capturing frame")
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Snapshot error for {camera_id}: {e}")
+        logger.error(f"Snapshot error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/video-file")
 async def serve_video_file(path: str):
     """
-    Serve a video file from an absolute path on the server.
-    Used by the ROI editor's scrubber so the <video> element can load and seek the file.
-    Only allows files inside the videos directory or absolute paths registered in entities.
+    Serve a video file from an absolute path on the server or within VIDEOS_DIR.
     """
     from pathlib import Path as PPath
     entities = read_entities()
     allowed_paths = {c.get("path") for c in entities.get("cameras", []) if c.get("type") == "file"}
 
-    if path not in allowed_paths:
-        raise HTTPException(status_code=403, detail="File not in allowed camera entities")
-
     p = PPath(path)
+    if not p.is_absolute():
+        p = (VIDEOS_DIR / path).resolve()
+    else:
+        p = p.resolve()
+
+    is_in_videos_dir = False
+    try:
+        is_in_videos_dir = p.is_relative_to(VIDEOS_DIR.resolve())
+    except Exception:
+        pass
+
+    if str(p) not in allowed_paths and path not in allowed_paths and not is_in_videos_dir:
+        raise HTTPException(status_code=403, detail="File not in allowed camera entities or videos directory")
+
     if not p.exists() or not p.is_file():
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -1004,6 +1203,13 @@ async def deploy_pipeline(payload: PipelinePayload):
     logger.info(f"Received pipeline deployment for {project_id}: {len(payload.nodes)} nodes (mode: {deploy_mode})")
     
     try:
+        import importlib
+        import ai_engine.message_router
+        import ai_engine.pipeline_parser
+        importlib.reload(ai_engine.message_router)
+        importlib.reload(ai_engine.pipeline_parser)
+        from ai_engine.pipeline_parser import PipelineParser
+
         base_dir = Path(__file__).resolve().parent.parent
         parser = PipelineParser(base_dir)
 
@@ -1293,13 +1499,38 @@ async def restart_system():
     return {"status": "success", "message": "Rebooting..."}
 
 @app.get("/api/logs")
-def get_logs(limit: int = 100, node_id: str = None, event_type: str = None, camera_id: str = None, page: int = 1, project_id: str = None):
+def get_logs(
+    limit: int = 100,
+    node_id: Optional[str] = None,
+    event_type: Optional[str] = None,
+    camera_id: Optional[str] = None,
+    page: int = 1,
+    project_id: Optional[str] = None,
+    tag: Optional[str] = None
+):
     try:
         from db.database import db
-        result = db.get_logs(limit=limit, node_id=node_id, event_type=event_type, camera_id=camera_id, page=page, project_id=project_id)
+        result = db.get_logs(
+            limit=limit,
+            node_id=node_id,
+            event_type=event_type,
+            camera_id=camera_id,
+            page=page,
+            project_id=project_id,
+            tag=tag
+        )
         return {"status": "success", **result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/logs/tags")
+def get_log_tags(project_id: Optional[str] = None):
+    try:
+        from db.database import db
+        tags = db.get_log_tags(project_id=project_id)
+        return {"status": "success", "tags": tags}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "tags": []}
 
 # --- Analytics & Historical Reports APIs ---
 from fastapi.responses import Response
@@ -1768,179 +1999,22 @@ def clear_project_logs_api(project_id: str):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- Collection Management ---
+# Collections & Variables endpoints live in routers/project_data.py
 
-@app.get("/api/projects/{project_id}/collections")
-def get_project_collections(project_id: str):
-    from db.models import ProjectCollection
-    from sqlmodel import Session, select
-    with Session(db.engine) as session:
-        colls = session.exec(select(ProjectCollection).where(ProjectCollection.project_id == project_id)).all()
-        return {"status": "success", "data": [c.model_dump() for c in colls]}
+# ── SPA Frontend Catch-all ───────────────────────────────────────────────────
+# If frontend/dist exists, serve SPA routes (React Router HTML5 history mode)
+if frontend_dist.is_dir() and (frontend_dist / "index.html").is_file():
+    @app.get("/{full_path:path}", response_model=None)
+    async def serve_spa(full_path: str):
+        # Exclude API, WebSocket, and docs endpoints from being captured
+        if (
+            full_path.startswith("api/")
+            or full_path.startswith("ws/")
+            or full_path in ("docs", "redoc", "openapi.json")
+        ):
+            raise HTTPException(status_code=404, detail="Not Found")
 
-@app.post("/api/projects/{project_id}/collections")
-def create_project_collection(project_id: str, payload: dict):
-    from db.models import ProjectCollection
-    from sqlmodel import Session
-    import uuid
-    with Session(db.engine) as session:
-        coll = ProjectCollection(
-            id=str(uuid.uuid4()),
-            project_id=project_id,
-            name=payload.get("name"),
-            description=payload.get("description", ""),
-            schema_json=payload.get("schema_json", "{}")
-        )
-        session.add(coll)
-        session.commit()
-        session.refresh(coll)
-        return {"status": "success", "data": coll.model_dump()}
-
-@app.delete("/api/projects/{project_id}/collections/{collection_id}")
-def delete_project_collection(project_id: str, collection_id: str):
-    from db.models import ProjectCollection, CollectionRecord
-    from sqlmodel import Session, select, delete
-    import json
-    from pathlib import Path
-    
-    with Session(db.engine) as session:
-        coll = session.get(ProjectCollection, collection_id)
-        if coll and coll.project_id == project_id:
-            session.delete(coll)
-            session.commit()
-        else:
-            return {"status": "error", "message": "Collection not found"}
-            
-    with Session(db.engine_telemetry) as session:
-        records = session.exec(select(CollectionRecord).where(CollectionRecord.collection_id == collection_id)).all()
-        for r in records:
-            try:
-                data = json.loads(r.data_json) if isinstance(r.data_json, str) else r.data_json
-                if isinstance(data, dict):
-                    for k, v in data.items():
-                        if isinstance(v, str) and ('/api/snapshots/' in v or '/api/files/snapshots/' in v or 'snapshots/' in v):
-                            filename = v.split('/')[-1]
-                            filepath = Path("/home/pi/pido-ai/snapshots") / filename
-                            if filepath.exists() and filepath.is_file():
-                                filepath.unlink()
-            except Exception:
-                pass
-        session.exec(delete(CollectionRecord).where(CollectionRecord.collection_id == collection_id))
-        session.commit()
-        
-    return {"status": "success"}
-
-@app.get("/api/projects/{project_id}/collections/{collection_id}/records")
-def get_collection_records(project_id: str, collection_id: str):
-    from db.models import CollectionRecord
-    from sqlmodel import Session, select
-    with Session(db.engine_telemetry) as session:
-        records = session.exec(select(CollectionRecord).where(CollectionRecord.collection_id == collection_id).order_by(CollectionRecord.timestamp.desc())).all()
-        return {"status": "success", "data": [r.model_dump() for r in records]}
-
-@app.delete("/api/projects/{project_id}/collections/{collection_id}/records")
-def clear_collection_records(project_id: str, collection_id: str):
-    from db.models import CollectionRecord
-    from sqlmodel import Session, select, delete
-    import json
-    from pathlib import Path
-    
-    with Session(db.engine_telemetry) as session:
-        records = session.exec(select(CollectionRecord).where(CollectionRecord.collection_id == collection_id)).all()
-        for r in records:
-            try:
-                data = json.loads(r.data_json) if isinstance(r.data_json, str) else r.data_json
-                if isinstance(data, dict):
-                    for k, v in data.items():
-                        if isinstance(v, str) and ('/api/snapshots/' in v or '/api/files/snapshots/' in v or 'snapshots/' in v):
-                            filename = v.split('/')[-1]
-                            filepath = Path("/home/pi/pido-ai/snapshots") / filename
-                            if filepath.exists() and filepath.is_file():
-                                filepath.unlink()
-            except Exception:
-                pass
-        session.exec(delete(CollectionRecord).where(CollectionRecord.collection_id == collection_id))
-        session.commit()
-    return {"status": "success"}
-
-# --- Variable Monitoring ---
-
-@app.get("/api/projects/{project_id}/variables")
-def get_project_variables(project_id: str):
-    from sqlalchemy import text
-    from sqlmodel import Session
-    with Session(db.engine_telemetry) as session:
-        query = text("""
-            SELECT node_id, variable_name, value, MAX(timestamp) as last_updated, COUNT(id) as record_count
-            FROM custom_metric_log
-            WHERE project_id = :project_id
-            GROUP BY node_id, variable_name
-            ORDER BY last_updated DESC
-        """)
-        result = session.execute(query, {"project_id": project_id}).fetchall()
-        variables = [
-            {
-                "node_id": row[0],
-                "variable_name": row[1],
-                "value": row[2],
-                "last_updated": row[3],
-                "record_count": row[4]
-            }
-            for row in result
-        ]
-        return {"status": "success", "data": variables}
-
-@app.get("/api/projects/{project_id}/variables/{variable_name}/history")
-def get_project_variable_history(project_id: str, variable_name: str, limit: int = 100):
-    from sqlalchemy import text
-    from sqlmodel import Session
-    with Session(db.engine_telemetry) as session:
-        query = text("""
-            SELECT id, timestamp, value, node_id
-            FROM custom_metric_log
-            WHERE project_id = :project_id AND variable_name = :variable_name
-            ORDER BY timestamp DESC
-            LIMIT :limit
-        """)
-        result = session.execute(query, {"project_id": project_id, "variable_name": variable_name, "limit": limit}).fetchall()
-        history = [
-            {
-                "id": row[0],
-                "timestamp": row[1],
-                "value": row[2],
-                "node_id": row[3]
-            }
-            for row in result
-        ]
-        return {"status": "success", "data": history}
-
-@app.delete("/api/projects/{project_id}/variables/{variable_name}")
-def delete_project_variable(project_id: str, variable_name: str):
-    from sqlalchemy import text
-    from sqlmodel import Session
-    try:
-        with Session(db.engine_telemetry) as session:
-            # Delete from custom_metric_log
-            session.execute(text("DELETE FROM custom_metric_log WHERE project_id = :project_id AND variable_name = :variable_name"), {"project_id": project_id, "variable_name": variable_name})
-            # Also delete from hourly rollups if any
-            session.execute(text("DELETE FROM custom_metric_hourly WHERE project_id = :project_id AND variable_name = :variable_name"), {"project_id": project_id, "variable_name": variable_name})
-            session.commit()
-            return {"status": "success", "message": f"Variable {variable_name} deleted completely."}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.delete("/api/projects/{project_id}/variables/{variable_name}/cleanup")
-def cleanup_project_variable(project_id: str, variable_name: str, days: int = 7):
-    from sqlalchemy import text
-    from sqlmodel import Session
-    from datetime import datetime, timedelta, timezone
-    try:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        cutoff_str = cutoff.strftime('%Y-%m-%d %H:%M:%S')
-        with Session(db.engine_telemetry) as session:
-            res = session.execute(text("DELETE FROM custom_metric_log WHERE project_id = :project_id AND variable_name = :variable_name AND timestamp < :cutoff"), 
-                {"project_id": project_id, "variable_name": variable_name, "cutoff": cutoff_str})
-            session.commit()
-            return {"status": "success", "message": f"Purged data older than {days} days.", "deleted": res.rowcount}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+        target_file = frontend_dist / full_path
+        if target_file.is_file():
+            return FileResponse(str(target_file))
+        return FileResponse(str(frontend_dist / "index.html"))

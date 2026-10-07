@@ -1,61 +1,35 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Timer } from 'lucide-react';
-import NodeMenu from './NodeMenu';
 import usePipelineStore from '../../../store/usePipelineStore';
+import NodeHeader from './NodeHeader';
+import RateLimitNodeSettings from '../settings/RateLimitNodeSettings';
 
-export default function RateLimitNode({ id, data, isConnectable }) {
+export default function RateLimitNode({ id, data, isConnectable, selected }) {
   const isCompact = data?.viewMode === 'compact';
-  const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
-  const updateNodeData = data?.onUpdate || globalUpdateNodeData;
+  const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
-  const handleRateChange = (e) => {
-    updateNodeData(id, { rate: parseFloat(e.target.value) || 1 });
-  };
-
-  const handlePeriodChange = (e) => {
-    updateNodeData(id, { period: e.target.value });
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
   };
 
   return (
-    <div className="bg-surface border-2 border-teal-600 rounded-xl shadow-lg shadow-teal-900/20 w-56 text-fg overflow-hidden">
-      <div className="bg-teal-600/20 p-2 flex items-center justify-between border-b border-teal-900/50">
-        <div className="flex items-center gap-2">
-          <div className="bg-teal-600 p-1 rounded-lg">
-            <Timer size={14} className="text-fg" />
-          </div>
-          <div className="font-semibold text-xs uppercase tracking-wider text-teal-800 dark:text-teal-100">Rate Limit</div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+    <div className={`bg-surface border-2 ${selected ? 'border-teal-400 shadow-teal-500/20' : 'border-teal-600'} rounded-xl shadow-lg shadow-teal-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg flex flex-col overflow-hidden`}>
+      <NodeHeader
+        id={id}
+        icon={Timer}
+        iconBg="bg-teal-600"
+        headerBg="bg-teal-600/20 border-teal-900/50"
+        defaultName="Rate Limit"
+        defaultSubtitle="Traffic Throttle"
+        data={data}
+      />
       
-      <div className={`p-3 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <div className="text-[10px] text-fg-muted">
-          Limits the rate of messages passing through. Excess messages are dropped.
+      {!isCompact && (
+        <div className="p-3.5 flex flex-col gap-3">
+          <RateLimitNodeSettings nodeId={id} data={data} onChange={handleSettingsChange} />
         </div>
-        
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-fg-secondary">Allow</span>
-          <input 
-            type="number"
-            min="0.1"
-            step="0.1"
-            className="bg-surface-2 border border-line-strong rounded-md p-1 text-sm focus:outline-none focus:border-teal-500 nodrag w-16 text-center"
-            value={data?.rate || 1}
-            onChange={handleRateChange}
-          />
-          <span className="text-xs text-fg-secondary">msg(s) per</span>
-          <select
-            className="bg-surface-2 border border-line-strong rounded-md p-1 text-xs focus:outline-none focus:border-teal-500 nodrag flex-1"
-            value={data?.period || 'second'}
-            onChange={handlePeriodChange}
-          >
-            <option value="second">Second</option>
-            <option value="minute">Minute</option>
-            <option value="hour">Hour</option>
-          </select>
-        </div>
-      </div>
+      )}
 
       <Handle 
         type="target" 

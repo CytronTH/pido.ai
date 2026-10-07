@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Bell } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function ActionNode({ id, data }) {
@@ -38,15 +38,15 @@ export default function ActionNode({ id, data }) {
 
   return (
     <div className={`bg-surface border-2 border-green-600 rounded-xl shadow-lg shadow-green-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
-      <div className="bg-green-600/20 p-3 flex items-center justify-between border-b border-green-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-green-600 p-1.5 rounded-lg">
-            <Bell size={16} className="text-fg" />
-          </div>
-          <div className="font-semibold text-sm">Action / Alert</div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
+      <NodeHeader
+        id={id}
+        icon={Bell}
+        iconBg="bg-green-600"
+        headerBg="bg-green-600/20 border-green-900/50"
+        defaultName="Action / Alert"
+        defaultSubtitle="Notification & Webhook"
+        data={data}
+      />
       
       <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
         <label className="text-xs text-fg-muted flex flex-col gap-1">

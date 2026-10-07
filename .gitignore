@@ -24,3 +24,4 @@ backend/db/*.sqlite*
 *.mov
 *.webm
 *.part
+*.hef

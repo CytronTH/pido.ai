@@ -250,6 +250,14 @@ class DatabaseManager:
                                 value=log_entry.get('data', {}).get('value', 0.0)
                             )
                             session.add(metric)
+                        elif log_entry['table'] == 'collection_records':
+                            from db.models import CollectionRecord
+                            session.add(CollectionRecord(
+                                collection_id=log_entry['collection_id'],
+                                project_id=log_entry['project_id'],
+                                timestamp=log_entry.get('timestamp') or datetime.now(timezone.utc),
+                                data_json=log_entry.get('data_json', '{}')
+                            ))
                     session.commit()
                 except Exception as e:
                     session.rollback()
@@ -407,7 +415,16 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error running data retention cleanup: {e}")
         
-    def get_logs(self, limit: int = 100, node_id: str = None, event_type: str = None, camera_id: str = None, page: int = 1, project_id: str = None):
+    def get_logs(
+        self,
+        limit: int = 100,
+        node_id: Optional[str] = None,
+        event_type: Optional[str] = None,
+        camera_id: Optional[str] = None,
+        page: int = 1,
+        project_id: Optional[str] = None,
+        tag: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Helper to get raw dict logs for backwards compatibility, with pagination and filters."""
         with Session(self.engine_telemetry) as session:
             statement = select(EventLog)
@@ -425,6 +442,14 @@ class DatabaseManager:
             if camera_id:
                 statement = statement.where(EventLog.camera_id == camera_id)
                 count_statement = count_statement.where(EventLog.camera_id == camera_id)
+            if tag:
+                tag_cond = text(
+                    "event_logs.payload IS NOT NULL "
+                    "AND json_valid(event_logs.payload) = 1 "
+                    "AND EXISTS (SELECT 1 FROM json_each(event_logs.payload, '$.tags') WHERE LOWER(json_each.value) = LOWER(:tag))"
+                ).params(tag=tag)
+                statement = statement.where(tag_cond)
+                count_statement = count_statement.where(tag_cond)
                 
             total = session.exec(count_statement).one()
             
@@ -445,6 +470,34 @@ class DatabaseManager:
                     d['timestamp'] = d['timestamp'].isoformat()
                 out.append(d)
             return {"data": out, "total": total, "page": page, "limit": limit}
+
+    def get_log_tags(self, project_id: Optional[str] = None) -> List[str]:
+        """Fetch distinct snapshot tags from event_logs payload for filtering."""
+        with Session(self.engine_telemetry) as session:
+            try:
+                base_sql = (
+                    "SELECT DISTINCT j.value "
+                    "FROM event_logs l, json_each(l.payload, '$.tags') j "
+                    "WHERE l.payload IS NOT NULL "
+                    "  AND json_valid(l.payload) = 1 "
+                    "  AND l.payload LIKE '%\"tags\"%' "
+                )
+                if project_id:
+                    stmt = text(base_sql + " AND l.project_id = :project_id ORDER BY j.value ASC").params(project_id=project_id)
+                else:
+                    stmt = text(base_sql + " ORDER BY j.value ASC")
+                results = session.exec(stmt).fetchall()
+                clean_tags = []
+                seen = set()
+                for r in results:
+                    val = str(r[0]).strip() if r[0] is not None else ""
+                    if val and val.lower() not in seen:
+                        seen.add(val.lower())
+                        clean_tags.append(val)
+                return clean_tags
+            except Exception as e:
+                logger.error(f"Error fetching log tags: {e}")
+                return []
 
     def purge_old_logs(self, days: int = 30, max_records: int = 500000, delete_files: bool = True, project_id: str = None) -> Dict[str, Any]:
         """
@@ -621,6 +674,20 @@ class DatabaseManager:
             })
         except Full:
             logger.warning("Database log_queue full, dropping custom metric log")
+
+    def log_collection_record(self, project_id: str, collection_id: str, data: Dict[str, Any]) -> None:
+        """Queue a Collection Writer row for the batched background writer."""
+        try:
+            self.log_queue.put_nowait({
+                'table': 'collection_records',
+                'project_id': project_id,
+                'collection_id': collection_id,
+                'timestamp': datetime.now(timezone.utc),
+                'data_json': json.dumps(data, default=str),
+            })
+        except Full:
+            logger.warning("Database log_queue full, dropping collection record for %s", collection_id)
+
     def clear_project_logs(self, project_id: str) -> Dict[str, Any]:
         """Deletes all event logs, metrics, and associated snapshot files for a specific project."""
         deleted_rows = 0

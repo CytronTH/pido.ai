@@ -14,6 +14,7 @@ export default function ButtonEdge({
   targetPosition,
   style = {},
   markerEnd,
+  className = '',
 }) {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -116,7 +117,7 @@ export default function ButtonEdge({
 
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} className={className} />
       <EdgeLabelRenderer>
         <div
           style={{

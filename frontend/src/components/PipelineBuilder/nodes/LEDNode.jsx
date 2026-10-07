@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Lightbulb } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function LEDNode({ id, data }) {
@@ -18,23 +18,18 @@ export default function LEDNode({ id, data }) {
   };
 
   return (
-    <div className={`bg-surface border-2 border-yellow-500 rounded-xl p-4 shadow-xl shadow-yellow-900/20 ${isCompact ? 'w-48' : 'w-64'}`}>
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-yellow-500 border-2 border-line-subtle" />
+    <div className={`bg-surface border-2 border-yellow-500 rounded-xl shadow-xl shadow-yellow-900/20 overflow-hidden ${isCompact ? 'w-48' : 'w-64'}`}>
+      <NodeHeader
+        id={id}
+        icon={Lightbulb}
+        iconBg="bg-yellow-600"
+        headerBg="bg-yellow-500/20 border-yellow-800/50"
+        defaultName="LED Driver"
+        defaultSubtitle="PWM Output (Max 2A)"
+        data={data}
+      />
       
-      <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
-        <div className="flex items-center gap-3">
-          <div className="bg-yellow-500/20 p-2 rounded-lg">
-            <Lightbulb className="text-yellow-700 dark:text-yellow-400" size={24} />
-          </div>
-          <div>
-            <h3 className="font-bold text-fg text-sm">LED Driver</h3>
-            <p className="text-xs text-yellow-500 font-mono">PWM Output (Max 2A)</p>
-          </div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
-      
-      <div className="space-y-3">
+      <div className={`p-4 space-y-3 ${isCompact ? 'hidden' : ''}`}>
         <div>
           <label className="text-xs text-fg-muted block mb-1">Target Pin</label>
           <select 

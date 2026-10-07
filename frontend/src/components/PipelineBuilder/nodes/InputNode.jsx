@@ -1,145 +1,114 @@
 import React, { useState, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Camera, Film, AlertTriangle } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import { Camera, Film, Repeat } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 import NodeTelemetryBadge from './NodeTelemetryBadge';
+import NodeHeader from './NodeHeader';
+import InputNodeSettings from '../settings/InputNodeSettings';
 
-export default function InputNode({ id, data }) {
+export default function InputNode({ id, data, selected }) {
   const isCompact = data?.viewMode === 'compact';
-  const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
-  const updateNodeData = data?.onUpdate || globalUpdateNodeData;
-  const [cameras, setCameras] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const updateNodeData = usePipelineStore((state) => state.updateNodeData);
+  const isProjectRunning = usePipelineStore((state) => state.isProjectRunning);
+  const telemetryData = usePipelineStore((state) => state.telemetryData);
 
-  useEffect(() => {
-    if (data?.isWikiMode) {
-      setCameras([
-        { id: 'wiki_mock_obj_det', name: 'คลิปจำลอง (Object Detection)', type: 'file', path: 'public/videos/wiki_obj_det.mp4', is_enabled: true },
-        { id: 'wiki_mock_pose', name: 'คลิปจำลอง (Pose Estimation)', type: 'file', path: 'public/videos/wiki_pose.mp4', is_enabled: true }
-      ]);
-      setLoading(false);
-      return;
-    }
+  // Video playback loop tracking
+  const [currentLoop, setCurrentLoop] = useState(1);
+  const [isFinished, setIsFinished] = useState(false);
 
-    fetch('/api/entities', { cache: 'no-store' })
-      .then(res => res.json())
-      .then(json => {
-        setCameras(json.cameras || []);
-        setLoading(false);
-        if (!data?.entityId && json.cameras && json.cameras.length > 0) {
-          updateNodeData(id, { entityId: json.cameras[0].id });
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch entities", err);
-        setLoading(false);
-      });
-  }, [id, data?.entityId, data?.isWikiMode, updateNodeData]);
+  const isFileSource = data?.sourceType === 'file' || 
+    Boolean(data?.entityId && (data.entityId.startsWith('cam_file_') || data.entityId.startsWith('wiki_mock')));
+  const isLoop = data?.loop ?? true;
+  const targetLoops = data?.loop_count || 1;
 
-  const handleEntityChange = (e) => {
-    updateNodeData(id, { entityId: e.target.value });
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
   };
 
-  const selectedCam = cameras.find(c => c.id === data?.entityId);
-  const isFileSource = selectedCam?.type === 'file';
+  // Sync with real-time telemetry metrics for loop progress
+  useEffect(() => {
+    if (!telemetryData?.pipelines) return;
+    for (const pipe of telemetryData.pipelines) {
+      const found = pipe.nodes?.find((n) => n.node_id === id);
+      if (found) {
+        if (found.current_loop !== undefined) {
+          setCurrentLoop(found.current_loop);
+        }
+        if (found.is_finished !== undefined) {
+          setIsFinished(Boolean(found.is_finished));
+        }
+        break;
+      }
+    }
+  }, [telemetryData, id]);
+
+  // Listen to WebSocket EOS event for video completion
+  useEffect(() => {
+    const handleWsMessage = (event) => {
+      const detail = event.detail;
+      if (!detail) return;
+      if (detail.type === 'system' && detail.eos) {
+        if (detail.input_node_id === id || detail.camera_id === data?.entityId) {
+          setIsFinished(true);
+          setCurrentLoop(targetLoops);
+        }
+      }
+    };
+    window.addEventListener('pido_ws_message', handleWsMessage);
+    return () => window.removeEventListener('pido_ws_message', handleWsMessage);
+  }, [id, data?.entityId, targetLoops]);
+
+  // Reset finished flag if project starts afresh
+  useEffect(() => {
+    if (isProjectRunning && isFinished) {
+      setIsFinished(false);
+    }
+  }, [isProjectRunning, isFinished]);
 
   return (
-    <div className={`bg-surface border-2 border-blue-600 rounded-xl shadow-lg shadow-blue-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
-      <div className="bg-blue-600/20 p-3 flex items-center justify-between border-b border-blue-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-1.5 rounded-lg">
-            {isFileSource ? <Film size={16} className="text-fg" /> : <Camera size={16} className="text-fg" />}
-          </div>
-          <div className="font-semibold text-sm">Input Source</div>
-        </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
-      
-      <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          {isFileSource ? 'Video File' : 'Camera Entity'}
-          {loading ? (
-            <div className="text-sm text-fg-subtle py-1">Loading...</div>
-          ) : (
-            <select 
-              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-blue-500 nodrag"
-              value={data?.entityId || ''}
-              onChange={handleEntityChange}
-            >
-              <option value="" disabled>Select Source</option>
-              {cameras.filter(c => c.type !== 'file').length > 0 && (
-                <optgroup label="── Cameras ──">
-                  {cameras.filter(c => c.type !== 'file').map(cam => (
-                    <option key={cam.id} value={cam.id}>
-                      {cam.name}{cam.is_enabled === false ? ' (Disabled)' : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {cameras.filter(c => c.type === 'file').length > 0 && (
-                <optgroup label="── Video Files ──">
-                  {cameras.filter(c => c.type === 'file').map(cam => (
-                    <option key={cam.id} value={cam.id}>
-                      📁 {cam.name}{cam.is_enabled === false ? ' (Disabled)' : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          )}
-        </label>
-        
-        {/* Preview */}
-        {selectedCam && (
-          <div className="text-[10px] text-fg-subtle bg-surface-2 p-2 rounded-md break-all">
-            <span className="text-blue-600 dark:text-blue-400 uppercase font-semibold mr-1">{selectedCam.type}:</span>
-            <span className="truncate">{selectedCam.path?.split('/').pop() || selectedCam.path}</span>
-          </div>
-        )}
-
-        {/* Disabled Warning */}
-        {selectedCam && selectedCam.is_enabled === false && (
-          <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2 rounded-md">
-            <AlertTriangle size={14} className="shrink-0 text-amber-700 dark:text-amber-400" />
-            <span>Camera is <strong>disabled</strong> in Settings.</span>
-          </div>
-        )}
-
-        {/* File-only options */}
+    <div className={`relative bg-surface border-2 ${selected ? 'border-blue-500 shadow-blue-500/20' : 'border-blue-600'} rounded-xl shadow-lg ${isCompact ? 'w-48' : 'w-88'} text-fg overflow-hidden`}>
+      {/* ── Node Header with Loop / Loops Played Badge ── */}
+      <NodeHeader
+        id={id}
+        icon={Camera}
+        iconBg="bg-blue-600"
+        headerBg="bg-blue-600/20 border-blue-900/50"
+        defaultName="Input Source"
+        defaultSubtitle="RTSP / Video / USB"
+        data={data}
+      >
+        {/* Badge indicator on node header: Loop vs Loop Count */}
         {isFileSource && (
-          <div className="border border-line-strong/50 rounded-lg p-2 bg-surface-2/30 flex flex-col gap-2">
-            <div className="text-[10px] text-fg-subtle uppercase font-bold tracking-wider">Playback Options</div>
-
-            <label className="text-xs text-fg-muted flex items-center justify-between">
-              <span>Loop (repeat)</span>
-              <input
-                type="checkbox"
-                className="nodrag w-4 h-4 accent-blue-500 cursor-pointer"
-                checked={data?.loop ?? true}
-                onChange={(e) => updateNodeData(id, { loop: e.target.checked })}
-              />
-            </label>
-
-            <label className="text-xs text-fg-muted flex items-center justify-between">
-              <span>Speed</span>
-              <select
-                className="bg-surface border border-line-strong rounded p-1 text-xs focus:border-blue-500 outline-none nodrag"
-                value={data?.speed ?? '1.0'}
-                onChange={(e) => updateNodeData(id, { speed: e.target.value })}
-              >
-                <option value="0.5">0.5x (Slow)</option>
-                <option value="1.0">1x (Normal)</option>
-                <option value="2.0">2x (Fast)</option>
-                <option value="4.0">4x (Ultra Fast)</option>
-              </select>
-            </label>
-          </div>
+          isLoop ? (
+            <span 
+              className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex items-center gap-1 shadow-xs"
+              title="เล่นซ้ำต่อเนื่อง (Loop mode)"
+            >
+              <Repeat size={11} className={isProjectRunning ? 'animate-spin-slow' : ''} />
+              <span>Loop</span>
+            </span>
+          ) : (
+            <span 
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-xs transition-colors ${
+                isFinished 
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                  : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+              }`}
+              title={`เล่นไฟล์วิดีโอ: รอบ ${currentLoop} จาก ${targetLoops} รอบ`}
+            >
+              <Film size={11} />
+              <span>รอบ {currentLoop}/{targetLoops}</span>
+            </span>
+          )
         )}
-
-        {/* Live Telemetry (CPU & FPS) */}
-        <NodeTelemetryBadge nodeId={id} />
-      </div>
+      </NodeHeader>
+      
+      {!isCompact && (
+        <div className="p-4 flex flex-col gap-3">
+          <InputNodeSettings data={data} onChange={handleSettingsChange} />
+          <NodeTelemetryBadge nodeId={id} />
+        </div>
+      )}
 
       <Handle 
         type="source" 

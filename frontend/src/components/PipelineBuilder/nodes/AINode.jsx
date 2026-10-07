@@ -1,158 +1,77 @@
 import React, { useState, useEffect } from 'react';
-import { Handle, Position, useHandleConnections, useNodesData } from '@xyflow/react';
-import { BrainCircuit, Filter, Crosshair, Settings } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import { Handle, Position } from '@xyflow/react';
+import { BrainCircuit, Cpu } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
-import ROIEditorModal from './ROIEditorModal';
-import AINodeSettingsModal from './AINodeSettingsModal';
 import NodeTelemetryBadge from './NodeTelemetryBadge';
+import NodeHeader from './NodeHeader';
+import AINodeSettings from '../settings/AINodeSettings';
 
-export default function AINode({ id, data }) {
+export default function AINode({ id, data, selected }) {
   const isCompact = data?.viewMode === 'compact';
-  const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
-  const updateNodeData = data?.onUpdate || globalUpdateNodeData;
-  const [models, setModels] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showROIEditor, setShowROIEditor] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-
-  // ── Find upstream Input Node ──────────────────────────────────────────────
-  // Walk edges backwards: find an edge whose target === this node id,
-  // then look up the source node (should be an inputNode).
-  const connections = useHandleConnections({ type: 'target' });
-  const upstreamNode = useNodesData(connections[0]?.source || 'empty-id');
-  const isInputNode = upstreamNode?.type === 'inputNode';
-
-  // Resolve camera entity from upstream InputNode data
-  const [cameras, setCameras] = useState([]);
+  const updateNodeData = usePipelineStore((state) => state.updateNodeData);
+  const [modelDetails, setModelDetails] = useState(null);
 
   useEffect(() => {
-    // Fetch all entities (models + cameras) in one call
-    fetch('/api/entities', { cache: 'no-store' })
-      .then(res => res.json())
-      .then(json => {
-        setModels(json.models || []);
-        setCameras(json.cameras || []);
-        setLoading(false);
+    let isMounted = true;
+    if (data?.entityId) {
+      fetch('/api/entities', { cache: 'no-store' })
+        .then(res => res.json())
+        .then(json => {
+          if (!isMounted) return;
+          const found = (json.models || []).find(m => m.id === data.entityId);
+          if (found) {
+            setModelDetails(found);
+            if (!data.modelName || data.modelName !== found.name) {
+              updateNodeData(id, { modelName: found.name, modelVersion: found.version || '' });
+            }
+          }
+        })
+        .catch(() => {});
+    }
+    return () => { isMounted = false; };
+  }, [id, data?.entityId, data?.modelName, updateNodeData]);
 
-        // Auto-select first model if not set
-        if (!data?.entityId && json.models && json.models.length > 0) {
-          updateNodeData(id, { entityId: json.models[0].id });
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch entities", err);
-        setLoading(false);
-      });
-  }, [id, data?.entityId, updateNodeData]);
+  const activeModelName = data?.modelName || modelDetails?.name || '';
+  const activeModelVersion = data?.modelVersion || modelDetails?.version || '';
 
-  // Derived from upstream InputNode
-  const upstreamCameraEntityId = isInputNode ? upstreamNode?.data?.entityId : null;
-  const upstreamCamera = cameras.find(c => c.id === upstreamCameraEntityId);
-  // 'local' | 'rtsp' → camera snapshot; 'file' → video scrubber
-  const upstreamSourceType = upstreamCamera?.type ?? null;
-  const upstreamVideoPath = upstreamCamera?.path ?? null;
-
-  const handleEntityChange = (e) => {
-
-    // Reset class filter when model changes
-    updateNodeData(id, { entityId: e.target.value, classFilter: null });
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
   };
 
-  const selectedModel = models.find(m => m.id === data?.entityId);
-  const modelClasses = selectedModel?.classes || [];
-  const classFilter = data?.classFilter ?? null;
-  const activeClassCount = classFilter === null ? modelClasses.length : classFilter.length;
-
   return (
-    <div className={`bg-surface border-2 border-purple-600 rounded-xl shadow-lg shadow-purple-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
-      <div className="bg-purple-600/20 p-3 flex items-center justify-between border-b border-purple-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-purple-600 p-1.5 rounded-lg">
-            <BrainCircuit size={16} className="text-fg" />
-          </div>
-          <div className="font-semibold text-sm">AI Model</div>
+    <div className={`bg-surface border-2 ${selected ? 'border-purple-500 shadow-purple-500/20' : 'border-purple-600'} rounded-xl shadow-lg ${isCompact ? 'w-48' : 'w-84'} text-fg overflow-hidden`}>
+      <NodeHeader
+        id={id}
+        icon={BrainCircuit}
+        iconBg="bg-purple-600"
+        headerBg="bg-purple-600/20 border-purple-900/50"
+        defaultName="AI Model"
+        defaultSubtitle="Hailo-8L NPU"
+        data={data}
+      />
+
+      {/* Special dedicated Model line on canvas */}
+      <div className="bg-purple-50 dark:bg-purple-950/40 border-b border-purple-500/20 px-3 py-1.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Cpu size={13} className="text-purple-600 dark:text-purple-400 shrink-0" />
+          <span className="text-[10px] uppercase font-bold tracking-wider text-purple-700 dark:text-purple-300 shrink-0">Model:</span>
+          <span className="text-xs font-semibold text-fg truncate" title={activeModelName || 'No model selected'}>
+            {activeModelName || <span className="text-fg-subtle italic font-normal text-[11px]">No model selected</span>}
+          </span>
         </div>
-        {!isCompact && <NodeMenu id={id} />}
+        {activeModelVersion && (
+          <span className="bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[9px] font-mono px-1.5 py-0.5 rounded border border-purple-500/30 shrink-0">
+            {activeModelVersion}
+          </span>
+        )}
       </div>
       
-      <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Model Entity
-          {loading ? (
-            <div className="text-sm text-fg-subtle py-1">Loading...</div>
-          ) : (
-            <select 
-              className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-purple-500 nodrag"
-              value={data?.entityId || ''}
-              onChange={handleEntityChange}
-            >
-              <option value="" disabled>Select Model</option>
-              {models.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name} {model.version ? `(${model.version})` : ''} • [{model.original_filename || model.hef_path}]
-                </option>
-              ))}
-            </select>
-          )}
-        </label>
-        
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Hardware
-          <select className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-purple-500 nodrag" disabled>
-            <option>Hailo-8L NPU</option>
-          </select>
-        </label>
-        
-        {/* Advanced Settings Button */}
-        <button 
-          onClick={() => setShowSettingsModal(true)}
-          className="bg-surface-2 hover:bg-surface-3 text-purple-700 dark:text-purple-300 border border-purple-500/50 rounded-md py-1.5 px-2 text-xs font-semibold flex items-center justify-center gap-2 transition-colors nodrag mt-1"
-        >
-          <Settings size={14} /> Advanced Settings
-        </button>
-
-        {/* Preview of the selected entity's config */}
-        {selectedModel && (
-          <div className="text-[11px] text-fg-muted bg-canvas/80 border border-line p-2.5 rounded-xl space-y-1 mt-1 shadow-inner">
-            <div className="flex items-center justify-between text-purple-700 dark:text-purple-300 font-bold">
-              <span className="truncate max-w-[130px]" title={selectedModel.name}>{selectedModel.name}</span>
-              <span className="bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[9px] px-1.5 py-0.5 rounded font-mono border border-purple-700/50">
-                {selectedModel.version || 'v1.0'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-fg-muted text-[10px]">
-              <span>Task:</span>
-              <span className="text-fg capitalize font-medium">{selectedModel.task || 'detection'}</span>
-            </div>
-            <div className="flex items-center justify-between text-fg-muted text-[10px]">
-              <span>File:</span>
-              <span className="text-fg font-mono truncate max-w-[120px]" title={selectedModel.original_filename || selectedModel.hef_path}>
-                {selectedModel.original_filename || selectedModel.hef_path}
-              </span>
-            </div>
-            {selectedModel.file_hash && (
-              <div className="flex items-center justify-between text-fg-muted text-[10px]">
-                <span>SHA-256:</span>
-                <span className="text-purple-600 dark:text-purple-400 font-mono text-[9px]" title={selectedModel.file_hash}>
-                  #{selectedModel.file_hash.substring(0, 8)}
-                </span>
-              </div>
-            )}
-            {selectedModel.classes && selectedModel.classes.length > 0 && (
-              <div className="text-[10px] text-fg-muted pt-0.5 flex items-center justify-between border-t border-line/80 mt-1">
-                <span>Classes ({selectedModel.classes.length}):</span>
-                <span className="text-purple-700 dark:text-purple-300 font-mono truncate max-w-[100px]">
-                  {selectedModel.classes.slice(0, 2).join(', ')}{selectedModel.classes.length > 2 ? '...' : ''}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Live Telemetry (CPU / NPU) */}
-        <NodeTelemetryBadge nodeId={id} />
-      </div>
+      {!isCompact && (
+        <div className="p-4 flex flex-col gap-3">
+          <AINodeSettings nodeId={id} data={data} onChange={handleSettingsChange} isSidebar={false} />
+          <NodeTelemetryBadge nodeId={id} />
+        </div>
+      )}
 
       <Handle 
         type="target" 
@@ -164,31 +83,6 @@ export default function AINode({ id, data }) {
         position={Position.Right} 
         className="w-3 h-3 bg-purple-500 border-2 border-line-subtle"
       />
-
-      {/* ROI Editor Modal — rendered outside the node overflow:hidden container via portal-like approach */}
-      {showROIEditor && (
-        <ROIEditorModal
-          sourceType={upstreamSourceType}
-          cameraId={upstreamCameraEntityId}
-          videoPath={upstreamVideoPath}
-          currentRoi={data?.roi || { x: 0, y: 0, w: 1, h: 1 }}
-          onApply={(newRoi) => updateNodeData(id, { roi: newRoi })}
-          onClose={() => setShowROIEditor(false)}
-        />
-      )}
-
-      {showSettingsModal && (
-        <AINodeSettingsModal
-          id={id}
-          data={data}
-          updateNodeData={updateNodeData}
-          modelClasses={modelClasses}
-          isInputNode={isInputNode}
-          onClose={() => setShowSettingsModal(false)}
-          onOpenROI={() => setShowROIEditor(true)}
-        />
-      )}
     </div>
   );
 }
-

@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { PlusCircle } from 'lucide-react';
-import NodeMenu from './NodeMenu';
+import { Hash } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
+import NodeHeader from './NodeHeader';
+import CounterNodeSettings from '../settings/CounterNodeSettings';
 
-export default function CounterNode({ id, data }) {
+export default function CounterNode({ id, data, selected }) {
   const isCompact = data?.viewMode === 'compact';
   const updateNodeData = usePipelineStore(s => s.updateNodeData);
 
@@ -14,59 +15,27 @@ export default function CounterNode({ id, data }) {
     }
   }, [id, data?.label, updateNodeData]);
 
-  const handleLabelChange = (e) => {
-    updateNodeData(id, { label: e.target.value });
-  };
-
-  const handleEdgeTypeChange = (e) => {
-    updateNodeData(id, { edgeType: e.target.value });
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
   };
 
   return (
-    <div className={`bg-surface border-2 border-emerald-600 rounded-xl shadow-lg shadow-emerald-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg flex flex-col`}>
-      <div className="bg-emerald-600/20 p-3 flex items-center justify-between border-b border-emerald-900/50">
-        <div className="flex items-center gap-3">
-          <div className="bg-emerald-600 p-1.5 rounded-lg">
-            <PlusCircle size={16} className="text-fg" />
-          </div>
-          <div>
-            <div className="font-semibold text-sm">Edge Counter</div>
-            <div className="text-[10px] text-emerald-700/70 dark:text-emerald-300/70">Count Events</div>
-          </div>
+    <div className={`bg-surface border-2 ${selected ? 'border-emerald-400 shadow-emerald-500/20' : 'border-emerald-600'} rounded-xl shadow-lg shadow-emerald-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg flex flex-col overflow-hidden`}>
+      <NodeHeader
+        id={id}
+        icon={Hash}
+        iconBg="bg-emerald-600"
+        headerBg="bg-emerald-600/20 border-emerald-900/50"
+        defaultName="Event Counter"
+        defaultSubtitle="Count Events"
+        data={data}
+      />
+
+      {!isCompact && (
+        <div className="p-3.5 flex flex-col gap-3">
+          <CounterNodeSettings nodeId={id} data={data} onChange={handleSettingsChange} />
         </div>
-        {!isCompact && <NodeMenu id={id} />}
-      </div>
-
-      <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Node Label
-          <input 
-            type="text"
-            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-emerald-500 nodrag"
-            value={data?.label || ''}
-            onChange={handleLabelChange}
-            placeholder="e.g. NG Counter"
-          />
-        </label>
-
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Trigger Condition
-          <select 
-            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-emerald-500 nodrag"
-            value={data?.edgeType || 'rising'}
-            onChange={handleEdgeTypeChange}
-          >
-            <option value="rising">Rising Edge (False ➔ True)</option>
-            <option value="falling">Falling Edge (True ➔ False)</option>
-          </select>
-        </label>
-
-        <div className="text-[10px] text-fg-subtle leading-relaxed bg-canvas p-2 rounded border border-line">
-          {data?.edgeType === 'falling' 
-            ? "Increments by 1 when payload changes from True to False (e.g. object leaves)." 
-            : "Increments by 1 when payload changes from False to True (e.g. object enters)."}
-        </div>
-      </div>
+      )}
 
       <Handle type="target" position={Position.Left} className="w-3 h-3 bg-emerald-500 border-2 border-line-subtle" />
       <Handle type="source" position={Position.Right} className="w-3 h-3 bg-emerald-500 border-2 border-line-subtle" />

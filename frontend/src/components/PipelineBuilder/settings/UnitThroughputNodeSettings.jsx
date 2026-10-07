@@ -4,9 +4,12 @@ import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isSidebar }) {
   const debugState = usePipelineStore((state) => state.debugData?.[nodeId]) || {};
-  const liveRate = debugState?.throughput ?? data?.throughput ?? 0;
-  const liveCount = debugState?.current_unit ?? data?.current_unit ?? 0;
+  const liveRate = debugState?.throughput ?? debugState?.current_rate_per_minute ?? data?.throughput ?? 0;
+  const liveCount = debugState?.current_unit ?? debugState?.total_units ?? data?.current_unit ?? 0;
   const isRunning = debugState?.is_running ?? data?.is_running ?? false;
+
+  const startTrigger = data?.startTrigger || 'first_object';
+  const pauseTrigger = data?.pauseTrigger || 'timeout';
 
   const handleReset = async () => {
     try {
@@ -42,7 +45,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           <label className="text-sm font-semibold text-fg-secondary">Start Trigger</label>
           <select 
             className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
-            value={data?.startTrigger || 'first_object'}
+            value={startTrigger}
             onChange={(e) => onChange({ startTrigger: e.target.value })}
           >
             <option value="first_object">1st Object Detected</option>
@@ -51,7 +54,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
             <option value="sensor">Hardware Sensor</option>
           </select>
           
-          {data?.startTrigger === 'time' && (
+          {startTrigger === 'time' && (
             <input 
               type="time" 
               className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
@@ -60,7 +63,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
               placeholder="08:00"
             />
           )}
-          {data?.startTrigger === 'sensor' && (
+          {startTrigger === 'sensor' && (
             <input 
               type="text" 
               className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
@@ -76,7 +79,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           <label className="text-sm font-semibold text-fg-secondary">Pause Trigger</label>
           <select 
             className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
-            value={data?.pauseTrigger || 'timeout'}
+            value={pauseTrigger}
             onChange={(e) => onChange({ pauseTrigger: e.target.value })}
           >
             <option value="timeout">Time After Last Object (Timeout)</option>
@@ -85,19 +88,19 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
             <option value="sensor">Hardware Sensor</option>
           </select>
           
-          {data?.pauseTrigger === 'timeout' && (
+          {pauseTrigger === 'timeout' && (
             <div className="flex items-center gap-2 mt-1">
               <input 
                 type="number" 
                 min="1"
                 className="bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 w-24 text-fg"
-                value={data?.pauseTimeoutSeconds || 60}
-                onChange={(e) => onChange({ pauseTimeoutSeconds: parseInt(e.target.value, 10) })}
+                value={data?.pauseTimeoutSeconds ?? 60}
+                onChange={(e) => onChange({ pauseTimeoutSeconds: parseInt(e.target.value, 10) || 1 })}
               />
               <span className="text-xs text-fg-muted">seconds</span>
             </div>
           )}
-          {data?.pauseTrigger === 'time' && (
+          {pauseTrigger === 'time' && (
             <input 
               type="time" 
               className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
@@ -106,7 +109,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
               placeholder="17:00"
             />
           )}
-          {data?.pauseTrigger === 'sensor' && (
+          {pauseTrigger === 'sensor' && (
             <input 
               type="text" 
               className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
@@ -159,7 +162,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isRunning ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-surface-3 text-fg-muted'}`}>
               {isRunning ? 'RUNNING' : 'PAUSED'}
             </span>
-            {(data?.startTrigger === 'manual' || data?.pauseTrigger === 'manual') && (
+            {(startTrigger === 'manual' || pauseTrigger === 'manual') && (
               <button 
                 type="button"
                 onClick={handleManualToggle}

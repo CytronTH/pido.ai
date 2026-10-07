@@ -19,7 +19,14 @@ export default function DebugWebSocket() {
     
     // 1. Self-subscribing nodes (nodes that have their own live UI)
     nodes.forEach(n => {
-      if (n.type === 'flowCounterNode' || n.type === 'shelfSlotMonitorNode' || n.type === 'forkliftZoneNode' || n.type === 'counterNode') {
+      if (
+        n.type === 'flowCounterNode' ||
+        n.type === 'shelfSlotMonitorNode' ||
+        n.type === 'forkliftZoneNode' ||
+        n.type === 'counterNode' ||
+        n.type === 'unitThroughputNode' ||
+        n.type === 'targetTrackerNode'
+      ) {
         const list = logics.get(n.id) || [];
         list.push(n.id);
         logics.set(n.id, list);
@@ -36,7 +43,16 @@ export default function DebugWebSocket() {
         const sourceNode = nodes.find(n => n.id === edge.source);
         if (!sourceNode) return;
         
-        if (sourceNode.type === 'logicNode' || sourceNode.type === 'rateLimitNode' || sourceNode.type === 'flowCounterNode' || sourceNode.type === 'counterNode' || sourceNode.type === 'shelfSlotMonitorNode' || sourceNode.type === 'forkliftZoneNode') {
+        if (
+          sourceNode.type === 'logicNode' ||
+          sourceNode.type === 'rateLimitNode' ||
+          sourceNode.type === 'flowCounterNode' ||
+          sourceNode.type === 'counterNode' ||
+          sourceNode.type === 'shelfSlotMonitorNode' ||
+          sourceNode.type === 'forkliftZoneNode' ||
+          sourceNode.type === 'unitThroughputNode' ||
+          sourceNode.type === 'targetTrackerNode'
+        ) {
           const list = logics.get(sourceNode.id) || [];
           list.push(debugNode.id);
           logics.set(sourceNode.id, list);
@@ -125,18 +141,31 @@ export default function DebugWebSocket() {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
             }
-          } else if (data.type === 'logic_state' || data.type === 'rate_limit_state' || data.type === 'flow_counter_update' || data.type === 'counter_update') {
-            if (data.node_id && (logics.has(data.node_id) || advancedDebugMode)) {
+          } else if (
+            data.type === 'logic_state' ||
+            data.type === 'rate_limit_state' ||
+            data.type === 'flow_counter_update' ||
+            data.type === 'counter_update' ||
+            data.type === 'snapshot_capture' ||
+            data.type === 'unit_throughput_update' ||
+            data.type === 'target_tracker_update'
+          ) {
+            if (data.node_id && (logics.has(data.node_id) || advancedDebugMode || data.type === 'snapshot_capture')) {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
               if (setDebugData) setDebugData(data.node_id, data);
+            }
+          } else if (data.type === 'system' && data.eos) {
+            if (setDebugData) {
+              if (data.camera_id) setDebugData(data.camera_id, data);
+              if (data.stream_id) setDebugData(data.stream_id, data);
+              if (data.input_node_id) setDebugData(data.input_node_id, data);
             }
           } else if (data.camera_id) {
             if (cameras.has(data.camera_id) || advancedDebugMode) {
               if (data.type === 'detection' || data.type === 'classification' || data.type === 'pose' || data.type === 'segmentation' || !data.type) {
                 isMonitored = true;
                 sourceDebugNodeIds = cameras.get(data.camera_id) || [];
-                if (setDebugData) setDebugData(data.camera_id, data);
               }
             }
           }
@@ -149,6 +178,10 @@ export default function DebugWebSocket() {
           
           if (lastUpdateRef.current[sourceId] && now - lastUpdateRef.current[sourceId] < 200) return; // Basic throttle per source
           lastUpdateRef.current[sourceId] = now;
+
+          if (setDebugData && data.camera_id) {
+            setDebugData(data.camera_id, data);
+          }
 
           const newMsg = {
             id: Date.now() + Math.random(),

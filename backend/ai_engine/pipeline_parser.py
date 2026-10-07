@@ -88,11 +88,23 @@ class PipelineParser:
         # Filter out edges connected to disabled nodes
         edges = [e for e in raw_edges if e.get("source") in active_node_ids and e.get("target") in active_node_ids]
         
+        # Check node connections for conflicts
+        node_map = {n["id"]: n for n in nodes}
+        for edge in edges:
+            src_node = node_map.get(edge.get("source"))
+            tgt_node = node_map.get(edge.get("target"))
+            if src_node and tgt_node:
+                if src_node.get("type") == "aiNode" and tgt_node.get("type") == "unitThroughputNode":
+                    logger.warning(
+                        f"Conflict detected: Direct connection from {src_node.get('id')} (aiNode) to {tgt_node.get('id')} (unitThroughputNode). UnitThroughput will ignore direct AI detections."
+                    )
+
         entities = self._load_entities()
         
         # Build MessageRouter graph
         router = MessageRouter(project_id=project_id)
         config.router = router
+        router.pipeline_config = config
 
         # Register pipeline and all active nodes with TelemetryManager
         try:
@@ -365,7 +377,8 @@ class PipelineParser:
                             config.dashboard_nodes.append({
                                 "id": vid_id, "name": curr_node.get("data", {}).get("label", "Video"), 
                                 "dataType": "video", "stream_id": stream_config.stream_id, "has_ai": True,
-                                "camera_id": stream_config.camera_id, "widgetType": "video"
+                                "camera_id": stream_config.camera_id, "widgetType": "video",
+                                "bbox_draw_mode": getattr(stream_config, "bbox_draw_mode", "frontend")
                             })
                         queue_bfs.extend(adj.get(curr_id, []))
                         

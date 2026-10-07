@@ -1,16 +1,19 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Handle, Position, useHandleConnections, useNodesData, useReactFlow } from '@xyflow/react';
-import { Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, AlertOctagon } from 'lucide-react';
+import { Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, AlertOctagon, RefreshCw, Film } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
-import NodeMenu from './NodeMenu';
+import NodeHeader from './NodeHeader';
 
-function useWhepStream(whepUrl, videoRef) {
+function useWhepStream(whepUrl, videoRef, { disableAutoReconnect = false } = {}) {
   const pcRef = useRef(null);
   const [status, setStatus] = useState('idle');
 
   const connect = useCallback(async () => {
-    if (!whepUrl || !videoRef.current) return false;
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
+    if (!whepUrl || !videoRef.current) {
+      setStatus('idle');
+      return false;
+    }
     setStatus('connecting');
 
     try {
@@ -20,6 +23,11 @@ function useWhepStream(whepUrl, videoRef) {
         if (videoRef.current && e.streams[0]) {
           videoRef.current.srcObject = e.streams[0];
           setStatus('connected');
+        }
+        if (e.track) {
+          e.track.onended = () => {
+            setStatus('ended');
+          };
         }
       };
       
@@ -69,10 +77,10 @@ function useWhepStream(whepUrl, videoRef) {
   }, [connect]);
 
   useEffect(() => {
-    if (status !== 'error') return;
+    if (status !== 'error' || disableAutoReconnect) return;
     const t = setTimeout(connect, 2500);
     return () => clearTimeout(t);
-  }, [status, connect]);
+  }, [status, connect, disableAutoReconnect]);
 
   return { status, reconnect: connect };
 }
@@ -80,18 +88,26 @@ function useWhepStream(whepUrl, videoRef) {
 export default memo(({ data, isConnectable, id }) => {
   const nodes = usePipelineStore((state) => state.nodes);
   const edges = usePipelineStore((state) => state.edges);
-  const debugData = usePipelineStore((state) => state.debugData || {});
+  const dirtyNodeIds = usePipelineStore((state) => state.dirtyNodeIds || []);
   const projectId = usePipelineStore((state) => state.projectId);
+  const isProjectRunning = usePipelineStore((state) => state.isProjectRunning);
   const highlightedNodeIds = usePipelineStore((state) => state.highlightedNodeIds);
   const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
   const updateNodeData = data?.onUpdate || globalUpdateNodeData;
   const isWikiMode = data?.isWikiMode;
   const activeProjectId = isWikiMode ? 'wiki_sandbox' : projectId;
-  
+  const isStreamActive = Boolean(isWikiMode || isProjectRunning);
   const connections = useHandleConnections({ type: 'target' });
-  const sourceNode = useNodesData(connections[0]?.source || 'empty-id');
   const incomingEdge = edges.find((e) => e.target === id);
+  const sourceNodeId = connections[0]?.source || incomingEdge?.source;
+  const hookSourceNode = useNodesData(connections[0]?.source || 'empty-id');
+  const sourceNode = (hookSourceNode && hookSourceNode.type) ? hookSourceNode : nodes.find(n => n.id === sourceNodeId);
   const sourceHandle = connections[0]?.sourceHandle || incomingEdge?.sourceHandle;
+
+  // Selective subscription to debugData only for the connected source node to prevent 30fps re-render overhead
+  const sourceDebugData = usePipelineStore(
+    useCallback((state) => (sourceNodeId ? state.debugData?.[sourceNodeId] : null), [sourceNodeId])
+  );
 
   const isForkliftNode = sourceNode?.type === 'forkliftZoneNode';
   const isForkliftVideoHandle = !sourceHandle || sourceHandle === 'debug' || sourceHandle === 'telemetry';
@@ -105,6 +121,50 @@ export default memo(({ data, isConnectable, id }) => {
     : data?.outputType === 'text' 
     ? false 
     : isDefaultVideo;
+
+  const hasVideoPreview = Boolean(isVideoMode && sourceNode && (sourceNode.type === 'aiNode' || sourceNode.type === 'inputNode' || isForkliftNode));
+
+  // Trace all upstream nodes connected to this node along the pipeline chain
+  const upstreamNodeIds = useMemo(() => {
+    const upstreamIds = new Set();
+    const queue = [id];
+    const visited = new Set([id]);
+
+    while (queue.length > 0) {
+      const currId = queue.shift();
+      const incomingEdges = edges.filter(e => e.target === currId);
+      for (const edge of incomingEdges) {
+        if (edge.source && !visited.has(edge.source)) {
+          visited.add(edge.source);
+          upstreamIds.add(edge.source);
+          queue.push(edge.source);
+        }
+      }
+    }
+    return Array.from(upstreamIds);
+  }, [id, edges]);
+
+  // Find the upstream inputNode for this stream
+  const inputNode = useMemo(() => {
+    if (sourceNode?.type === 'inputNode') return sourceNode;
+    return nodes.find(n => upstreamNodeIds.includes(n.id) && n.type === 'inputNode');
+  }, [sourceNode, nodes, upstreamNodeIds]);
+
+  const isNonLoop = Boolean(inputNode && inputNode.data?.loop === false);
+
+  // If any upstream node or this node has undeployed changes, show "waiting for deploy"
+  const isWaitingForDeploy = useMemo(() => {
+    if (!isStreamActive) return false;
+    if (isWikiMode) return false;
+    if (!hasVideoPreview) return false;
+    if (!dirtyNodeIds || dirtyNodeIds.length === 0) return false;
+
+    // Check if the debug node itself is dirty (e.g. freshly connected or edited)
+    if (dirtyNodeIds.includes(id)) return true;
+
+    // Check if any upstream node in the pipeline chain has modified settings
+    return upstreamNodeIds.some(upstreamId => dirtyNodeIds.includes(upstreamId));
+  }, [isStreamActive, isWikiMode, hasVideoPreview, dirtyNodeIds, id, upstreamNodeIds]);
 
   const isHighlighted = highlightedNodeIds?.includes(id);
   const isPaused = data?.isPaused;
@@ -145,7 +205,17 @@ export default memo(({ data, isConnectable, id }) => {
       }
       
       currentStreamId = `cam_${srcId}${streamSuffix}`;
-      whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+      const drawMode = sourceNode.data?.bboxDrawMode || 'frontend';
+      const inputNode = nodes.find(n => n.id === srcId);
+      const cameraId = inputNode?.data?.entityId;
+
+      // If frontend draw mode: stream the clean raw input video (which is already in exact sync with WebSocket Bbox metadata!)
+      // If backend draw mode: stream the AI output video (which contains burned-in hailooverlay boxes)
+      if (drawMode === 'frontend' && cameraId && !isWikiMode) {
+        whepUrl = `http://${window.location.hostname}:8889/shared_${cameraId}/whep`;
+      } else {
+        whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+      }
     }
   } else if (sourceNode?.type === 'forkliftZoneNode') {
     // Trace backwards to find upstream aiNode and inputNode
@@ -172,7 +242,15 @@ export default memo(({ data, isConnectable, id }) => {
           }
         }
         currentStreamId = `cam_${srcId}${streamSuffix}`;
-        whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+
+        const drawMode = targetAiNode.data?.bboxDrawMode || 'frontend';
+        const inputNode = nodes.find(n => n.id === srcId);
+        const cameraId = inputNode?.data?.entityId;
+        if (drawMode === 'frontend' && cameraId && !isWikiMode) {
+          whepUrl = `http://${window.location.hostname}:8889/shared_${cameraId}/whep`;
+        } else {
+          whepUrl = `http://${window.location.hostname}:8889/${activeProjectId}_${currentStreamId}/whep`;
+        }
       }
     } else if (activeProjectId) {
       const anyInput = nodes.find(n => n.type === 'inputNode');
@@ -183,30 +261,157 @@ export default memo(({ data, isConnectable, id }) => {
     }
   }
   
+  const activeWhepUrl = (!isStreamActive || isWaitingForDeploy) ? null : whepUrl;
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
-  const { status, reconnect } = useWhepStream(whepUrl, videoRef);
-  const [resolution, setResolution] = useState(null);
 
-  const shouldDrawBoxes = (sourceNode?.type === 'aiNode' || (isForkliftNode && isVideoMode)) && !data?.isPaused;
-  const lastBoxesRef = useRef({ items: [], time: 0 });
-  const latestDataRef = useRef(null);
+  const [isEos, setIsEos] = useState(false);
+  const hasConnectedOnceRef = useRef(false);
+
+  // Listen to WebSocket EOS events broadcasted by backend
+  useEffect(() => {
+    const handleWsMsg = (e) => {
+      const msg = e.detail;
+      if (msg && msg.type === 'system' && msg.eos) {
+        const matchesStream = currentStreamId && (msg.stream_id === currentStreamId || msg.camera_id === currentStreamId);
+        const matchesInput = inputNode && (msg.input_node_id === inputNode.id || msg.camera_id === inputNode.data?.entityId);
+        if (matchesStream || matchesInput) {
+          setIsEos(true);
+        }
+      }
+    };
+    window.addEventListener('pido_ws_message', handleWsMsg);
+    return () => window.removeEventListener('pido_ws_message', handleWsMsg);
+  }, [currentStreamId, inputNode]);
+
+  // Check store debugData for EOS flag as well
+  const isStreamEosInStore = usePipelineStore(
+    useCallback((state) => {
+      if (!isNonLoop) return false;
+      const dbg = state.debugData;
+      if (!dbg) return false;
+      if (currentStreamId && dbg[currentStreamId]?.eos) return true;
+      if (inputNode?.id && dbg[inputNode.id]?.eos) return true;
+      if (inputNode?.data?.entityId && dbg[inputNode.data.entityId]?.eos) return true;
+      return false;
+    }, [isNonLoop, currentStreamId, inputNode])
+  );
 
   useEffect(() => {
-    if (debugData && currentStreamId) {
-      latestDataRef.current = debugData[currentStreamId];
+    if (isStreamEosInStore) {
+      setIsEos(true);
     }
-  }, [debugData, currentStreamId]);
+  }, [isStreamEosInStore]);
+
+  const { status, reconnect } = useWhepStream(activeWhepUrl, videoRef, { disableAutoReconnect: isNonLoop });
+  const [resolution, setResolution] = useState(null);
+
+  useEffect(() => {
+    if (status === 'connected') {
+      hasConnectedOnceRef.current = true;
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (isWaitingForDeploy || !isStreamActive) {
+      setIsEos(false);
+      hasConnectedOnceRef.current = false;
+    }
+  }, [isWaitingForDeploy, isStreamActive]);
+
+  // Check if non-loop video has ended
+  const isVideoEnd = Boolean(
+    isStreamActive && hasVideoPreview && isNonLoop && (isEos || status === 'ended' || (status === 'error' && hasConnectedOnceRef.current))
+  );
+
+  const shouldDrawBoxes = isStreamActive && (sourceNode?.type === 'aiNode' || (isForkliftNode && isVideoMode)) && !data?.isPaused && !isWaitingForDeploy && !isVideoEnd;
+  const lastBoxesRef = useRef({ items: [], time: 0 });
+  const lastRoiRef = useRef(null);
+  const lastFpsRef = useRef(null);
+  const lastFpsTimeRef = useRef(0);
+  const latestDataRef = useRef(null);
+
+  // Initialize latestDataRef from store once if available and not yet set
+  useEffect(() => {
+    if (currentStreamId && isStreamActive && !isWaitingForDeploy && !isVideoEnd && !latestDataRef.current) {
+      const initialData = usePipelineStore.getState().debugData?.[currentStreamId];
+      if (initialData) {
+        latestDataRef.current = initialData;
+        if (initialData.roi) lastRoiRef.current = initialData.roi;
+        if (initialData.fps !== undefined) {
+          lastFpsRef.current = initialData.fps;
+          lastFpsTimeRef.current = Date.now();
+        }
+      }
+    }
+  }, [currentStreamId, isStreamActive, isWaitingForDeploy, isVideoEnd]);
+
+  // High-frequency WebSocket 'ai_metadata' listener (avoids React state re-render lag)
+  useEffect(() => {
+    const handleAiMeta = (e) => {
+      const msg = e.detail;
+      if (!msg) return;
+      if (!isStreamActive || isWaitingForDeploy || isVideoEnd) return;
+
+      // Only accept AI metadata packets matching this camera/stream ID (avoids overwriting by non-camera messages)
+      if (!msg.camera_id) return;
+      const targetStreamId = currentStreamId;
+      const targetCameraId = inputNode?.data?.entityId;
+
+      const matches = (targetStreamId && msg.camera_id === targetStreamId) ||
+                      (targetCameraId && msg.camera_id === targetCameraId);
+
+      if (matches) {
+        latestDataRef.current = msg;
+        if (msg.roi) {
+          lastRoiRef.current = msg.roi;
+        }
+        if (msg.fps !== undefined) {
+          lastFpsRef.current = msg.fps;
+          lastFpsTimeRef.current = Date.now();
+        }
+      }
+    };
+
+    window.addEventListener('ai_metadata', handleAiMeta);
+    return () => {
+      window.removeEventListener('ai_metadata', handleAiMeta);
+    };
+  }, [currentStreamId, inputNode, isStreamActive, isWaitingForDeploy, isVideoEnd]);
+
+  useEffect(() => {
+    if (!isStreamActive || isWaitingForDeploy || isVideoEnd) {
+      latestDataRef.current = null;
+      lastBoxesRef.current = { items: [], time: 0 };
+      lastFpsRef.current = null;
+      lastFpsTimeRef.current = 0;
+      if (!isStreamActive) {
+        lastRoiRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
+        if (!isStreamActive || isWaitingForDeploy) {
+          videoRef.current.srcObject = null;
+        }
+      }
+      setResolution(null);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  }, [isStreamActive, isWaitingForDeploy, isVideoEnd]);
 
   useEffect(() => {
     if (videoRef.current) {
-      if (isPaused) {
+      if (!isStreamActive || isPaused || isWaitingForDeploy || isVideoEnd) {
         videoRef.current.pause();
-      } else {
+      } else if (activeWhepUrl) {
         videoRef.current.play().catch(e => console.log('[WHEP] Play error:', e));
       }
     }
-  }, [isPaused]);
+  }, [isStreamActive, isPaused, isWaitingForDeploy, isVideoEnd, activeWhepUrl]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -216,6 +421,7 @@ export default memo(({ data, isConnectable, id }) => {
     
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (isWaitingForDeploy || isVideoEnd) return;
       const payload = latestDataRef.current;
       
       if (shouldDrawBoxes && (currentStreamId || isForkliftNode)) {
@@ -223,7 +429,7 @@ export default memo(({ data, isConnectable, id }) => {
 
         // 1. Draw Polygon Danger Zones for Forklift Safety Monitor
         if (isForkliftNode) {
-          const forkliftDebug = debugData[sourceNode.id];
+          const forkliftDebug = usePipelineStore.getState().debugData?.[sourceNode.id] || sourceDebugData;
           const configuredZones = sourceNode.data?.zones || [];
           const liveZonesObj = forkliftDebug?.zones || {};
 
@@ -287,8 +493,13 @@ export default memo(({ data, isConnectable, id }) => {
           });
         }
 
-        if (payload?.roi) {
-          const { x, y, w, h } = payload.roi;
+        // Draw ROI Box with persistence and fallback to AI node settings to eliminate flickering
+        const activeRoi = payload?.roi || 
+          lastRoiRef.current || 
+          ((sourceNode?.data?.roiEnabled || sourceNode?.data?.showRoi) ? sourceNode?.data?.roi : null);
+
+        if (activeRoi) {
+          const { x, y, w, h } = activeRoi;
           ctx.strokeStyle = 'rgba(255, 165, 0, 0.9)';
           ctx.lineWidth = 2;
           ctx.setLineDash([8, 6]);
@@ -302,7 +513,7 @@ export default memo(({ data, isConnectable, id }) => {
         if (items.length > 0) {
           lastBoxesRef.current = { items, time: now };
         } else {
-          if (now - lastBoxesRef.current.time < 300) {
+          if (now - lastBoxesRef.current.time < 120) {
             items = lastBoxesRef.current.items;
           } else {
             lastBoxesRef.current = { items: [], time: now };
@@ -310,7 +521,7 @@ export default memo(({ data, isConnectable, id }) => {
         }
 
         const taskType = payload?.type || "detection";
-        const drawMode = payload?.bbox_draw_mode || "frontend";
+        const drawMode = payload?.bbox_draw_mode || sourceNode?.data?.bboxDrawMode || "frontend";
 
         if (taskType === "detection") {
           items.forEach(det => {
@@ -368,7 +579,7 @@ export default memo(({ data, isConnectable, id }) => {
 
         // Draw Live Hazard HUD Banner on video top
         if (isForkliftNode) {
-          const forkliftDebug = debugData[sourceNode.id];
+          const forkliftDebug = usePipelineStore.getState().debugData?.[sourceNode.id] || sourceDebugData;
           const hLevel = forkliftDebug?.hazard_level ?? 0;
 
           ctx.save();
@@ -398,13 +609,21 @@ export default memo(({ data, isConnectable, id }) => {
         }
       }
       
-      // Draw FPS if available (only for AI nodes)
+      // Draw FPS if available (only for AI nodes) with persistence to prevent canvas flicker
+      const now = Date.now();
       const currentMeta = latestDataRef.current;
-      if (shouldDrawBoxes && currentMeta && currentMeta.fps !== undefined) {
-        const fpsStr = `AI FPS: ${currentMeta.fps}`;
+      if (currentMeta?.fps !== undefined) {
+        lastFpsRef.current = currentMeta.fps;
+        lastFpsTimeRef.current = now;
+      }
+
+      const displayFps = (now - lastFpsTimeRef.current < 2000) ? lastFpsRef.current : null;
+
+      if (shouldDrawBoxes && displayFps !== null && displayFps !== undefined) {
+        const fpsStr = `AI FPS: ${displayFps}`;
         let fpsColor = '#22c55e'; // green
-        if (currentMeta.fps < 10) fpsColor = '#ef4444'; // red
-        else if (currentMeta.fps < 20) fpsColor = '#eab308'; // yellow
+        if (displayFps < 10) fpsColor = '#ef4444'; // red
+        else if (displayFps < 20) fpsColor = '#eab308'; // yellow
         
         ctx.font = 'bold 10px monospace';
         const tw = ctx.measureText(fpsStr).width + 8;
@@ -430,32 +649,125 @@ export default memo(({ data, isConnectable, id }) => {
 
   } else if (isVideoMode && (sourceNode.type === 'aiNode' || sourceNode.type === 'inputNode' || isForkliftNode)) {
     content = (
-      <div className="relative w-64 aspect-video bg-black flex items-center justify-center">
+      <div className="relative w-64 aspect-video bg-black flex items-center justify-center overflow-hidden">
         <video 
           ref={videoRef} 
-          className={`w-full h-full object-contain ${(!whepUrl || status === 'error') ? 'hidden' : ''}`} 
+          className={`w-full h-full object-contain ${(!activeWhepUrl || status === 'error' || status === 'ended' || isWaitingForDeploy || isVideoEnd || !isStreamActive) ? 'hidden' : ''}`} 
           autoPlay 
           playsInline 
           muted 
+          onEnded={() => setIsEos(true)}
           onLoadedMetadata={(e) => setResolution(`${e.target.videoWidth}x${e.target.videoHeight}`)}
         />
         
-        {!whepUrl && (
-          <div className="absolute text-xs text-fg-subtle">Initializing stream...</div>
-        )}
-        
-        {whepUrl && status === 'error' && (
-          <div className="absolute flex flex-col items-center gap-2">
-            <div className="text-red-500 text-[10px]">Stream Error</div>
-            <button onClick={reconnect} className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/50">Retry</button>
+        {!isStreamActive ? (
+          <div 
+            data-testid="debug-node-project-stopped"
+            className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-4 text-center select-none z-10"
+          >
+            <div className="relative mb-2 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-surface-3 border border-line-strong flex items-center justify-center shadow-md text-fg-muted">
+                <Play size={18} className="translate-x-0.5 text-fg-muted" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-0.5 items-center">
+              <span className="text-xs font-bold uppercase tracking-wider text-fg-secondary font-mono">
+                start project to watch debug video
+              </span>
+              <span className="text-[10px] text-fg-subtle leading-tight max-w-[200px]">
+                Project is stopped. Start project or deploy pipeline to view video.
+              </span>
+              {projectId && (
+                <button 
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await fetch(`/api/projects/${projectId}/start`, { method: 'POST' });
+                      usePipelineStore.getState().setIsProjectRunning(true);
+                    } catch (err) {
+                      console.error("Failed to start project", err);
+                    }
+                  }}
+                  className="mt-2 text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded hover:bg-emerald-200 dark:hover:bg-emerald-900/50 flex items-center gap-1 font-medium transition-colors"
+                >
+                  <Play size={10} fill="currentColor" />
+                  <span>Start Project</span>
+                </button>
+              )}
+            </div>
           </div>
+        ) : isWaitingForDeploy ? (
+          <div 
+            data-testid="debug-node-waiting-deploy"
+            className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-4 text-center select-none z-10"
+          >
+            <div className="relative mb-2 flex items-center justify-center">
+              <div className="absolute w-10 h-10 rounded-full bg-amber-500/20 dark:bg-amber-400/15 animate-ping opacity-70" />
+              <div className="relative w-9 h-9 rounded-full bg-amber-500/15 dark:bg-amber-500/25 border border-amber-500/40 flex items-center justify-center shadow-lg shadow-amber-500/10 text-amber-600 dark:text-amber-400">
+                <RefreshCw size={16} className="animate-spin" style={{ animationDuration: '3s' }} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-0.5 items-center">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 font-mono">
+                waiting for deploy
+              </span>
+              <span className="text-[10px] text-fg-subtle leading-tight max-w-[200px]">
+                Upstream settings modified. Deploy pipeline to resume stream.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {!activeWhepUrl && !isVideoEnd && (
+              <div className="absolute text-xs text-fg-subtle">Initializing stream...</div>
+            )}
+
+            {isVideoEnd && (
+              <div 
+                data-testid="debug-node-video-end"
+                className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-4 text-center select-none z-10"
+              >
+                <div className="relative mb-2 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/15 dark:bg-blue-500/25 border border-blue-500/30 flex items-center justify-center shadow-md text-blue-600 dark:text-blue-400">
+                    <Film size={18} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 items-center">
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 font-mono">
+                    video end
+                  </span>
+                  <span className="text-[10px] text-fg-subtle leading-tight">
+                    Playback finished (non-loop)
+                  </span>
+                  <button 
+                    onClick={() => {
+                      setIsEos(false);
+                      hasConnectedOnceRef.current = false;
+                      reconnect();
+                    }} 
+                    className="mt-2 text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 flex items-center gap-1 font-medium transition-colors"
+                  >
+                    <RefreshCw size={10} />
+                    <span>Replay</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {activeWhepUrl && status === 'error' && !isVideoEnd && (
+              <div className="absolute flex flex-col items-center gap-2">
+                <div className="text-red-500 text-[10px]">Stream Error</div>
+                <button onClick={reconnect} className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/50">Retry</button>
+              </div>
+            )}
+            
+            <canvas ref={canvasRef} width={640} height={360} className="absolute inset-0 w-full h-full pointer-events-none" />
+            <div className={`absolute top-1 left-1 bg-black/60 text-fg text-[10px] px-1 rounded flex gap-2 ${isVideoEnd || !isStreamActive ? 'hidden' : ''}`}>
+              <span>{sourceNode.type === 'forkliftZoneNode' ? `Forklift Video (${sourceHandle || 'debug'})` : 'Live Preview'}</span>
+              {resolution && <span className="text-fg-secondary font-mono">{resolution}</span>}
+            </div>
+          </>
         )}
-        
-        <canvas ref={canvasRef} width={640} height={360} className="absolute inset-0 w-full h-full pointer-events-none" />
-        <div className="absolute top-1 left-1 bg-black/60 text-fg text-[10px] px-1 rounded flex gap-2">
-          <span>{sourceNode.type === 'forkliftZoneNode' ? `Forklift Video (${sourceHandle || 'debug'})` : 'Live Preview'}</span>
-          {resolution && <span className="text-fg-secondary font-mono">{resolution}</span>}
-        </div>
       </div>
     );
   } else if (data?.outputType === 'text' || sourceNode?.type === 'rateLimitNode' || sourceNode?.type === 'functionNode') {
@@ -465,7 +777,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (sourceNode.type === 'logicNode') {
-    const state = debugData[sourceNode.id];
+    const state = sourceDebugData;
     let displayValue = "--", color = "text-fg-muted";
     if (state !== undefined) {
       if (typeof state === 'boolean' || typeof state?.value === 'boolean') {
@@ -484,7 +796,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (sourceNode.type === 'flowCounterNode') {
-    const debugState = debugData[sourceNode.id];
+    const debugState = sourceDebugData;
     const counts = debugState?.counts || sourceNode.data?.counts || {};
     const total = debugState?.total ?? sourceNode.data?.total ?? 0;
     const entries = Object.entries(counts);
@@ -521,7 +833,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (sourceNode.type === 'counterNode') {
-    const debugState = debugData[sourceNode.id];
+    const debugState = sourceDebugData;
     const val = debugState?.value ?? 0;
     content = (
       <div className="flex flex-col items-center justify-center p-3 gap-1 bg-surface/50 min-w-[160px]">
@@ -530,7 +842,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (isForkliftNode) {
-    const debugState = debugData[sourceNode.id];
+    const debugState = sourceDebugData;
     const isCriticalVal = debugState?.is_critical ?? false;
     const isDangerVal = debugState?.is_danger ?? false;
     const liveZones = debugState?.zones || {};
@@ -687,31 +999,69 @@ export default memo(({ data, isConnectable, id }) => {
     content = <div className="text-fg-muted text-xs text-center px-2 py-3">Unsupported Node</div>;
   }
 
-  const hasVideoPreview = isVideoMode && sourceNode && (sourceNode.type === 'aiNode' || sourceNode.type === 'inputNode' || isForkliftNode);
-
   return (
     <div className={`bg-surface border-2 rounded-xl shadow-2xl min-w-[180px] overflow-hidden transition-all duration-300 relative ${
-      isHighlighted ? 'border-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.6)] scale-105 z-50' : 'border-line-strong/80'
-    } ${isPaused ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : ''}`}>
+      isHighlighted 
+        ? 'border-blue-500 shadow-[0_0_25px_rgba(59,130,246,0.6)] scale-105 z-50' 
+        : !isStreamActive
+        ? 'border-line-strong/80'
+        : isWaitingForDeploy
+        ? 'border-amber-500/70 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+        : isVideoEnd
+        ? 'border-blue-500/60 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+        : isPaused 
+        ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
+        : 'border-line-strong/80'
+    }`}>
       <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-3 h-3 bg-fg-muted border-2 border-line" />
-      <div className={`px-3 py-2 border-b flex items-center justify-between ${
-        isPaused ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-900/50' : 'bg-surface-2/80 border-line-strong/80'
-      }`}>
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-md ${isPaused ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-surface-3 text-fg-secondary'}`}>
-            <Bug size={14} />
-          </div>
-          <span className="text-xs font-bold text-fg uppercase tracking-wider">Debug Node</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {hasVideoPreview && (
-            <button onClick={togglePause} className="bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors" title={isPaused ? "Resume Node" : "Pause Node"}>
-              {isPaused ? <Play size={12} className="text-green-600 dark:text-green-400" /> : <Pause size={12} className="text-amber-700 dark:text-amber-400" />}
-            </button>
-          )}
-          <NodeMenu id={id} />
-        </div>
-      </div>
+      <NodeHeader
+        id={id}
+        icon={Bug}
+        iconBg={!isStreamActive ? 'bg-surface-3' : isWaitingForDeploy || isPaused ? 'bg-amber-600' : isVideoEnd ? 'bg-blue-600' : 'bg-surface-3'}
+        iconColor={!isStreamActive ? 'text-fg-secondary' : isWaitingForDeploy || isPaused || isVideoEnd ? 'text-white' : 'text-fg-secondary'}
+        headerBg={
+          !isStreamActive
+            ? 'bg-surface-2/80 border-line-strong/80'
+            : isWaitingForDeploy
+            ? 'bg-amber-500/10 border-amber-500/30'
+            : isVideoEnd
+            ? 'bg-blue-500/10 border-blue-500/30'
+            : isPaused 
+            ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-900/50' 
+            : 'bg-surface-2/80 border-line-strong/80'
+        }
+        defaultName="Debug node"
+        defaultSubtitle="Payload Probe"
+        data={data}
+      >
+        {!isStreamActive && hasVideoPreview && (
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-surface-3 text-fg-subtle border border-line-strong font-mono shrink-0">
+            Stopped
+          </span>
+        )}
+        {isStreamActive && isWaitingForDeploy && (
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-mono shrink-0">
+            Waiting Deploy
+          </span>
+        )}
+        {isStreamActive && isVideoEnd && !isWaitingForDeploy && (
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-mono shrink-0">
+            Video End
+          </span>
+        )}
+        {hasVideoPreview && (
+          <button 
+            onClick={togglePause} 
+            disabled={!isStreamActive || isWaitingForDeploy || isVideoEnd}
+            className={`bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary shadow-md transition-colors ${
+              (!isStreamActive || isWaitingForDeploy || isVideoEnd) ? 'opacity-40 cursor-not-allowed' : ''
+            }`} 
+            title={!isStreamActive ? "Start project to resume" : isWaitingForDeploy ? "Waiting for deploy" : isVideoEnd ? "Video End" : isPaused ? "Resume Node" : "Pause Node"}
+          >
+            {isPaused ? <Play size={12} className="text-green-600 dark:text-green-400" /> : <Pause size={12} className="text-amber-700 dark:text-amber-400" />}
+          </button>
+        )}
+      </NodeHeader>
       <div className="bg-canvas flex flex-col relative min-h-[40px]">
         <div className={`transition-all duration-300 ${isPaused ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
           {content}

@@ -96,10 +96,12 @@ class ProjectCollection(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class CollectionRecord(SQLModel, table=True):
+    # Stored in telemetry_logs.sqlite. No FKs: the referenced tables live in a different
+    # database file, and PRAGMA foreign_keys=ON would reject inserts on a freshly created DB.
     __tablename__ = "collection_records"
     id: Optional[int] = Field(default=None, primary_key=True)
-    collection_id: str = Field(index=True, foreign_key="project_collections.id", ondelete="CASCADE")
-    project_id: str = Field(index=True, foreign_key="project.id", ondelete="CASCADE")
+    collection_id: str = Field(index=True)
+    project_id: str = Field(index=True)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     data_json: str = Field(default="{}")
 
@@ -128,7 +130,7 @@ class CustomMetricLog(SQLModel, table=True):
     __tablename__ = "custom_metric_log"
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
-    project_id: str = Field(default="default", index=True, foreign_key="project.id", ondelete="CASCADE")
+    project_id: str = Field(default="default", index=True)  # telemetry DB: no cross-DB FK
     node_id: str = Field(default="unknown", index=True)
     variable_name: str = Field(index=True)
     value: float = Field(default=0.0)
@@ -137,7 +139,7 @@ class CustomMetricHourly(SQLModel, table=True):
     __tablename__ = "custom_metric_hourly"
     id: Optional[int] = Field(default=None, primary_key=True)
     time_bucket: datetime = Field(index=True)
-    project_id: str = Field(default="default", index=True, foreign_key="project.id", ondelete="CASCADE")
+    project_id: str = Field(default="default", index=True)  # telemetry DB: no cross-DB FK
     node_id: str = Field(default="unknown", index=True)
     variable_name: str = Field(index=True)
     value_sum: float = Field(default=0.0)
