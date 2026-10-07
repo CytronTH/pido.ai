@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Cpu, Zap, Activity, HardDrive, Thermometer, Layers, 
   Workflow, Play, CheckCircle, AlertTriangle, Clock, RefreshCw,
@@ -118,9 +119,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
   const isHealthy = system.hardware_health?.healthy !== false;
   const isSwapHigh = (system.swap_percent || 0) > 80;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-6xl h-[92vh] max-h-[92vh] flex flex-col bg-canvas border border-line rounded-2xl shadow-2xl overflow-hidden font-sans text-fg my-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto font-sans text-fg animate-in fade-in duration-150">
+      <div className="relative w-full max-w-5xl h-[88vh] max-h-[88vh] flex flex-col bg-canvas border border-line rounded-2xl shadow-2xl overflow-hidden font-sans text-fg my-auto">
         
         {/* Modal Header (Always Fixed at Top) */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-line/80 bg-surface/50 shrink-0">
@@ -1022,6 +1023,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
