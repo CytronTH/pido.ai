@@ -166,7 +166,6 @@ export default function DebugWebSocket() {
               if (data.type === 'detection' || data.type === 'classification' || data.type === 'pose' || data.type === 'segmentation' || !data.type) {
                 isMonitored = true;
                 sourceDebugNodeIds = cameras.get(data.camera_id) || [];
-                if (setDebugData) setDebugData(data.camera_id, data);
               }
             }
           }
@@ -179,6 +178,10 @@ export default function DebugWebSocket() {
           
           if (lastUpdateRef.current[sourceId] && now - lastUpdateRef.current[sourceId] < 200) return; // Basic throttle per source
           lastUpdateRef.current[sourceId] = now;
+
+          if (setDebugData && data.camera_id) {
+            setDebugData(data.camera_id, data);
+          }
 
           const newMsg = {
             id: Date.now() + Math.random(),
