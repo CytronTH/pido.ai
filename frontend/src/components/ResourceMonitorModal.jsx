@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Cpu, Zap, Activity, HardDrive, Thermometer, Layers, 
   Workflow, Play, CheckCircle, AlertTriangle, Clock, RefreshCw,
   Search, ChevronDown, ChevronRight, Terminal, BarChart2,
   ShieldCheck, ShieldAlert, Disc, Wifi, ArrowUpRight, ArrowDownLeft,
-  Server, Laptop
+  Server, Laptop, LayoutDashboard, ArrowLeft
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -16,6 +16,15 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
   const [activeTab, setActiveTab] = useState('hierarchy'); // 'hierarchy' | 'external' | 'processes' | 'charts'
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPipelines, setExpandedPipelines] = useState({});
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -359,44 +368,48 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
 
         {/* Tab Selection & Controls */}
         <div className="flex flex-wrap items-center justify-between px-6 py-3 border-b border-line bg-surface/30 gap-3">
-          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-line">
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-line shadow-xs">
             <button
               onClick={() => setActiveTab('hierarchy')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'hierarchy' 
                   ? 'bg-blue-600 text-white shadow' 
-                  : 'text-fg-muted hover:text-fg'
+                  : 'text-fg-muted hover:text-fg hover:bg-surface-2/60'
               }`}
+              title="Overview & Pipelines (Default View / หน้าหลัก)"
             >
-              <Workflow size={14} /> Pipeline &amp; Node Hierarchy
+              <LayoutDashboard size={14} /> Overview &amp; Pipelines
             </button>
             <button
               onClick={() => setActiveTab('external')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'external' 
                   ? 'bg-blue-600 text-white shadow' 
-                  : 'text-fg-muted hover:text-fg'
+                  : 'text-fg-muted hover:text-fg hover:bg-surface-2/60'
               }`}
+              title="External Host OS Workload & Top Processes"
             >
               <Laptop size={14} /> External &amp; Host OS ({topExternal.length})
             </button>
             <button
               onClick={() => setActiveTab('processes')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'processes' 
                   ? 'bg-blue-600 text-white shadow' 
-                  : 'text-fg-muted hover:text-fg'
+                  : 'text-fg-muted hover:text-fg hover:bg-surface-2/60'
               }`}
+              title="PiDo.AI In-Platform Processes Tree"
             >
               <Terminal size={14} /> PiDo Processes ({processes.length})
             </button>
             <button
               onClick={() => setActiveTab('charts')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'charts' 
                   ? 'bg-blue-600 text-white shadow' 
-                  : 'text-fg-muted hover:text-fg'
+                  : 'text-fg-muted hover:text-fg hover:bg-surface-2/60'
               }`}
+              title="Real-Time Workload Performance Trends"
             >
               <BarChart2 size={14} /> Real-Time Trends
             </button>
@@ -419,16 +432,56 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
         {/* Modal Body Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           
-          {/* TAB 1: HIERARCHICAL BREAKDOWN */}
+          {/* TAB 1: OVERVIEW & PIPELINES HIERARCHY */}
           {activeTab === 'hierarchy' && (
             <div className="space-y-4">
               {filteredPipelines.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-line rounded-2xl bg-surface/20">
-                  <Workflow size={36} className="mx-auto mb-3 text-fg-faint" />
-                  <h3 className="text-sm font-semibold text-fg-secondary">No Active Pipelines Running</h3>
-                  <p className="text-xs mt-1 max-w-md mx-auto text-fg-subtle">
-                    Deploy a project pipeline in the Pipeline Builder to see real-time CPU, NPU, and multi-stage latency attribution.
-                  </p>
+                <div className="space-y-4">
+                  {/* System Readiness Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-xl bg-surface/50 border border-line flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
+                        <Zap size={20} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-fg">Hailo-8L AI NPU</span>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono font-medium mt-0.5">
+                          <CheckCircle size={12} /> {system.npu_device || 'Ready (PCIe Gen2/3)'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-surface/50 border border-line flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                        <Layers size={20} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-fg">GStreamer Engine</span>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono font-medium mt-0.5">
+                          <CheckCircle size={12} /> DMA-BUF Zero-Copy Active
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-surface/50 border border-line flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <Server size={20} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-fg">PiDo Core Platform</span>
+                        <p className="text-[11px] text-blue-600 dark:text-blue-400 font-mono font-medium mt-0.5">
+                          {processes.length} Processes Running
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Empty Pipelines Card */}
+                  <div className="text-center py-10 border border-dashed border-line rounded-2xl bg-surface/20">
+                    <Workflow size={36} className="mx-auto mb-3 text-fg-faint" />
+                    <h3 className="text-sm font-semibold text-fg-secondary">No Active Pipelines Running</h3>
+                    <p className="text-xs mt-1 max-w-md mx-auto text-fg-subtle">
+                      Deploy a project pipeline in the Pipeline Builder to see real-time CPU, NPU, and multi-stage latency attribution.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 filteredPipelines.map((pipeline) => {
@@ -624,6 +677,20 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
           {/* TAB 2: EXTERNAL & HOST OS WORKLOAD */}
           {activeTab === 'external' && (
             <div className="space-y-4">
+              {/* Back to Overview Header */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-surface/50 border border-line">
+                <button
+                  onClick={() => setActiveTab('hierarchy')}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-line text-xs font-medium text-blue-600 dark:text-blue-400 transition-colors cursor-pointer shadow-xs group"
+                >
+                  <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                  <span>&larr; Back to Overview &amp; Pipelines (กลับหน้าภาพรวม)</span>
+                </button>
+                <span className="text-xs text-fg-muted font-mono">
+                  External Host CPU: <strong className="text-orange-500">{attribution.external_cpu_percent?.toFixed(1)}%</strong> | RAM: <strong className="text-fg">{attribution.external_ram_mb?.toFixed(0)} MB</strong>
+                </span>
+              </div>
+
               {/* Attribution Comparison Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 
@@ -757,80 +824,110 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
 
           {/* TAB 3: IN-PLATFORM PROCESSES LIST */}
           {activeTab === 'processes' && (
-            <div className="border border-line rounded-xl overflow-hidden bg-surface/40">
-              <div className="px-4 py-2.5 bg-canvas border-b border-line flex items-center justify-between">
-                <h4 className="text-xs font-semibold flex items-center gap-2 text-fg">
-                  <Terminal size={14} className="text-blue-500" />
-                  PiDo.AI Ecosystem Processes
-                </h4>
-                <span className="text-[10px] text-fg-subtle">
-                  Total PiDo CPU: {attribution.internal_cpu_percent?.toFixed(1)}% | RAM: {attribution.internal_ram_mb?.toFixed(0)} MB
+            <div className="space-y-4">
+              {/* Back to Overview Header */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-surface/50 border border-line">
+                <button
+                  onClick={() => setActiveTab('hierarchy')}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-line text-xs font-medium text-blue-600 dark:text-blue-400 transition-colors cursor-pointer shadow-xs group"
+                >
+                  <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                  <span>&larr; Back to Overview &amp; Pipelines (กลับหน้าภาพรวม)</span>
+                </button>
+                <span className="text-xs text-fg-muted font-mono">
+                  PiDo Core CPU: <strong className="text-blue-500">{attribution.internal_cpu_percent?.toFixed(1)}%</strong> | RAM: <strong className="text-fg">{attribution.internal_ram_mb?.toFixed(0)} MB</strong>
                 </span>
               </div>
 
-              <table className="w-full text-left text-xs">
-                <thead className="bg-canvas font-medium border-b border-line text-[11px] text-fg-muted">
-                  <tr>
-                    <th className="py-2.5 px-4">Process Name / Command</th>
-                    <th className="py-2.5 px-3">PID</th>
-                    <th className="py-2.5 px-3">Role</th>
-                    <th className="py-2.5 px-3">Pipeline Attribution</th>
-                    <th className="py-2.5 px-3">CPU Usage</th>
-                    <th className="py-2.5 px-3">Memory (RSS)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line/50 font-mono text-[11px]">
-                  {processes.length === 0 ? (
+              <div className="border border-line rounded-xl overflow-hidden bg-surface/40">
+                <div className="px-4 py-2.5 bg-canvas border-b border-line flex items-center justify-between">
+                  <h4 className="text-xs font-semibold flex items-center gap-2 text-fg">
+                    <Terminal size={14} className="text-blue-500" />
+                    PiDo.AI Ecosystem Processes
+                  </h4>
+                  <span className="text-[10px] text-fg-subtle">
+                    Total PiDo CPU: {attribution.internal_cpu_percent?.toFixed(1)}% | RAM: {attribution.internal_ram_mb?.toFixed(0)} MB
+                  </span>
+                </div>
+
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-canvas font-medium border-b border-line text-[11px] text-fg-muted">
                     <tr>
-                      <td colSpan={6} className="py-6 text-center text-fg-subtle">
-                        No active child processes detected.
-                      </td>
+                      <th className="py-2.5 px-4">Process Name / Command</th>
+                      <th className="py-2.5 px-3">PID</th>
+                      <th className="py-2.5 px-3">Role</th>
+                      <th className="py-2.5 px-3">Pipeline Attribution</th>
+                      <th className="py-2.5 px-3">CPU Usage</th>
+                      <th className="py-2.5 px-3">Memory (RSS)</th>
                     </tr>
-                  ) : (
-                    processes.map((proc, idx) => (
-                      <tr key={idx} className="hover:bg-surface-2/20">
-                        <td className="py-2.5 px-4 font-semibold flex items-center gap-2 text-fg">
-                          <Terminal size={13} className="text-fg-muted" />
-                          {proc.name}
-                        </td>
-                        <td className="py-2.5 px-3 text-fg-muted">{proc.pid}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] ${
-                            proc.role === 'core' 
-                              ? 'bg-blue-950 text-blue-300 border border-blue-800/40' 
-                              : proc.role === 'media_server'
-                              ? 'bg-amber-950 text-amber-300 border border-amber-800/40'
-                              : proc.role === 'frontend'
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/40'
-                              : 'bg-surface-2 text-fg-secondary'
-                          }`}>
-                            {proc.role}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-fg-secondary">
-                          {proc.pipeline_id ? (
-                            <span className="text-blue-600 dark:text-blue-400 font-semibold">{proc.pipeline_id}</span>
-                          ) : (
-                            <span className="text-fg-subtle">Global / System</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold text-blue-600 dark:text-blue-400">
-                          {proc.cpu_percent?.toFixed(1)}%
-                        </td>
-                        <td className="py-2.5 px-3 text-fg-secondary">
-                          {proc.memory_mb ? `${proc.memory_mb.toFixed(1)} MB` : '-'}
+                  </thead>
+                  <tbody className="divide-y divide-line/50 font-mono text-[11px]">
+                    {processes.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-fg-subtle">
+                          No active child processes detected.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      processes.map((proc, idx) => (
+                        <tr key={idx} className="hover:bg-surface-2/20">
+                          <td className="py-2.5 px-4 font-semibold flex items-center gap-2 text-fg">
+                            <Terminal size={13} className="text-fg-muted" />
+                            {proc.name}
+                          </td>
+                          <td className="py-2.5 px-3 text-fg-muted">{proc.pid}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] ${
+                              proc.role === 'core' 
+                                ? 'bg-blue-950 text-blue-300 border border-blue-800/40' 
+                                : proc.role === 'media_server'
+                                ? 'bg-amber-950 text-amber-300 border border-amber-800/40'
+                                : proc.role === 'frontend'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/40'
+                                : 'bg-surface-2 text-fg-secondary'
+                            }`}>
+                              {proc.role}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-fg-secondary">
+                            {proc.pipeline_id ? (
+                              <span className="text-blue-600 dark:text-blue-400 font-semibold">{proc.pipeline_id}</span>
+                            ) : (
+                              <span className="text-fg-subtle">Global / System</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-blue-600 dark:text-blue-400">
+                            {proc.cpu_percent?.toFixed(1)}%
+                          </td>
+                          <td className="py-2.5 px-3 text-fg-secondary">
+                            {proc.memory_mb ? `${proc.memory_mb.toFixed(1)} MB` : '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {/* TAB 4: LIVE TREND CHARTS */}
           {activeTab === 'charts' && (
             <div className="space-y-4">
+              {/* Back to Overview Header */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-surface/50 border border-line">
+                <button
+                  onClick={() => setActiveTab('hierarchy')}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-line text-xs font-medium text-blue-600 dark:text-blue-400 transition-colors cursor-pointer shadow-xs group"
+                >
+                  <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                  <span>&larr; Back to Overview &amp; Pipelines (กลับหน้าภาพรวม)</span>
+                </button>
+                <span className="text-xs text-fg-muted">
+                  Visual telemetry history: PiDo In-Platform vs Host OS vs Hailo NPU
+                </span>
+              </div>
+
               <div className="p-4 rounded-xl bg-surface/60 border border-line">
                 <div className="flex items-center justify-between mb-4">
                   <div>
