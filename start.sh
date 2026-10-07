@@ -1,7 +1,9 @@
 #!/bin/bash
 
-echo "Starting PiDo.AI (Backend + Frontend)..."
-echo "Press Ctrl+C to stop both servers."
+echo "Starting PiDo.AI (Development Mode: Backend + Frontend + MediaMTX)..."
+echo "Frontend UI: http://localhost:5173"
+echo "Backend API: http://localhost:8000"
+echo "Press Ctrl+C to stop all servers."
 echo ""
 
 # ── Kill stale processes from previous unclean shutdowns ──────────────────────
@@ -17,8 +19,8 @@ echo "Cleanup done."
 echo ""
 
 # ── Start all services ────────────────────────────────────────────────────────
-# We use npx concurrently to run both processes in parallel.
-# It automatically prefixes logs, color-codes them, and kills both when you press Ctrl+C.
+# We use npx concurrently to run processes in parallel.
+# It automatically prefixes logs, color-codes them, and kills all when you press Ctrl+C.
 npx concurrently \
   -k \
   --kill-others-on-fail \
