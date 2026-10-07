@@ -44,6 +44,14 @@ export default function ProjectVariableMonitor({ projectId, nodeMap = {} }) {
     return () => clearInterval(id);
   }, [live, fetchVariables]);
 
+  useEffect(() => {
+    if (!selectedVar) return;
+    const latest = variables.find(v => v.node_id === selectedVar.node_id && v.variable_name === selectedVar.variable_name);
+    if (latest && (latest.value !== selectedVar.value || latest.last_updated !== selectedVar.last_updated || latest.record_count !== selectedVar.record_count)) {
+      setSelectedVar(latest);
+    }
+  }, [variables, selectedVar]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return variables;

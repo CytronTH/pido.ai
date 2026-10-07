@@ -271,15 +271,34 @@ async def clear_collection_records(project_id: str, collection_id: str) -> Dict[
 # ── Variables ────────────────────────────────────────────────────────────────
 
 def _list_variables(project_id: str) -> List[Dict[str, Any]]:
-    # SQLite returns the bare column `value` from the row holding MAX(timestamp),
-    # which gives us the latest value per variable in a single indexed pass.
+    # In SQLite, using both MIN() and MAX() in an aggregate query makes bare columns
+    # (like `value`) ambiguous—SQLite picks the row for MIN() rather than MAX(),
+    # returning the oldest value instead of the latest.
+    # We aggregate stats first, then fetch the latest value via a correlated scalar
+    # subquery that uses `idx_custom_metric_full` (project_id, node_id, variable_name, timestamp DESC).
     query = text("""
-        SELECT node_id, variable_name, value, MAX(timestamp) AS last_updated,
-               MIN(timestamp) AS first_seen, COUNT(id) AS record_count
-        FROM custom_metric_log
-        WHERE project_id = :project_id
-        GROUP BY node_id, variable_name
-        ORDER BY variable_name
+        WITH stats AS (
+            SELECT node_id, variable_name,
+                   MAX(timestamp) AS last_updated,
+                   MIN(timestamp) AS first_seen,
+                   COUNT(id) AS record_count
+            FROM custom_metric_log
+            WHERE project_id = :project_id
+            GROUP BY node_id, variable_name
+        )
+        SELECT s.node_id, s.variable_name,
+               (
+                   SELECT c.value
+                   FROM custom_metric_log c
+                   WHERE c.project_id = :project_id
+                     AND c.node_id = s.node_id
+                     AND c.variable_name = s.variable_name
+                   ORDER BY c.timestamp DESC, c.id DESC
+                   LIMIT 1
+               ) AS value,
+               s.last_updated, s.first_seen, s.record_count
+        FROM stats s
+        ORDER BY s.variable_name
     """)
     with Session(db.engine_telemetry) as session:
         rows = session.execute(query, {"project_id": project_id}).fetchall()
@@ -311,7 +330,7 @@ def _variable_history(project_id: str, variable_name: str, node_id: Optional[str
     if node_id:
         sql += " AND node_id = :node_id"
         params["node_id"] = node_id
-    sql += " ORDER BY timestamp DESC LIMIT :limit"
+    sql += " ORDER BY timestamp DESC, id DESC LIMIT :limit"
     with Session(db.engine_telemetry) as session:
         rows = session.execute(text(sql), params).fetchall()
     return [{"id": r[0], "timestamp": _iso_utc(r[1]), "value": r[2], "node_id": r[3]} for r in rows]

@@ -86,7 +86,7 @@ export default function VariableDataViewerModal({ isOpen, onClose, onDeleted, pr
 
   useEffect(() => {
     if (isOpen) fetchHistory();
-  }, [isOpen, projectId, variable]);
+  }, [isOpen, projectId, variable?.node_id, variable?.variable_name]);
 
   if (!isOpen || !variable) return null;
 
