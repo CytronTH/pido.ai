@@ -8,7 +8,7 @@ import json
 import functools
 import subprocess
 import time
-from typing import Callable
+from typing import Callable, Optional, Dict, Any, List
 from collections import deque
 from ai_engine.stream_quality import StreamQualityManager
 from ai_engine.telemetry_manager import telemetry_mgr
@@ -464,15 +464,23 @@ class HailoPipelineWorker:
         logger.info("EOS reached bus — sending EOS metadata and stopping pipeline in 1s")
         
         # Send EOS metadata to frontend so it shows "Video Ended" instead of "Stream Error"
-        if self.metadata_callback and self.config:
+        from media_server.camera_manager import camera_mgr
+        if self.config:
             for group in getattr(self.config, 'camera_streams', []):
-                self.metadata_callback({
-                    "type": "system",
-                    "eos": True,
-                    "camera_id": getattr(group, 'camera_id', None),
-                    "stream_id": getattr(group, 'stream_id', None),
-                    "input_node_id": getattr(group, 'input_node_id', None)
-                })
+                cid = getattr(group, 'camera_id', None)
+                if cid:
+                    s = camera_mgr.streams.get(cid)
+                    if s:
+                        s.is_finished = True
+                        s.finish_time = time.time()
+                if self.metadata_callback:
+                    self.metadata_callback({
+                        "type": "system",
+                        "eos": True,
+                        "camera_id": getattr(group, 'camera_id', None),
+                        "stream_id": getattr(group, 'stream_id', None),
+                        "input_node_id": getattr(group, 'input_node_id', None)
+                    })
                         
         # Delay quit to let the WebRTC buffer flush and metadata to send
         def _delayed_quit():
@@ -814,6 +822,7 @@ class HailoPipelineWorker:
             #     num_streams_fn=lambda: len(getattr(self.config, 'camera_streams', [])) if self.config else 0,
             #     on_tier_change=self._on_quality_tier_change,
             # )
+
 
     def stop(self):
         self.is_running = False
