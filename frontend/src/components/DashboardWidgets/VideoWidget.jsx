@@ -155,11 +155,13 @@ export default function VideoWidget({ metadata, projectId, config, dataSources =
   // Determine effective stream ID from the pipeline node
   const effectiveStreamId = matchedSource?.stream_id || config?.stream_id;
 
-  // ── WHEP URL ───────────────────────────────────────────────────────────────
-  // ONLY connect to WHEP if dataPath is configured and valid on the pipeline!
-  // No rogue fallback to shared camera if dataPath is missing or deleted from pipeline!
+  const isFrontendDraw = matchedSource?.has_ai && (matchedSource?.bbox_draw_mode === 'frontend');
+  const targetCameraId = config?.camera_id || matchedSource?.camera_id;
+
   const whepUrl = (projectId && isConfigured && (effectiveStreamId || config?.dataPath))
-    ? `http://${window.location.hostname}:8889/${projectId}_${effectiveStreamId || config.dataPath}/whep`
+    ? (isFrontendDraw && targetCameraId)
+      ? `http://${window.location.hostname}:8889/shared_${targetCameraId}/whep`
+      : `http://${window.location.hostname}:8889/${projectId}_${effectiveStreamId || config.dataPath}/whep`
     : null;
 
   const { status, reconnect, stream, streamRef } = useWhepStream(whepUrl, videoRef);
@@ -268,7 +270,7 @@ export default function VideoWidget({ metadata, projectId, config, dataSources =
       if (items.length > 0) {
         lastBoxesRef.current = { items, time: now };
       } else {
-        if (now - lastBoxesRef.current.time < 300) {
+        if (now - lastBoxesRef.current.time < 120) {
           items = lastBoxesRef.current.items;
         } else {
           lastBoxesRef.current = { items: [], time: now };

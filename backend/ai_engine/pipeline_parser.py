@@ -377,7 +377,8 @@ class PipelineParser:
                             config.dashboard_nodes.append({
                                 "id": vid_id, "name": curr_node.get("data", {}).get("label", "Video"), 
                                 "dataType": "video", "stream_id": stream_config.stream_id, "has_ai": True,
-                                "camera_id": stream_config.camera_id, "widgetType": "video"
+                                "camera_id": stream_config.camera_id, "widgetType": "video",
+                                "bbox_draw_mode": getattr(stream_config, "bbox_draw_mode", "frontend")
                             })
                         queue_bfs.extend(adj.get(curr_id, []))
                         

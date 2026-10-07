@@ -816,6 +816,8 @@ class SnapshotNode(PipelineNode):
         self._proc = None
         self.zero_latency = data.get("zeroLatency", True)
         self.camera_id = data.get("cameraId")
+        self.draw_bbox = data.get("drawBbox", True)
+        self.last_detections = []
         
         # Tags for snapshot categorization & Event Logs filtering
         raw_tags = data.get("tags", [])
@@ -837,21 +839,114 @@ class SnapshotNode(PipelineNode):
         """Called when pipeline starts or hot-reloads to warm up zero-latency capture loop."""
         if not self.zero_latency:
             return
-        cam_id = self._resolve_camera_id()
-        if cam_id:
-            rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{cam_id}"
+        stream_id, raw_camera_id, rtsp_url = self._resolve_stream_info()
+        if rtsp_url:
             self._start_capture_thread(rtsp_url)
 
-    def _resolve_camera_id(self, msg: dict = None) -> str:
-        """Resolve the upstream camera_id from message, explicit node config, upstream graph edges, or pipeline config."""
+    def _resolve_stream_info(self, msg: dict = None) -> tuple[str, str, str]:
+        """
+        Resolves stream information for snapshot capture:
+        Returns:
+            stream_id: The pipeline stream ID (e.g. 'cam_dndnode_1791182805969_0')
+            raw_camera_id: The raw camera entity ID (e.g. 'cam_file_b03275136a7e')
+            rtsp_url: The RTSP stream URL to pull frames from.
+        """
+        stream_id = None
+        raw_camera_id = None
+        
+        # 1. From message metadata if present
         if msg:
             cid = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
             if cid:
-                return str(cid)
-        if self.camera_id:
-            return str(self.camera_id)
+                stream_id = str(cid)
+        if not stream_id and self.camera_id:
+            stream_id = str(self.camera_id)
+
+        # 2. Walk upstream edges to find aiNode and inputNode
+        visited = set()
+        queue = [self.node_id]
+        ai_node = None
+        input_node = None
+        while queue:
+            curr = queue.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            for src_id, targets in self.router.edges.items():
+                target_ids = [t[0] if isinstance(t, tuple) else t for t in targets]
+                if curr in target_ids:
+                    src_node = self.router.nodes.get(src_id)
+                    if src_node:
+                        ntype = getattr(src_node, 'node_type', '') or src_node.data.get("type", "")
+                        if ntype == 'aiNode' and not ai_node:
+                            ai_node = src_node
+                        elif ntype == 'inputNode' and not input_node:
+                            input_node = src_node
+                            
+                        # If node has explicit cameraId or entityId
+                        scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId") or src_node.data.get("entityId")
+                        if scid and not raw_camera_id:
+                            raw_camera_id = str(scid)
+                            
+                    queue.append(src_id)
+
+        # 3. Cross-reference with router.pipeline_config if available
+        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
+            streams = getattr(self.router.pipeline_config, "camera_streams", [])
+            for cs in streams:
+                if (ai_node and getattr(cs, "ai_node_id", None) == ai_node.node_id) or \
+                   (input_node and getattr(cs, "input_node_id", None) == input_node.node_id) or \
+                   (stream_id and cs.stream_id == stream_id):
+                    stream_id = cs.stream_id
+                    if not raw_camera_id:
+                        raw_camera_id = getattr(cs, "camera_id", None)
+                    break
+            if not stream_id and streams:
+                stream_id = streams[0].stream_id
+                if not raw_camera_id:
+                    raw_camera_id = getattr(streams[0], "camera_id", None)
+
+        # 4. Fallback if still None
+        if not stream_id and raw_camera_id:
+            stream_id = raw_camera_id
+        if not raw_camera_id and stream_id:
+            raw_camera_id = stream_id
+
+        # 5. Check bbox draw mode
+        bbox_draw_mode = self._get_bbox_draw_mode(msg, stream_id)
+        
+        # 6. Choose RTSP URL:
+        # In frontend draw mode, we pull from shared_{raw_camera_id} because it is the exact same clean,
+        # low-latency video stream that DebugNode uses (syncs with WebSocket/NPU metadata).
+        # In backend draw mode, we pull from {project_id}_{stream_id} because hailooverlay burned the boxes into that stream.
+        if bbox_draw_mode == "frontend" and raw_camera_id:
+            rtsp_url = f"rtsp://127.0.0.1:8554/shared_{raw_camera_id}"
+        elif stream_id:
+            rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{stream_id}"
+        else:
+            rtsp_url = None
+
+        return stream_id, raw_camera_id, rtsp_url
+
+    def _resolve_camera_id(self, msg: dict = None) -> str:
+        stream_id, raw_camera_id, _ = self._resolve_stream_info(msg)
+        return stream_id or raw_camera_id
+
+    def _get_bbox_draw_mode(self, msg: dict = None, camera_id: str = None) -> str:
+        """Adhere to AI Model node bboxDrawMode (backend vs frontend)."""
+        # 1. From message metadata
+        if msg:
+            mode = msg.get("metadata", {}).get("bbox_draw_mode")
+            if mode in ("backend", "frontend"):
+                return mode
             
-        # Search upstream nodes
+        # 2. From router pipeline_config
+        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
+            for cs in getattr(self.router.pipeline_config, "camera_streams", []):
+                if cs.stream_id == camera_id or getattr(cs, "camera_id", None) == camera_id or not camera_id:
+                    return getattr(cs, "bbox_draw_mode", "frontend")
+                    
+        # 3. From upstream aiNode if present in router.nodes
         visited = set()
         queue = [self.node_id]
         while queue:
@@ -864,34 +959,11 @@ class SnapshotNode(PipelineNode):
                 if curr in target_ids:
                     src_node = self.router.nodes.get(src_id)
                     if src_node:
-                        scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId")
-                        if scid:
-                            return str(scid)
-                    if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
-                        for cs in getattr(self.router.pipeline_config, "camera_streams", []):
-                            if getattr(cs, "ai_node_id", None) == src_id or getattr(cs, "input_node_id", None) == src_id:
-                                return str(cs.stream_id)
+                        if getattr(src_node, 'node_type', '') == 'aiNode' or src_node.data.get('type') == 'aiNode':
+                            mode = src_node.data.get('bboxDrawMode')
+                            if mode in ('backend', 'frontend'):
+                                return mode
                     queue.append(src_id)
-                    
-        # Fallback to first camera stream in pipeline_config
-        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
-            streams = getattr(self.router.pipeline_config, "camera_streams", [])
-            if streams:
-                return str(streams[0].stream_id)
-        return None
-
-    def _get_bbox_draw_mode(self, msg: dict, camera_id: str) -> str:
-        """Adhere to AI Model node bboxDrawMode (backend vs frontend)."""
-        # 1. From message metadata
-        mode = msg.get("metadata", {}).get("bbox_draw_mode")
-        if mode in ("backend", "frontend"):
-            return mode
-            
-        # 2. From router pipeline_config
-        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
-            for cs in getattr(self.router.pipeline_config, "camera_streams", []):
-                if cs.stream_id == camera_id or not camera_id:
-                    return getattr(cs, "bbox_draw_mode", "frontend")
                     
         return "frontend"
 
@@ -910,10 +982,11 @@ class SnapshotNode(PipelineNode):
         import cv2, time
         logger.info(f"SnapshotNode [{self.node_id}] starting zero-latency buffer on {rtsp_url}")
         
-        # Clean GStreamer pipeline that negotiates properly with OpenCV CAP_GSTREAMER
+        # Clean GStreamer pipeline with drop=true max-buffers=1 to guarantee zero frame accumulation
         gst_pipeline = (
             f"rtspsrc location={rtsp_url} protocols=tcp latency=0 ! "
-            f"rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink"
+            f"rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! "
+            f"appsink drop=true max-buffers=1 sync=false"
         )
         
         while self.cap_running:
@@ -923,7 +996,7 @@ class SnapshotNode(PipelineNode):
                 time.sleep(0.5)
                 continue
                 
-            logger.info(f"SnapshotNode [{self.node_id}] zero-latency GStreamer buffer connected successfully")
+            logger.info(f"SnapshotNode [{self.node_id}] zero-latency GStreamer buffer connected successfully to {rtsp_url}")
             fail_count = 0
             while self.cap_running and cap.isOpened():
                 ret, frame = cap.read()
@@ -937,7 +1010,7 @@ class SnapshotNode(PipelineNode):
                     fail_count += 1
                     if fail_count > 30:
                         break
-                    time.sleep(0.01)
+                    time.sleep(0.005)
             cap.release()
             if self.cap_running:
                 time.sleep(0.5)
@@ -961,11 +1034,11 @@ class SnapshotNode(PipelineNode):
         else:
             current_payload = bool(payload)
         
-        camera_id = self._resolve_camera_id(msg)
-        rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{camera_id}" if camera_id else None
+        stream_id, raw_camera_id, rtsp_url = self._resolve_stream_info(msg)
+        camera_id = stream_id or raw_camera_id
         
-        # Lazy/ensure start zero-latency thread if not already running
-        if self.zero_latency and rtsp_url and not self.cap_running:
+        # Lazy/ensure start zero-latency thread if not already running or URL changed
+        if self.zero_latency and rtsp_url and (not self.cap_running or self.current_rtsp_url != rtsp_url):
             self._start_capture_thread(rtsp_url)
 
         trigger_edge = self.data.get("triggerEdge", "rising")
@@ -977,6 +1050,8 @@ class SnapshotNode(PipelineNode):
 
         if is_triggered:
             if camera_id:
+                # Capture frame immediately at trigger timestamp to eliminate scheduling jitter
+                instant_frame = self.latest_frame.copy() if self.latest_frame is not None else None
                 from pathlib import Path
                 import time
                 
@@ -988,24 +1063,43 @@ class SnapshotNode(PipelineNode):
                 filepath = snapshots_dir / filename
                 
                 try:
-                    # Extract detections from context
-                    search_payload = msg.get("payload", {})
-                    if not isinstance(search_payload, dict):
-                        context = msg.get("context", {})
-                        for v in context.values():
-                            if isinstance(v, dict):
-                                search_payload = v
-                                break
+                    # Extract detections and flow context
+                    detections = []
+                    flow_context = {}
                     
-                    detections = search_payload.get("triggering_objects")
-                    if detections is None:
-                        detections = search_payload.get("detections", [])
+                    search_payload = msg.get("payload", {})
+                    if isinstance(search_payload, dict):
+                        detections = search_payload.get("triggering_objects") or search_payload.get("detections") or []
+                        if search_payload.get("flow_mode"):
+                            flow_context = search_payload
+                    
+                    context = msg.get("context", {})
+                    if isinstance(context, dict):
+                        if not flow_context:
+                            for v in context.values():
+                                if isinstance(v, dict) and v.get("flow_mode"):
+                                    flow_context = v
+                                    break
+                        if not detections:
+                            for v in context.values():
+                                if isinstance(v, dict):
+                                    cand = v.get("triggering_objects") or v.get("detections")
+                                    if cand:
+                                        detections = cand
+                                        break
 
-                    def _capture_and_draw(url, path, dets, proj_id, lbl, latest_frame=None, bbox_draw_mode="frontend"):
+                    # If falling edge triggered, the object has just left the ROI/frame, so current frame has 0 detections!
+                    # Fall back to self.last_detections from the frame right before it exited.
+                    if not detections and self.last_detections:
+                        detections = list(self.last_detections)
+
+                    draw_bbox_enabled = self.data.get("drawBbox", True)
+
+                    def _capture_and_draw(url, path, dets, proj_id, lbl, latest_frame=None, bbox_draw_mode="frontend", should_draw_bbox=True):
                         import subprocess, cv2
+                        logger.info(f"SnapshotNode [{self.node_id}] saving snapshot: mode={bbox_draw_mode}, draw_bbox={should_draw_bbox}, dets_count={len(dets) if dets else 0}, path={path.name}")
                         if latest_frame is not None:
                             img = latest_frame.copy()
-                            cv2.imwrite(str(path), img) # Save frame directly from video buffer
                         else:
                             proc = subprocess.Popen([
                                 "ffmpeg", "-y", "-rtsp_transport", "tcp", "-i", url, 
@@ -1017,29 +1111,68 @@ class SnapshotNode(PipelineNode):
                             except Exception:
                                 pass
                             proc.wait()
+                            img = cv2.imread(str(path)) if path.exists() else None
                         
-                        # Note:
-                        # - If bbox_draw_mode == 'backend', the AI RTSP stream ALREADY contains hailooverlay
-                        #   burned into every frame by GStreamer.
-                        # - If bbox_draw_mode == 'frontend', the snapshot remains clean without burned-in boxes.
-                        # Flow lines/zones from FlowCounter are not handled by hailooverlay, so draw them if present.
-                        should_draw_lines = search_payload.get("flow_mode") is not None
-                        if should_draw_lines and path.exists():
-                            try:
-                                img = cv2.imread(str(path))
-                                if img is not None:
-                                    H, W, _ = img.shape
-                                    flow_mode = search_payload.get("flow_mode")
-                                    if flow_mode == "line" and search_payload.get("flow_line"):
-                                        lx1, ly1, lx2, ly2 = search_payload.get("flow_line")
-                                        cv2.line(img, (int(lx1 * W), int(ly1 * H)), (int(lx2 * W), int(ly2 * H)), (0, 0, 255), 2)
-                                    elif flow_mode == "roi" and search_payload.get("flow_roi"):
-                                        roi = search_payload.get("flow_roi")
-                                        rx, ry, rw, rh = roi["x"], roi["y"], roi["w"], roi["h"]
-                                        cv2.rectangle(img, (int(rx * W), int(ry * H)), (int((rx+rw) * W), int((ry+rh) * H)), (0, 0, 255), 2)
-                                    cv2.imwrite(str(path), img)
-                            except Exception as e:
-                                logger.error(f"Draw flow lines error: {e}")
+                        if img is not None:
+                            H, W, _ = img.shape
+                            
+                            # 1. Flow lines/zones from FlowCounter if present
+                            flow_mode = flow_context.get("flow_mode")
+                            if flow_mode == "line" and flow_context.get("flow_line"):
+                                lx1, ly1, lx2, ly2 = flow_context.get("flow_line")
+                                cv2.line(img, (int(lx1 * W), int(ly1 * H)), (int(lx2 * W), int(ly2 * H)), (0, 0, 255), 2)
+                            elif flow_mode == "roi" and flow_context.get("flow_roi"):
+                                roi = flow_context.get("flow_roi")
+                                rx, ry, rw, rh = roi.get("x", 0), roi.get("y", 0), roi.get("w", 0), roi.get("h", 0)
+                                cv2.rectangle(img, (int(rx * W), int(ry * H)), (int((rx + rw) * W), int((ry + rh) * H)), (0, 0, 255), 2)
+                            
+                            # 2. Draw Bbox with OpenCV if frontend draw mode and draw_bbox is enabled
+                            # (Note: In backend mode, hailooverlay is already burned into the stream)
+                            if bbox_draw_mode == "frontend" and should_draw_bbox and dets:
+                                for det in dets:
+                                    bbox = det.get("bbox")
+                                    if not bbox or len(bbox) < 4:
+                                        continue
+                                    xmin, ymin, xmax, ymax = bbox
+                                    if xmax <= 1.0 and ymax <= 1.0:
+                                        x1 = max(0, min(W - 1, int(xmin * W)))
+                                        y1 = max(0, min(H - 1, int(ymin * H)))
+                                        x2 = max(0, min(W - 1, int(xmax * W)))
+                                        y2 = max(0, min(H - 1, int(ymax * H)))
+                                    else:
+                                        x1 = max(0, min(W - 1, int(xmin)))
+                                        y1 = max(0, min(H - 1, int(ymin)))
+                                        x2 = max(0, min(W - 1, int(xmax)))
+                                        y2 = max(0, min(H - 1, int(ymax)))
+                                    
+                                    lbl_text = str(det.get("label", "")).lower()
+                                    is_fk = "fork" in lbl_text
+                                    is_person = lbl_text in ("person", "human", "pedestrian")
+                                    
+                                    # Match Frontend colors (BGR)
+                                    if is_fk:
+                                        box_color = (94, 63, 244) # Rose #f43f5e
+                                    elif is_person:
+                                        box_color = (212, 182, 6) # Cyan #06b6d4
+                                    else:
+                                        box_color = (0, 140, 255) # Orange #ff8c00
+                                        
+                                    cv2.rectangle(img, (x1, y1), (x2, y2), box_color, 2)
+                                    
+                                    conf = det.get("confidence")
+                                    conf_str = f" {int(conf * 100)}%" if (conf is not None and conf > 0) else ""
+                                    text = f"{det.get('label', '')}{conf_str}".strip()
+                                    if text:
+                                        font = cv2.FONT_HERSHEY_SIMPLEX
+                                        font_scale = 0.45
+                                        thickness = 1
+                                        (tw, th), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                                        badge_y1 = max(0, y1 - th - baseline - 4)
+                                        badge_y2 = y1
+                                        cv2.rectangle(img, (x1, badge_y1), (min(W, x1 + tw + 6), badge_y2), box_color, cv2.FILLED)
+                                        cv2.putText(img, text, (x1 + 3, badge_y2 - baseline), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
+                                        
+                            cv2.imwrite(str(path), img)
 
                     bbox_draw_mode = self._get_bbox_draw_mode(msg, camera_id)
                     snapshot_url = f"/api/snapshots/{filepath.name}"
@@ -1058,11 +1191,12 @@ class SnapshotNode(PipelineNode):
                                     "timestamp": time.time(),
                                     "tags": self.tags,
                                     "trigger_payload": payload,
+                                    "draw_bbox": draw_bbox_enabled if bbox_draw_mode == "frontend" else True
                                 })
                             except Exception as broadcast_err:
                                 logger.error(f"Snapshot broadcast error for node {self.node_id}: {broadcast_err}")
 
-                    if self.zero_latency and self.latest_frame is not None:
+                    if self.zero_latency and (instant_frame is not None or self.latest_frame is not None):
                         # Synchronize RTSP latency with JSON speed
                         sync_delay_ms = int(self.data.get("syncDelay", 0))
                         
@@ -1071,11 +1205,11 @@ class SnapshotNode(PipelineNode):
                             logger.info(f"SnapshotNode [{self.node_id}] capture triggered: syncDelay={sync_delay_ms}ms, buffer_len={len(self.frame_buffer)}")
                             if sync_delay_ms > 0:
                                 time.sleep(sync_delay_ms / 1000.0) # Wait for video frame to catch up
-                                target_frame = self.latest_frame
+                                target_frame = self.latest_frame if self.latest_frame is not None else instant_frame
                             elif sync_delay_ms < 0:
                                 # Time machine: look back into frame buffer
                                 target_time = time.time() + (sync_delay_ms / 1000.0)
-                                best_frame = self.latest_frame
+                                best_frame = instant_frame or self.latest_frame
                                 min_diff = float('inf')
                                 for ts, frm in self.frame_buffer:
                                     diff = abs(ts - target_time)
@@ -1084,9 +1218,13 @@ class SnapshotNode(PipelineNode):
                                         best_frame = frm
                                 target_frame = best_frame
                             else:
-                                target_frame = self.latest_frame
+                                # When falling edge with 0 syncDelay, look back 1 frame in buffer where object was still present
+                                if trigger_edge == "falling" and len(self.frame_buffer) >= 2:
+                                    target_frame = self.frame_buffer[-2][1]
+                                else:
+                                    target_frame = instant_frame if instant_frame is not None else self.latest_frame
                                 
-                            _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, target_frame, bbox_draw_mode)
+                            _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, target_frame, bbox_draw_mode, draw_bbox_enabled)
                             _broadcast_capture()
                         
                         t = threading.Thread(target=delayed_capture, daemon=True)
@@ -1100,7 +1238,7 @@ class SnapshotNode(PipelineNode):
                         
                         if len(self._threads) < 5:
                             def async_fallback():
-                                _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, None, bbox_draw_mode)
+                                _capture_and_draw(rtsp_url, filepath, detections, self.router.project_id, self.label, None, bbox_draw_mode, draw_bbox_enabled)
                                 _broadcast_capture()
 
                             t = threading.Thread(target=async_fallback, daemon=True)
@@ -1128,6 +1266,23 @@ class SnapshotNode(PipelineNode):
                 except Exception as e:
                     logger.error(f"Snapshot error: {e}")
                     
+        # Update last_detections if current frame has valid detections
+        curr_dets = []
+        curr_p = msg.get("payload")
+        if isinstance(curr_p, dict):
+            curr_dets = curr_p.get("triggering_objects") or curr_p.get("detections") or []
+        if not curr_dets:
+            ctx = msg.get("context", {})
+            if isinstance(ctx, dict):
+                for v in ctx.values():
+                    if isinstance(v, dict):
+                        cand = v.get("triggering_objects") or v.get("detections")
+                        if cand:
+                            curr_dets = cand
+                            break
+        if curr_dets:
+            self.last_detections = list(curr_dets)
+
         self.last_payload = current_payload
         return msg
 
