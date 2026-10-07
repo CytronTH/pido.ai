@@ -20,6 +20,7 @@ import TextFeedWidget from './DashboardWidgets/TextFeedWidget';
 import ChartWidget from './DashboardWidgets/ChartWidget';
 import HistoricalChartWidget from './DashboardWidgets/HistoricalChartWidget';
 import WidgetSettingsModal from './DashboardWidgets/WidgetSettingsModal';
+import WidgetAlertModal from './DashboardWidgets/WidgetAlertModal';
 import SaveVersionModal from './DashboardVersions/SaveVersionModal';
 import VersionHistoryPanel from './DashboardVersions/VersionHistoryPanel';
 import { listDashboardVersions, saveDashboardVersion } from './DashboardVersions/dashboardVersionsApi';
@@ -28,7 +29,8 @@ import {
   Unlock, Save, Plus, Copy, 
   Video, Gauge, CircleDot, Target, Hash, 
   Type, ListOrdered, LineChart, BarChart2, 
-  Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move, History, Undo2, Check 
+  Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move, History, Undo2, Check,
+  AlertTriangle 
 } from 'lucide-react';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -147,6 +149,188 @@ const findDuplicatePosition = (source, items, cols) => {
   return { x: source.x, y: source.y + source.h };
 };
 
+// ── Pipeline Data Validation for Widgets ─────────────────────────────────────────────────
+const PIPELINE_WIDGET_TYPES = [
+  'metric',
+  'gauge',
+  'capacityBar',
+  'radialDonut',
+  'trafficLight',
+  'targetTracker',
+  'chart',
+  'text',
+  'textFeed',
+  'video'
+];
+
+/**
+ * Validates whether a widget that requires pipeline builder data is receiving it.
+ * Returns { hasAlert: true, statusLabel, reason, detail, suggestion, dataPath } if missing.
+ */
+const checkWidgetPipelineAlert = (item, metadata, dataSources, dataSourcesLoaded, connected) => {
+  const type = item.type || item.i?.split('_')[0];
+  if (!PIPELINE_WIDGET_TYPES.includes(type)) {
+    return { hasAlert: false };
+  }
+
+  const config = item.config || {};
+
+  // Case: Chart widget (supports multiple paths or single path)
+  if (type === 'chart') {
+    const paths = config.dataPaths || (config.dataPath ? [config.dataPath] : []);
+    if (paths.length === 0) {
+      return {
+        hasAlert: true,
+        statusType: 'unbound',
+        statusLabel: 'ยังไม่ได้เลือก Data Source',
+        reason: 'ยังไม่ได้เลือก Data Source สำหรับแสดงผลกราฟ',
+        detail: 'Widget กราฟนี้ต้องการอย่างน้อย 1 Data Source จาก Pipeline Builder เพื่อวาดเส้นข้อมูล',
+        suggestion: 'คลิกปุ่ม "เปิดการตั้งค่า Widget" ด้านล่างเพื่อเลือก Data Source อย่างน้อย 1 จุด',
+        dataPath: 'ไม่ได้ระบุ (None)'
+      };
+    }
+
+    if (dataSourcesLoaded && paths.every(p => !dataSources.some(ds => ds.id === p))) {
+      return {
+        hasAlert: true,
+        statusType: 'dangling',
+        statusLabel: 'Data Source ไม่พบใน Pipeline',
+        reason: 'Data Source ทั้งหมดที่ตั้งไว้ไม่พบใน Pipeline ปัจจุบัน',
+        detail: `Data path (${paths.join(', ')}) ไม่มีอยู่ใน Pipeline Builder ที่กำลังรันอยู่ Node อาจถูกลบหรือเปลี่ยนชื่อ`,
+        suggestion: 'ตรวจสอบการเชื่อมโยง Node ในหน้า Pipeline Builder หรือเลือก Data Source ใหม่ในการตั้งค่า Widget',
+        dataPath: paths.join(', ')
+      };
+    }
+
+    let hasAnyData = false;
+    for (const p of paths) {
+      const match = p.match(/^dashboard\.(.+?)\.(?:value|history)$/);
+      const nodeId = match ? match[1] : null;
+      const nodeData = nodeId ? metadata?.dashboard?.[nodeId] : getNestedValue(metadata, p);
+      if (nodeData && (nodeData.value !== undefined || (Array.isArray(nodeData.history) && nodeData.history.length > 0))) {
+        hasAnyData = true;
+        break;
+      }
+      if (getNestedValue(metadata, p) !== undefined) {
+        hasAnyData = true;
+        break;
+      }
+    }
+
+    if (!hasAnyData) {
+      return {
+        hasAlert: true,
+        statusType: !connected ? 'offline' : 'waiting_data',
+        statusLabel: !connected ? 'Pipeline ออฟไลน์' : 'ยังไม่ได้รับข้อมูล',
+        reason: !connected 
+          ? 'การเชื่อมต่อกับ Pipeline ขาดหาย (WebSocket Disconnected)' 
+          : 'ยังไม่ได้รับข้อมูลจาก Pipeline Builder',
+        detail: !connected
+          ? 'ระบบไม่สามารถติดต่อกับเซิร์ฟเวอร์หรือ Pipeline ได้ ทำให้ไม่มีข้อมูลส่งมายังกราฟ'
+          : `ผูกข้อมูลกับ [${paths.map(p => dataSources.find(d => d.id === p)?.name || p).join(', ')}] แล้ว แต่ยังไม่มีข้อมูลถูกส่งมาจาก Pipeline Builder`,
+        suggestion: !connected
+          ? 'ตรวจสอบว่าเซิร์ฟเวอร์และ Pipeline Builder กำลังทำงาน'
+          : 'ตรวจสอบว่า Pipeline มีการ Trigger หรือ Node มีข้อมูลไหลผ่านจริง',
+        dataPath: paths.join(', ')
+      };
+    }
+
+    return { hasAlert: false };
+  }
+
+  // Case: Video widget
+  if (type === 'video') {
+    const dataPath = config.dataPath;
+    if (!dataPath) {
+      return {
+        hasAlert: true,
+        statusType: 'unbound',
+        statusLabel: 'ยังไม่ได้ผูก Video Stream',
+        reason: 'ไม่ได้เลือก Video Stream จาก Pipeline Builder',
+        detail: 'Widget นี้ต้องการ Video Stream จาก Pipeline Builder แต่ยังไม่ได้ระบุ Data Source',
+        suggestion: 'คลิก "เปิดการตั้งค่า Widget" แล้วเลือก Video Stream จากกล้องหรือ Node ที่ต้องการ',
+        dataPath: 'ไม่ได้ระบุ (None)'
+      };
+    }
+
+    const matchedSource = dataSources.find(ds => ds.id === dataPath);
+    if (dataSourcesLoaded && !matchedSource) {
+      return {
+        hasAlert: true,
+        statusType: 'dangling',
+        statusLabel: 'ไม่พบ Stream ใน Pipeline',
+        reason: `ไม่พบ Video Stream (${dataPath}) ใน Pipeline ปัจจุบัน`,
+        detail: 'Stream Node นี้อาจถูกลบหรือเปลี่ยนชื่อในหน้า Pipeline Builder ทำให้ไม่สามารถดึงภาพได้',
+        suggestion: 'กลับไปตรวจสอบการเชื่อมต่อ Dashboard Video Node ใน Pipeline Builder หรือเลือก Stream ใหม่',
+        dataPath
+      };
+    }
+
+    if (!connected) {
+      return {
+        hasAlert: true,
+        statusType: 'offline',
+        statusLabel: 'Pipeline ออฟไลน์',
+        reason: 'การเชื่อมต่อกับ Pipeline ขาดหาย (Offline)',
+        detail: 'ไม่สามารถติดต่อกับเซิร์ฟเวอร์ได้ Video Stream อาจไม่พร้อมใช้งาน',
+        suggestion: 'ตรวจสอบสถานะการทำงานของ Pipeline ในระบบ',
+        dataPath
+      };
+    }
+
+    return { hasAlert: false };
+  }
+
+  // Case: Single-value widgets (metric, gauge, capacityBar, radialDonut, trafficLight, targetTracker, text, textFeed)
+  const dataPath = config.dataPath;
+  if (!dataPath || dataPath.trim() === '') {
+    return {
+      hasAlert: true,
+      statusType: 'unbound',
+      statusLabel: 'ยังไม่ได้เลือก Data Source',
+      reason: 'ยังไม่ได้ผูกข้อมูลกับ Node ใน Pipeline Builder',
+      detail: 'Widget ประเภทนี้ต้องอาศัยข้อมูลจาก Pipeline Builder แต่ยังไม่มีการกำหนด Data Source',
+      suggestion: 'คลิกปุ่ม "เปิดการตั้งค่า Widget" ด้านล่างเพื่อเลือก Data Source จาก Pipeline',
+      dataPath: 'ไม่ได้ระบุ (None)'
+    };
+  }
+
+  const matchedSource = dataSources.find(ds => ds.id === dataPath);
+  if (dataSourcesLoaded && !matchedSource) {
+    return {
+      hasAlert: true,
+      statusType: 'dangling',
+      statusLabel: 'Data Source ไม่พบใน Pipeline',
+      reason: `ไม่พบ Data Source "${dataPath}" ใน Pipeline ปัจจุบัน`,
+      detail: 'Data Source นี้ไม่มีอยู่ใน Pipeline ที่กำลังรันอยู่ Node อาจถูกลบหรือเปลี่ยนชื่อ',
+      suggestion: 'ตรวจสอบ Node ในหน้า Pipeline Builder หรือเลือก Data Source ใหม่ในการตั้งค่า Widget',
+      dataPath
+    };
+  }
+
+  const val = getNestedValue(metadata, dataPath);
+  if (val === undefined || val === null) {
+    const sourceName = matchedSource?.name || dataPath;
+    return {
+      hasAlert: true,
+      statusType: !connected ? 'offline' : 'waiting_data',
+      statusLabel: !connected ? 'Pipeline ออฟไลน์' : 'ยังไม่ได้รับข้อมูล',
+      reason: !connected 
+        ? 'การเชื่อมต่อกับ Pipeline ขาดหาย (WebSocket Disconnected)' 
+        : `ยังไม่ได้รับข้อมูลจาก Pipeline Builder (${sourceName})`,
+      detail: !connected
+        ? 'เซิร์ฟเวอร์หรือ Pipeline ไม่ได้เชื่อมต่อ ทำให้ไม่มีข้อมูลส่งมาอัปเดต'
+        : `เชื่อมต่อกับ Node "${sourceName}" แล้ว แต่ขณะนี้ยังไม่มีข้อมูลส่งมา (ค่าเป็น undefined/null)`,
+      suggestion: !connected
+        ? 'ตรวจสอบว่า Pipeline กำลังรันอยู่และเซิร์ฟเวอร์เปิดใช้งานปกติ'
+        : 'รอให้กระบวนการใน Pipeline ทำงาน หรือตรวจสอบว่ามี Input ส่งผ่าน Node นี้หรือไม่',
+      dataPath
+    };
+  }
+
+  return { hasAlert: false };
+};
+
 // ── Version snapshot helpers ─────────────────────────────────────────────────────────────
 /** Only the fields that matter for persistence (RGL adds transient keys like `moved`). */
 const normalizeItem = ({ i, x, y, w, h, minW, minH, type, config }) => ({ i, x, y, w, h, minW, minH, type, config: config || {} });
@@ -182,6 +366,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
+  const [selectedAlert, setSelectedAlert] = useState(null); // { item, alertInfo } for Alert details modal
   const [isLoading, setIsLoading] = useState(true);
   const [dataSources, setDataSources] = useState([]);
   const [dataSourcesLoaded, setDataSourcesLoaded] = useState(false);
@@ -507,12 +692,40 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
           {layouts.lg.map(item => {
             const config = item.config || {};
             const type = item.type || item.i; // fallback for older configs
+            const alertInfo = checkWidgetPipelineAlert(item, metadata, dataSources, dataSourcesLoaded, connected);
             
             return (
               <div key={item.i} className="relative group h-full w-full">
                 {/* Overlay to prevent widgets (like videos/iframes) from swallowing drag events */}
                 {isEditMode && (
                   <div className="absolute inset-0 z-10 cursor-move" />
+                )}
+
+                {/* Blinking yellow alert border for widgets missing pipeline builder data */}
+                {alertInfo.hasAlert && (
+                  <div 
+                    className="absolute inset-0 rounded-xl pointer-events-none ring-2 ring-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.45)] animate-pulse z-10" 
+                    aria-hidden="true"
+                  />
+                )}
+
+                {/* Exclamation Warning Icon Button - clicking displays reason for alert */}
+                {alertInfo.hasAlert && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedAlert({ item, alertInfo });
+                    }}
+                    className={`absolute top-2 right-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-500/70 text-amber-600 dark:text-amber-400 shadow-lg backdrop-blur-md transition-all duration-200 cursor-pointer active:scale-95 group/btn ${
+                      isEditMode ? 'group-hover:right-28' : ''
+                    }`}
+                    title={`แจ้งเตือน: ${alertInfo.reason} (คลิกเพื่อดูรายละเอียด)`}
+                    aria-label={`แจ้งเตือน: ${alertInfo.reason}`}
+                  >
+                    <AlertTriangle size={14} className="animate-bounce shrink-0 text-amber-500" />
+                    <span className="text-[11px] font-semibold hidden sm:inline">No Data</span>
+                  </button>
                 )}
                 
                 {isEditMode && (
@@ -752,6 +965,17 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         nextVersion={(currentVersion || 0) + 1}
         saving={saving}
         error={saveError}
+      />
+
+      <WidgetAlertModal
+        isOpen={Boolean(selectedAlert)}
+        onClose={() => setSelectedAlert(null)}
+        item={selectedAlert?.item}
+        alertInfo={selectedAlert?.alertInfo}
+        onOpenSettings={(targetItem) => {
+          setSelectedAlert(null);
+          openSettings(targetItem);
+        }}
       />
     </div>
   );
