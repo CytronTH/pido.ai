@@ -109,7 +109,7 @@ pido-ai/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/pido-ai.git
+   git clone https://github.com/CytronTH/pido-ai.git
    cd pido-ai
    ```
 
@@ -117,6 +117,7 @@ pido-ai/
    ```bash
    cd frontend
    npm install
+   npm run build
    ```
 
 3. **Backend Setup:**
@@ -129,17 +130,21 @@ pido-ai/
 
 ### Running the Application
 
-PiDo.AI comes with a handy script that concurrently starts the **Frontend**, **FastAPI Backend**, and **MediaMTX** Server.
+PiDo.AI comes with an automated startup script. By default, it runs in **Production Mode** serving both Frontend UI and Backend APIs on a single port (`8000`), minimizing RAM usage on the Raspberry Pi:
 
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-**Services Started:**
-- **Frontend UI:** `http://localhost:5173`
-- **FastAPI Backend:** `http://localhost:8000`
-- **MediaMTX Stream Server:** Routing on ports `8554` (RTSP), `8889` (WebRTC), etc.
+**Accessing PiDo.AI:**
+- **Web UI & API:** `http://localhost:8000` (or `http://<raspberry-pi-ip>:8000`)
+- **MediaMTX Streams:** Port `8554` (RTSP), `8889` (WebRTC WHEP)
+
+> **💡 Developer Mode:** To run the Vite hot-reloading development server alongside the backend, run:
+> ```bash
+> ./start.sh --dev
+> ```
 
 ---
 
@@ -217,4 +222,4 @@ HAILO_DEVICE_ID=0000:01:00.0
 ---
 
 ## 📜 License
-*Specify License Here (e.g., MIT, Apache 2.0)*
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

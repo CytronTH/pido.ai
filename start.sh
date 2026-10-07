@@ -16,14 +16,51 @@ sleep 1
 echo "Cleanup done."
 echo ""
 
-# ── Start all services ────────────────────────────────────────────────────────
-# We use npx concurrently to run both processes in parallel.
-# It automatically prefixes logs, color-codes them, and kills both when you press Ctrl+C.
-npx concurrently \
-  -k \
-  --kill-others-on-fail \
-  -n "BACKEND,FRONTEND,MEDIAMTX" \
-  -c "cyan.bold,green.bold,yellow.bold" \
-  "cd backend && . venv/bin/activate && uvicorn web_server.main:app --host 0.0.0.0 --port 8000 --no-access-log" \
-  "cd frontend && npm run dev" \
-  "cd backend/mediamtx && ./mediamtx"
+DEV_MODE=false
+for arg in "$@"; do
+  if [ "$arg" == "--dev" ]; then
+    DEV_MODE=true
+  fi
+done
+
+# ── Start services ────────────────────────────────────────────────────────────
+if [ "$DEV_MODE" = true ]; then
+  echo "Mode: DEVELOPMENT (Vite Dev Server + Backend + MediaMTX)"
+  echo "Frontend UI: http://localhost:5173"
+  echo "Backend API: http://localhost:8000"
+  echo ""
+  npx concurrently \
+    -k \
+    --kill-others-on-fail \
+    -n "BACKEND,FRONTEND,MEDIAMTX" \
+    -c "cyan.bold,green.bold,yellow.bold" \
+    "cd backend && . venv/bin/activate && uvicorn web_server.main:app --host 0.0.0.0 --port 8000 --no-access-log" \
+    "cd frontend && npm run dev" \
+    "cd backend/mediamtx && ./mediamtx"
+else
+  echo "Mode: PRODUCTION (Single Port Entry via FastAPI + MediaMTX)"
+  
+  # Ensure frontend production bundle exists
+  if [ ! -d "frontend/dist" ] || [ ! -f "frontend/dist/index.html" ]; then
+    echo "Frontend build not found. Building now..."
+    (cd frontend && npm run build)
+  fi
+
+  IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
+  echo "=================================================="
+  echo "🚀 PiDo.AI is running!"
+  echo "👉 Local access:   http://localhost:8000"
+  if [ -n "$IP_ADDR" ]; then
+    echo "👉 Network access: http://${IP_ADDR}:8000"
+  fi
+  echo "=================================================="
+  echo ""
+
+  npx concurrently \
+    -k \
+    --kill-others-on-fail \
+    -n "BACKEND,MEDIAMTX" \
+    -c "cyan.bold,yellow.bold" \
+    "cd backend && . venv/bin/activate && uvicorn web_server.main:app --host 0.0.0.0 --port 8000 --no-access-log" \
+    "cd backend/mediamtx && ./mediamtx"
+fi

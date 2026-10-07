@@ -8,10 +8,11 @@ import uuid
 import threading
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from .websocket_manager import manager
 
 import sys
@@ -176,6 +177,16 @@ snapshots_dir = "/home/pi/pido-ai/snapshots"
 os.makedirs(snapshots_dir, exist_ok=True)
 app.mount("/api/snapshots", StaticFiles(directory=snapshots_dir), name="snapshots")
 
+# Frontend production build static assets
+frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if frontend_dist.is_dir():
+    assets_dir = frontend_dist / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="frontend_assets")
+    videos_dir = frontend_dist / "videos"
+    if videos_dir.is_dir():
+        app.mount("/videos", StaticFiles(directory=str(videos_dir)), name="frontend_videos")
+
 from .project_backup import router as project_backup_router
 app.include_router(project_backup_router)
 
@@ -189,8 +200,11 @@ app.include_router(dashboard_versions_router)
 app.include_router(project_data_router)
 
 
-@app.get("/")
+@app.get("/", response_model=None)
 async def root():
+    index_file = frontend_dist / "index.html"
+    if frontend_dist.is_dir() and index_file.is_file():
+        return FileResponse(str(index_file))
     return {"status": "ok", "message": "PiDo.AI Backend is running."}
 
 @app.websocket("/ws/metadata/{project_id}")
@@ -1986,3 +2000,21 @@ def clear_project_logs_api(project_id: str):
         return {"status": "error", "message": str(e)}
 
 # Collections & Variables endpoints live in routers/project_data.py
+
+# ── SPA Frontend Catch-all ───────────────────────────────────────────────────
+# If frontend/dist exists, serve SPA routes (React Router HTML5 history mode)
+if frontend_dist.is_dir() and (frontend_dist / "index.html").is_file():
+    @app.get("/{full_path:path}", response_model=None)
+    async def serve_spa(full_path: str):
+        # Exclude API, WebSocket, and docs endpoints from being captured
+        if (
+            full_path.startswith("api/")
+            or full_path.startswith("ws/")
+            or full_path in ("docs", "redoc", "openapi.json")
+        ):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        target_file = frontend_dist / full_path
+        if target_file.is_file():
+            return FileResponse(str(target_file))
+        return FileResponse(str(frontend_dist / "index.html"))
