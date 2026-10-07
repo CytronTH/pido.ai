@@ -5,7 +5,7 @@ import {
   Workflow, Play, CheckCircle, AlertTriangle, Clock, RefreshCw,
   Search, ChevronDown, ChevronRight, Terminal, BarChart2,
   ShieldCheck, ShieldAlert, Disc, Wifi, ArrowUpRight, ArrowDownLeft,
-  Server, Laptop, LayoutDashboard, ArrowLeft
+  Server, Laptop, LayoutDashboard, ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -17,6 +17,16 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
   const [activeTab, setActiveTab] = useState('hierarchy'); // 'hierarchy' | 'external' | 'processes' | 'charts'
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPipelines, setExpandedPipelines] = useState({});
+
+  // Sorting state for process tables
+  const [externalSortField, setExternalSortField] = useState('cpu_percent'); // 'cpu_percent' | 'memory_mb' | 'name' | 'pid' | 'user'
+  const [externalSortOrder, setExternalSortOrder] = useState('desc'); // 'desc' | 'asc'
+
+  const [pidoSortField, setPidoSortField] = useState('cpu_percent');
+  const [pidoSortOrder, setPidoSortOrder] = useState('desc');
+
+  // Origin filter: 'all' | 'pido' | 'external' | 'ide'
+  const [processOriginFilter, setProcessOriginFilter] = useState('all');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -75,6 +85,136 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
   const processes = telemetry?.processes || [];
   const pipelines = telemetry?.pipelines || [];
   const topExternal = attribution?.top_external_processes || [];
+
+  const handleExternalSort = (field) => {
+    if (externalSortField === field) {
+      setExternalSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      setExternalSortField(field);
+      setExternalSortOrder('desc');
+    }
+  };
+
+  const handlePidoSort = (field) => {
+    if (pidoSortField === field) {
+      setPidoSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      setPidoSortField(field);
+      setPidoSortOrder('desc');
+    }
+  };
+
+  const pidoItems = processes.map(p => ({
+    ...p,
+    ecosystem: 'pido',
+    category: p.category || p.role || 'core',
+    user: p.user || 'pi'
+  }));
+
+  const externalItems = topExternal.map(p => ({
+    ...p,
+    ecosystem: p.ecosystem || 'external',
+    category: p.category || 'system',
+    user: p.user || 'pi'
+  }));
+
+  const allProcesses = [...pidoItems, ...externalItems];
+
+  const filteredWorkloads = allProcesses.filter(p => {
+    if (processOriginFilter === 'pido') return p.ecosystem === 'pido';
+    if (processOriginFilter === 'external') return p.ecosystem === 'external' && p.category !== 'ide';
+    if (processOriginFilter === 'ide') return p.category === 'ide';
+    return true; // 'all'
+  });
+
+  const sortedWorkloads = [...filteredWorkloads].sort((a, b) => {
+    let aVal = a[externalSortField];
+    let bVal = b[externalSortField];
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = (bVal || '').toLowerCase();
+      return externalSortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    aVal = aVal ?? 0;
+    bVal = bVal ?? 0;
+    return externalSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+  });
+
+  const sortedExternal = [...topExternal].sort((a, b) => {
+    let aVal = a[externalSortField];
+    let bVal = b[externalSortField];
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = (bVal || '').toLowerCase();
+      return externalSortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    aVal = aVal ?? 0;
+    bVal = bVal ?? 0;
+    return externalSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+  });
+
+  const sortedPidoProcesses = [...processes].sort((a, b) => {
+    let aVal = a[pidoSortField];
+    let bVal = b[pidoSortField];
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = (bVal || '').toLowerCase();
+      return pidoSortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    aVal = aVal ?? 0;
+    bVal = bVal ?? 0;
+    return pidoSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+  });
+
+  const renderEcosystemBadge = (ecosystem, category) => {
+    if (ecosystem === 'pido') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-800/60 shadow-xs">
+          <Server size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+          <span>PiDo.AI</span>
+        </span>
+      );
+    }
+    if (category === 'ide') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-800/60 shadow-xs">
+          <Terminal size={11} className="text-purple-600 dark:text-purple-400 shrink-0" />
+          <span>IDE / Dev</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-50 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 border border-orange-800/60 shadow-xs">
+        <Laptop size={11} className="text-orange-600 dark:text-orange-400 shrink-0" />
+        <span>Host OS</span>
+      </span>
+    );
+  };
+
+  const renderSortTh = (label, field, currentField, currentOrder, onSort, widthClass, align = 'left') => {
+    const isActive = currentField === field;
+    const alignClass = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+    return (
+      <th 
+        className={`py-2.5 px-3 select-none cursor-pointer hover:bg-surface-2/80 transition-colors ${widthClass} ${alignClass} group`}
+        onClick={() => onSort(field)}
+        title={`Sort by ${label} (${isActive && currentOrder === 'desc' ? 'High to Low' : 'Low to High'})`}
+      >
+        <div className={`flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'}`}>
+          <span className={isActive ? 'font-bold text-fg' : 'text-fg-muted group-hover:text-fg'}>{label}</span>
+          {isActive ? (
+            currentOrder === 'desc' ? (
+              <ArrowDown size={13} className="text-blue-500 shrink-0" />
+            ) : (
+              <ArrowUp size={13} className="text-blue-500 shrink-0" />
+            )
+          ) : (
+            <ArrowUpDown size={12} className="text-fg-subtle opacity-35 group-hover:opacity-90 shrink-0" />
+          )}
+        </div>
+      </th>
+    );
+  };
 
   const togglePipeline = (id) => {
     setExpandedPipelines(prev => ({ ...prev, [id]: prev[id] === undefined ? false : !prev[id] }));
@@ -178,9 +318,9 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                   ? 'bg-blue-600 text-white shadow' 
                   : 'text-fg-muted hover:text-fg hover:bg-surface-2/60'
               }`}
-              title="External Host OS Workload & Top Processes"
+              title="All System Workloads & Process Attribution (วิเคราะห์โปรเซสทั้งระบบ)"
             >
-              <Laptop size={14} /> External &amp; Host OS ({topExternal.length})
+              <Laptop size={14} /> System Processes ({allProcesses.length})
             </button>
             <button
               onClick={() => setActiveTab('processes')}
@@ -322,28 +462,46 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                   </div>
                 </div>
 
-                {/* Card 3: RAM & Swap Memory */}
+                {/* Card 3: RAM & Swap Memory (Segmented Stacked Bar: PiDo vs External vs Available) */}
                 <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                        <HardDrive size={15} className="text-emerald-600 dark:text-emerald-400" /> Memory (RAM)
+                        <HardDrive size={15} className="text-emerald-600 dark:text-emerald-400" /> RAM Allocation
                       </span>
                       <span className={`text-base font-bold font-mono ${system.ram_percent > 80 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {system.ram_percent?.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
+
+                    {/* Segmented Stacked Bar (PiDo vs External vs Free) */}
+                    <div 
+                      className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden flex my-2 border border-line/40 shadow-inner"
+                      title={`PiDo: ${(attribution.internal_ram_mb || 0).toFixed(0)} MB (${(attribution.internal_ram_percent || 0).toFixed(1)}%) | Ext: ${(attribution.external_ram_mb || 0).toFixed(0)} MB (${(attribution.external_ram_percent || 0).toFixed(1)}%) | Free: ${Math.max(0, (system.ram_total_mb || 0) - (system.ram_used_mb || 0)).toFixed(0)} MB`}
+                    >
                       <div 
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          system.ram_percent > 80 ? 'bg-red-500' : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${Math.min(100, system.ram_percent || 0)}%` }}
+                        className="bg-blue-500 h-full transition-all duration-300" 
+                        style={{ width: `${Math.min(100, Math.max(0, attribution.internal_ram_percent || 0))}%` }}
+                      />
+                      <div 
+                        className="bg-orange-500 h-full transition-all duration-300" 
+                        style={{ width: `${Math.min(100, Math.max(0, attribution.external_ram_percent || 0))}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[10px] mt-1.5 font-mono text-fg-subtle">
-                      <span>Used: {system.ram_used_mb ? `${(system.ram_used_mb / 1024).toFixed(1)} GB` : ''}</span>
-                      <span>Total: {system.ram_total_mb ? `${(system.ram_total_mb / 1024).toFixed(1)} GB` : ''}</span>
+
+                    {/* Attribution RAM Legend */}
+                    <div className="flex justify-between items-center text-[10px] font-mono text-fg-subtle">
+                      <span className="flex items-center gap-1 text-blue-700 dark:text-blue-300" title={`PiDo.AI: ${(attribution.internal_ram_mb || 0).toFixed(0)} MB`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                        PiDo: {attribution.internal_ram_mb != null ? (attribution.internal_ram_mb >= 1024 ? (attribution.internal_ram_mb / 1024).toFixed(1) + 'G' : attribution.internal_ram_mb.toFixed(0) + 'M') : '0M'}
+                      </span>
+                      <span className="flex items-center gap-1 text-orange-700 dark:text-orange-300" title={`External Host: ${(attribution.external_ram_mb || 0).toFixed(0)} MB`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                        Ext: {attribution.external_ram_mb != null ? (attribution.external_ram_mb >= 1024 ? (attribution.external_ram_mb / 1024).toFixed(1) + 'G' : attribution.external_ram_mb.toFixed(0) + 'M') : '0M'}
+                      </span>
+                      <span className="text-fg-muted font-medium">
+                        Total: {system.ram_total_mb ? `${(system.ram_total_mb / 1024).toFixed(1)}G` : ''}
+                      </span>
                     </div>
                   </div>
 
@@ -743,71 +901,204 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
 
               </div>
 
-              {/* Top External Processes Table */}
+              {/* Top Processes Table with Origin & Ecosystem Attribution */}
               <div className="border border-line rounded-xl overflow-hidden bg-surface/40">
-                <div className="px-4 py-2.5 bg-canvas border-b border-line flex items-center justify-between">
-                  <h4 className="text-xs font-semibold flex items-center gap-2 text-fg">
+                <div className="px-4 py-2.5 bg-canvas border-b border-line flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     <Terminal size={14} className="text-orange-500" />
-                    Top External Processes Running on Raspberry Pi
-                  </h4>
-                  <span className="text-[10px] text-fg-subtle">
-                    Ranked by CPU and RAM consumption
+                    <h4 className="text-xs font-semibold text-fg">
+                      Raspberry Pi System Workloads &amp; Processes
+                    </h4>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2 text-fg-muted font-mono">
+                      {sortedWorkloads.length} processes
+                    </span>
+                  </div>
+
+                  {/* Quick Sort Filter Buttons */}
+                  <div className="flex items-center gap-1.5 text-[11px] font-sans">
+                    <span className="text-fg-subtle text-[10px] mr-1 hidden sm:inline">Quick Sort:</span>
+                    <button
+                      type="button"
+                      onClick={() => { setExternalSortField('cpu_percent'); setExternalSortOrder('desc'); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                        externalSortField === 'cpu_percent' && externalSortOrder === 'desc'
+                          ? 'bg-orange-500 text-white shadow-xs'
+                          : 'bg-surface hover:bg-surface-2 text-fg-secondary border border-line'
+                      }`}
+                    >
+                      🔥 Highest CPU
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setExternalSortField('memory_mb'); setExternalSortOrder('desc'); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                        externalSortField === 'memory_mb' && externalSortOrder === 'desc'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-surface hover:bg-surface-2 text-fg-secondary border border-line'
+                      }`}
+                    >
+                      💾 Highest RAM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setExternalSortField('name'); setExternalSortOrder('asc'); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                        externalSortField === 'name' && externalSortOrder === 'asc'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-surface hover:bg-surface-2 text-fg-secondary border border-line'
+                      }`}
+                    >
+                      🔤 Name (A-Z)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Origin Filter Sub-Bar (แยกแยะ PiDo.AI vs ภายนอก) */}
+                <div className="px-4 py-2 bg-surface/60 border-b border-line flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1 bg-surface-2/60 p-0.5 rounded-lg border border-line">
+                    <span className="text-[10px] text-fg-muted px-2 font-medium">Origin:</span>
+                    <button
+                      type="button"
+                      onClick={() => setProcessOriginFilter('all')}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all cursor-pointer ${
+                        processOriginFilter === 'all'
+                          ? 'bg-canvas text-fg shadow-xs font-bold border border-line'
+                          : 'text-fg-muted hover:text-fg'
+                      }`}
+                    >
+                      🌐 All Workloads ({allProcesses.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProcessOriginFilter('pido')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-all cursor-pointer ${
+                        processOriginFilter === 'pido'
+                          ? 'bg-blue-600 text-white shadow-xs font-bold'
+                          : 'text-blue-700 dark:text-blue-300 hover:bg-blue-950/40'
+                      }`}
+                    >
+                      <Server size={11} /> PiDo.AI Platform ({pidoItems.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProcessOriginFilter('external')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-all cursor-pointer ${
+                        processOriginFilter === 'external'
+                          ? 'bg-orange-600 text-white shadow-xs font-bold'
+                          : 'text-orange-700 dark:text-orange-300 hover:bg-orange-950/40'
+                      }`}
+                    >
+                      <Laptop size={11} /> External Host OS ({externalItems.filter(p => p.category !== 'ide').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProcessOriginFilter('ide')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-all cursor-pointer ${
+                        processOriginFilter === 'ide'
+                          ? 'bg-purple-600 text-white shadow-xs font-bold'
+                          : 'text-purple-700 dark:text-purple-300 hover:bg-purple-950/40'
+                      }`}
+                    >
+                      <Terminal size={11} /> IDE &amp; Dev Tools ({externalItems.filter(p => p.category === 'ide').length})
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-fg-subtle font-mono hidden md:inline">
+                    Click column header to sort (กดหัวตารางเพื่อเรียงลำดับ)
                   </span>
                 </div>
 
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-canvas/60 font-medium border-b border-line text-[11px] text-fg-muted">
-                    <tr>
-                      <th className="py-2.5 px-4">Process Name</th>
-                      <th className="py-2.5 px-3">PID</th>
-                      <th className="py-2.5 px-3">User</th>
-                      <th className="py-2.5 px-3">CPU Usage</th>
-                      <th className="py-2.5 px-3">Memory (RSS)</th>
-                      <th className="py-2.5 px-3">Workload Impact</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/50 font-mono text-[11px]">
-                    {topExternal.length === 0 ? (
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-left text-xs table-fixed">
+                    <thead className="bg-canvas/80 font-medium border-b border-line text-[11px] text-fg-muted">
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-fg-subtle">
-                          No significant external processes detected. Host OS is idle.
-                        </td>
+                        {renderSortTh("Process Name", "name", externalSortField, externalSortOrder, handleExternalSort, "w-[28%]")}
+                        {renderSortTh("Origin / Ecosystem", "ecosystem", externalSortField, externalSortOrder, handleExternalSort, "w-[17%]")}
+                        {renderSortTh("PID", "pid", externalSortField, externalSortOrder, handleExternalSort, "w-[10%]")}
+                        {renderSortTh("User", "user", externalSortField, externalSortOrder, handleExternalSort, "w-[9%]")}
+                        {renderSortTh("CPU Usage", "cpu_percent", externalSortField, externalSortOrder, handleExternalSort, "w-[12%]")}
+                        {renderSortTh("Memory (RSS)", "memory_mb", externalSortField, externalSortOrder, handleExternalSort, "w-[12%]")}
+                        <th className="py-2.5 px-3 w-[12%] text-left">Workload Impact</th>
                       </tr>
-                    ) : (
-                      topExternal.map((p, idx) => {
-                        const isHeavy = p.cpu_percent > 10 || p.memory_mb > 500;
+                    </thead>
+                    <tbody className="divide-y divide-line/50 font-mono text-[11px]">
+                      {sortedWorkloads.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-fg-subtle">
+                            No processes matching the selected origin filter.
+                          </td>
+                        </tr>
+                      ) : (
+                        sortedWorkloads.map((p, idx) => {
+                          const isHeavy = p.cpu_percent > 10 || p.memory_mb > 500;
+                          const isPido = p.ecosystem === 'pido';
 
-                        return (
-                          <tr key={idx} className="hover:bg-surface-2/20">
-                            <td className="py-2.5 px-4 font-semibold text-fg flex items-center gap-2">
-                              <Laptop size={13} className="text-fg-muted" />
-                              {p.name}
-                            </td>
-                            <td className="py-2.5 px-3 text-fg-muted">{p.pid}</td>
-                            <td className="py-2.5 px-3 text-fg-secondary">{p.user}</td>
-                            <td className="py-2.5 px-3 font-semibold text-orange-600 dark:text-orange-400">
-                              {p.cpu_percent?.toFixed(1)}%
-                            </td>
-                            <td className="py-2.5 px-3 text-fg-secondary">
-                              {p.memory_mb ? `${p.memory_mb.toFixed(1)} MB` : '-'}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {isHeavy ? (
-                                <span className="px-2 py-0.5 rounded text-[10px] bg-orange-950 text-orange-300 border border-orange-800/60 font-sans">
-                                  Heavy Load
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded text-[10px] bg-surface-2 text-fg-subtle font-sans">
-                                  Normal
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                          return (
+                            <tr key={p.pid || idx} className="hover:bg-surface-2/20">
+                              {/* Process Name with Friendly Subtitle */}
+                              <td className="py-2.5 px-3 font-semibold text-fg">
+                                <div className="flex items-center gap-2 min-w-0" title={p.raw_name ? `${p.name} (raw: ${p.raw_name})` : p.name}>
+                                  {isPido ? (
+                                    <Server size={14} className="text-blue-500 shrink-0" />
+                                  ) : p.category === 'ide' ? (
+                                    <Terminal size={14} className="text-purple-400 shrink-0" />
+                                  ) : (
+                                    <Laptop size={14} className="text-orange-400 shrink-0" />
+                                  )}
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="truncate font-semibold text-fg text-xs">
+                                      {p.name}
+                                    </span>
+                                    <span className="truncate font-mono text-[9px] text-fg-subtle">
+                                      {p.raw_name || 'process'} &bull; PID {p.pid}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Origin / Ecosystem Badge */}
+                              <td className="py-2.5 px-3">
+                                {renderEcosystemBadge(p.ecosystem, p.category)}
+                              </td>
+
+                              {/* PID */}
+                              <td className="py-2.5 px-3 text-fg-muted truncate">{p.pid}</td>
+
+                              {/* User */}
+                              <td className="py-2.5 px-3 text-fg-secondary truncate">{p.user || 'pi'}</td>
+
+                              {/* CPU Usage */}
+                              <td className={`py-2.5 px-3 font-semibold ${isPido ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                                {p.cpu_percent != null ? `${p.cpu_percent.toFixed(1)}%` : '-'}
+                              </td>
+
+                              {/* Memory RSS */}
+                              <td className={`py-2.5 px-3 font-semibold ${isPido ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                {p.memory_mb != null ? `${p.memory_mb.toFixed(1)} MB` : '-'}
+                              </td>
+
+                              {/* Workload Impact */}
+                              <td className="py-2.5 px-3">
+                                {isPido ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] bg-blue-950/80 text-blue-300 border border-blue-800/60 font-sans inline-block">
+                                    PiDo Service
+                                  </span>
+                                ) : isHeavy ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] bg-orange-950 text-orange-300 border border-orange-800/60 font-sans inline-block">
+                                    Heavy Load
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] bg-surface-2 text-fg-subtle font-sans inline-block">
+                                    Normal
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Performance Advice Card */}
@@ -838,73 +1129,119 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
               </div>
 
               <div className="border border-line rounded-xl overflow-hidden bg-surface/40">
-                <div className="px-4 py-2.5 bg-canvas border-b border-line flex items-center justify-between">
-                  <h4 className="text-xs font-semibold flex items-center gap-2 text-fg">
+                <div className="px-4 py-2.5 bg-canvas border-b border-line flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     <Terminal size={14} className="text-blue-500" />
-                    PiDo.AI Ecosystem Processes
-                  </h4>
-                  <span className="text-[10px] text-fg-subtle">
-                    Total PiDo CPU: {attribution.internal_cpu_percent?.toFixed(1)}% | RAM: {attribution.internal_ram_mb?.toFixed(0)} MB
-                  </span>
+                    <h4 className="text-xs font-semibold text-fg">
+                      PiDo.AI Ecosystem Processes
+                    </h4>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2 text-fg-muted font-mono">
+                      {sortedPidoProcesses.length} processes
+                    </span>
+                  </div>
+
+                  {/* Quick Sort Filter Buttons */}
+                  <div className="flex items-center gap-1.5 text-[11px] font-sans">
+                    <span className="text-fg-subtle text-[10px] mr-1 hidden sm:inline">Quick Sort:</span>
+                    <button
+                      type="button"
+                      onClick={() => { setPidoSortField('cpu_percent'); setPidoSortOrder('desc'); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                        pidoSortField === 'cpu_percent' && pidoSortOrder === 'desc'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-surface hover:bg-surface-2 text-fg-secondary border border-line'
+                      }`}
+                    >
+                      🔥 Highest CPU
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPidoSortField('memory_mb'); setPidoSortOrder('desc'); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                        pidoSortField === 'memory_mb' && pidoSortOrder === 'desc'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-surface hover:bg-surface-2 text-fg-secondary border border-line'
+                      }`}
+                    >
+                      💾 Highest RAM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPidoSortField('name'); setPidoSortOrder('asc'); }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                        pidoSortField === 'name' && pidoSortOrder === 'asc'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-surface hover:bg-surface-2 text-fg-secondary border border-line'
+                      }`}
+                    >
+                      🔤 Name (A-Z)
+                    </button>
+                  </div>
                 </div>
 
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-canvas font-medium border-b border-line text-[11px] text-fg-muted">
-                    <tr>
-                      <th className="py-2.5 px-4">Process Name / Command</th>
-                      <th className="py-2.5 px-3">PID</th>
-                      <th className="py-2.5 px-3">Role</th>
-                      <th className="py-2.5 px-3">Pipeline Attribution</th>
-                      <th className="py-2.5 px-3">CPU Usage</th>
-                      <th className="py-2.5 px-3">Memory (RSS)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/50 font-mono text-[11px]">
-                    {processes.length === 0 ? (
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-left text-xs table-fixed">
+                    <thead className="bg-canvas/80 font-medium border-b border-line text-[11px] text-fg-muted">
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-fg-subtle">
-                          No active child processes detected.
-                        </td>
+                        {renderSortTh("Process Name / Command", "name", pidoSortField, pidoSortOrder, handlePidoSort, "w-[28%]")}
+                        {renderSortTh("PID", "pid", pidoSortField, pidoSortOrder, handlePidoSort, "w-[12%]")}
+                        {renderSortTh("Role", "role", pidoSortField, pidoSortOrder, handlePidoSort, "w-[14%]")}
+                        {renderSortTh("Pipeline Attribution", "pipeline_id", pidoSortField, pidoSortOrder, handlePidoSort, "w-[16%]")}
+                        {renderSortTh("CPU Usage", "cpu_percent", pidoSortField, pidoSortOrder, handlePidoSort, "w-[14%]")}
+                        {renderSortTh("Memory (RSS)", "memory_mb", pidoSortField, pidoSortOrder, handlePidoSort, "w-[16%]")}
                       </tr>
-                    ) : (
-                      processes.map((proc, idx) => (
-                        <tr key={idx} className="hover:bg-surface-2/20">
-                          <td className="py-2.5 px-4 font-semibold flex items-center gap-2 text-fg">
-                            <Terminal size={13} className="text-fg-muted" />
-                            {proc.name}
-                          </td>
-                          <td className="py-2.5 px-3 text-fg-muted">{proc.pid}</td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] ${
-                              proc.role === 'core' 
-                                ? 'bg-blue-950 text-blue-300 border border-blue-800/40' 
-                                : proc.role === 'media_server'
-                                ? 'bg-amber-950 text-amber-300 border border-amber-800/40'
-                                : proc.role === 'frontend'
-                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/40'
-                                : 'bg-surface-2 text-fg-secondary'
-                            }`}>
-                              {proc.role}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-fg-secondary">
-                            {proc.pipeline_id ? (
-                              <span className="text-blue-600 dark:text-blue-400 font-semibold">{proc.pipeline_id}</span>
-                            ) : (
-                              <span className="text-fg-subtle">Global / System</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold text-blue-600 dark:text-blue-400">
-                            {proc.cpu_percent?.toFixed(1)}%
-                          </td>
-                          <td className="py-2.5 px-3 text-fg-secondary">
-                            {proc.memory_mb ? `${proc.memory_mb.toFixed(1)} MB` : '-'}
+                    </thead>
+                    <tbody className="divide-y divide-line/50 font-mono text-[11px]">
+                      {sortedPidoProcesses.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-fg-subtle">
+                            No active child processes detected.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        sortedPidoProcesses.map((proc, idx) => (
+                          <tr key={proc.pid || idx} className="hover:bg-surface-2/20">
+                            <td className="py-2.5 px-3 font-semibold text-fg">
+                              <div className="flex items-center gap-2 min-w-0" title={proc.name}>
+                                <Terminal size={13} className="text-fg-muted shrink-0" />
+                                <span className="truncate block font-mono text-[11px]">
+                                  {proc.name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-fg-muted truncate">{proc.pid}</td>
+                            <td className="py-2.5 px-3 truncate">
+                              <span className={`px-2 py-0.5 rounded text-[10px] ${
+                                proc.role === 'core' 
+                                  ? 'bg-blue-950 text-blue-300 border border-blue-800/40' 
+                                  : proc.role === 'media_server'
+                                  ? 'bg-amber-950 text-amber-300 border border-amber-800/40'
+                                  : proc.role === 'frontend'
+                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/40'
+                                  : 'bg-surface-2 text-fg-secondary'
+                              }`}>
+                                {proc.role}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-fg-secondary truncate">
+                              {proc.pipeline_id ? (
+                                <span className="text-blue-600 dark:text-blue-400 font-semibold">{proc.pipeline_id}</span>
+                              ) : (
+                                <span className="text-fg-subtle">Global / System</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-blue-600 dark:text-blue-400">
+                              {proc.cpu_percent != null ? `${proc.cpu_percent.toFixed(1)}%` : '-'}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-emerald-600 dark:text-emerald-400">
+                              {proc.memory_mb != null ? `${proc.memory_mb.toFixed(1)} MB` : '-'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -926,13 +1263,14 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                 </span>
               </div>
 
+              {/* Chart 1: CPU Workload Dynamics */}
               <div className="p-4 rounded-xl bg-surface/60 border border-line">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-sm font-semibold flex items-center gap-2 text-fg">
-                      <BarChart2 size={16} className="text-blue-600 dark:text-blue-400" /> Workload Dynamics: In-Platform vs External OS vs Hailo NPU
+                      <BarChart2 size={16} className="text-blue-600 dark:text-blue-400" /> CPU Workload Dynamics: In-Platform vs External OS vs Hailo NPU
                     </h3>
-                    <p className="text-xs text-fg-muted">Rolling real-time performance telemetry history</p>
+                    <p className="text-xs text-fg-muted">Rolling real-time CPU performance telemetry history (%)</p>
                   </div>
                 </div>
 
@@ -994,6 +1332,70 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                   ) : (
                     <div className="h-full flex items-center justify-center text-xs font-mono text-fg-subtle">
                       Collecting telemetry history samples...
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chart 2: Memory (RAM) Allocation Dynamics */}
+              <div className="p-4 rounded-xl bg-surface/60 border border-line">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2 text-fg">
+                      <HardDrive size={16} className="text-emerald-600 dark:text-emerald-400" /> Memory (RAM) Allocation Dynamics: PiDo.AI vs External Host OS
+                    </h3>
+                    <p className="text-xs text-fg-muted">Rolling real-time memory attribution (MB)</p>
+                  </div>
+                  <div className="text-xs font-mono text-fg-secondary">
+                    Total RAM: {system.ram_total_mb ? `${(system.ram_total_mb / 1024).toFixed(1)} GB` : ''}
+                  </div>
+                </div>
+
+                <div className="h-64 w-full">
+                  {history.length > 1 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={history}>
+                        <defs>
+                          <linearGradient id="internalRamGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
+                          </linearGradient>
+                          <linearGradient id="externalRamGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#f97316" stopOpacity={0.0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
+                        <XAxis dataKey="time" stroke={chartTheme.axis} fontSize={10} tickLine={false} />
+                        <YAxis stroke={chartTheme.axis} fontSize={10} unit=" MB" tickLine={false} />
+                        <Tooltip 
+                          contentStyle={{ ...chartTheme.tooltip.contentStyle, borderRadius: '0.75rem' }}
+                          labelStyle={chartTheme.tooltip.labelStyle}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="internalRamMb" 
+                          name="PiDo In-Platform RAM (MB)" 
+                          stroke="#3b82f6" 
+                          strokeWidth={2}
+                          fillOpacity={1} 
+                          fill="url(#internalRamGrad)" 
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="externalRamMb" 
+                          name="External Host OS RAM (MB)" 
+                          stroke="#f97316" 
+                          strokeWidth={2}
+                          fillOpacity={1} 
+                          fill="url(#externalRamGrad)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-xs font-mono text-fg-subtle">
+                      Collecting memory telemetry samples...
                     </div>
                   )}
                 </div>

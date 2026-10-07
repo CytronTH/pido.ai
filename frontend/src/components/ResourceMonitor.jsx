@@ -32,6 +32,11 @@ export default function ResourceMonitor() {
           const tempVal = data.system?.temp_c ?? data.temp_c ?? 0;
           const internalCpu = data.attribution?.internal_cpu_percent ?? 0;
           const externalCpu = data.attribution?.external_cpu_percent ?? 0;
+          const internalRamMb = data.attribution?.internal_ram_mb ?? 0;
+          const externalRamMb = data.attribution?.external_ram_mb ?? 0;
+          const ramUsedMb = data.system?.ram_used_mb ?? 0;
+          const ramTotalMb = data.system?.ram_total_mb ?? 0;
+          const ramPercentVal = data.system?.ram_percent ?? data.ram_percent ?? 0;
 
           setHistory((prev) => {
             const now = new Date();
@@ -41,6 +46,11 @@ export default function ResourceMonitor() {
               cpu: cpuVal,
               internalCpu: internalCpu,
               externalCpu: externalCpu,
+              internalRamMb: Math.round(internalRamMb),
+              externalRamMb: Math.round(externalRamMb),
+              ramUsedMb: Math.round(ramUsedMb),
+              ramTotalMb: Math.round(ramTotalMb),
+              ramPercent: ramPercentVal,
               npu: npuVal,
               temp: tempVal
             }];

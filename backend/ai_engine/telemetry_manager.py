@@ -229,11 +229,18 @@ class TelemetryManager:
     def _find_frontend_process(self) -> None:
         """Locates the Vite / Frontend dev server process if running."""
         try:
-            for p in psutil.process_iter(['pid', 'name', 'cmdline']):
-                cmd = " ".join(p.info.get('cmdline') or []).lower()
-                if 'vite' in cmd or 'npm run dev' in cmd:
-                    self.frontend_pid = p.info['pid']
-                    break
+            for p in psutil.process_iter(['pid', 'name']):
+                try:
+                    name = (p.info.get('name') or '').lower()
+                    if 'node' in name or 'vite' in name or 'npm' in name:
+                        cmd = " ".join(p.cmdline()).lower()
+                        if 'pido-ai/frontend' in cmd or ('vite' in cmd and '--host' in cmd):
+                            self.frontend_pid = p.info['pid']
+                            break
+                        elif 'vite' in cmd or 'npm run dev' in cmd:
+                            self.frontend_pid = p.info['pid']
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
         except Exception as e:
             logger.debug(f"Frontend process discovery failed: {e}")
 
@@ -503,6 +510,23 @@ class TelemetryManager:
         except Exception:
             pass
 
+        # Discover root launcher (e.g. start.sh / concurrently) and all sibling services
+        try:
+            for parent in self.main_proc.parents():
+                if parent.pid == 1:
+                    break
+                try:
+                    cmd_parent = " ".join(parent.cmdline()).lower()
+                    if 'start.sh' in cmd_parent or 'concurrently' in cmd_parent or 'pido-ai' in cmd_parent:
+                        internal_pids.add(parent.pid)
+                        for child in parent.children(recursive=True):
+                            if child.is_running():
+                                internal_pids.add(child.pid)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Include MediaMTX
         if not self.mediamtx_pid:
             self._find_mediamtx_process()
@@ -516,11 +540,17 @@ class TelemetryManager:
             except Exception:
                 pass
 
-        # Include Frontend
+        # Include Frontend & child processes
         if not self.frontend_pid:
             self._find_frontend_process()
         if self.frontend_pid:
             internal_pids.add(self.frontend_pid)
+            try:
+                f_proc_obj = psutil.Process(self.frontend_pid)
+                for child in f_proc_obj.children(recursive=True):
+                    internal_pids.add(child.pid)
+            except Exception:
+                pass
 
         # Include Tracked Subprocesses
         for pid in list(self.tracked_processes.keys()):
@@ -538,11 +568,15 @@ class TelemetryManager:
             internal_cpu_sum += main_cpu
             internal_ram_mb_sum += main_mem
             processes_list.append({
-                "name": "backend (FastAPI / AI Worker)",
+                "name": "PiDo Core (FastAPI / AI Worker)",
+                "raw_name": "python3",
                 "pid": self.main_proc.pid,
+                "user": "pi",
                 "cpu_percent": round(main_cpu, 1),
                 "memory_mb": main_mem,
-                "role": "core"
+                "role": "core",
+                "ecosystem": "pido",
+                "category": "core"
             })
         except Exception:
             pass
@@ -556,11 +590,15 @@ class TelemetryManager:
                 internal_cpu_sum += m_cpu
                 internal_ram_mb_sum += m_mem
                 processes_list.append({
-                    "name": "mediamtx (RTSP/WebRTC)",
+                    "name": "MediaMTX (RTSP / WebRTC Server)",
+                    "raw_name": "mediamtx",
                     "pid": self.mediamtx_pid,
+                    "user": "pi",
                     "cpu_percent": round(m_cpu, 1),
                     "memory_mb": m_mem,
-                    "role": "media_server"
+                    "role": "media_server",
+                    "ecosystem": "pido",
+                    "category": "media_server"
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 self.mediamtx_pid = None
@@ -574,11 +612,15 @@ class TelemetryManager:
                 internal_cpu_sum += f_cpu
                 internal_ram_mb_sum += f_mem
                 processes_list.append({
-                    "name": "frontend (Vite Web UI)",
+                    "name": "PiDo Frontend (Vite Dev Server)",
+                    "raw_name": "node",
                     "pid": self.frontend_pid,
+                    "user": "pi",
                     "cpu_percent": round(f_cpu, 1),
                     "memory_mb": f_mem,
-                    "role": "frontend"
+                    "role": "frontend",
+                    "ecosystem": "pido",
+                    "category": "frontend"
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 self.frontend_pid = None
@@ -594,11 +636,15 @@ class TelemetryManager:
                 internal_ram_mb_sum += p_mem
                 processes_list.append({
                     "name": info["name"],
+                    "raw_name": "worker",
                     "pid": pid,
+                    "user": "pi",
                     "pipeline_id": info.get("pipeline_id"),
                     "cpu_percent": round(p_cpu, 1),
                     "memory_mb": p_mem,
-                    "role": "subprocess"
+                    "role": "subprocess",
+                    "ecosystem": "pido",
+                    "category": "subprocess"
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 dead_pids.append(pid)
@@ -616,10 +662,67 @@ class TelemetryManager:
                         continue
                     mem_rss = (p.info.get('memory_info').rss if p.info.get('memory_info') else 0) / (1024 * 1024)
                     cpu_p = p.info.get('cpu_percent') or 0.0
+                    raw_name = p.info.get('name') or f"proc_{pid}"
+
+                    friendly_name = raw_name
+                    category = "system"  # 'ide' | 'external' | 'system'
+                    try:
+                        name_lower = raw_name.lower()
+                        # Direct binary / process name checks
+                        if 'language_server' in name_lower or 'languageserver' in name_lower:
+                            friendly_name = "IDE Language Server (LSP)"
+                            category = "ide"
+                        elif 'node-red' in name_lower:
+                            friendly_name = "Node-RED Server"
+                            category = "external"
+                        elif 'lxtask' in name_lower:
+                            friendly_name = "LXTask (Task Manager)"
+                            category = "system"
+                        elif 'chromium' in name_lower:
+                            friendly_name = "Chromium Browser"
+                            category = "external"
+                        elif name_lower in ('node', 'python', 'python3', 'sh', 'bash'):
+                            cmd = " ".join(p.cmdline())
+                            cmd_l = cmd.lower()
+                            if 'pido-ai' in cmd_l:
+                                internal_pids.add(pid)
+                                continue
+                            elif '.antigravity-ide-server' in cmd_l or '.gemini' in cmd_l or 'vscode' in cmd_l:
+                                category = "ide"
+                                if 'server-main.js' in cmd_l:
+                                    friendly_name = "Antigravity IDE Server"
+                                elif 'extensionhost' in cmd_l:
+                                    friendly_name = "Antigravity Extension Host"
+                                elif 'clickup-mcp-server' in cmd_l:
+                                    friendly_name = "ClickUp MCP Server"
+                                elif 'typingsinstaller' in cmd_l:
+                                    friendly_name = "TypeScript Typings Installer"
+                                elif 'language_server' in cmd_l or 'languageserver' in cmd_l:
+                                    friendly_name = "IDE Language Server (LSP)"
+                                elif 'bootstrap-fork' in cmd_l:
+                                    friendly_name = "IDE Background Worker"
+                                else:
+                                    friendly_name = "Antigravity IDE Service"
+                            elif 'node-red' in cmd_l:
+                                friendly_name = "Node-RED Server"
+                                category = "external"
+                            elif 'chromium' in cmd_l:
+                                friendly_name = "Chromium Browser"
+                                category = "external"
+                            else:
+                                args = cmd.split()
+                                if len(args) > 1:
+                                    script_name = args[1].split('/')[-1]
+                                    friendly_name = f"{raw_name} ({script_name[:24]})"
+                    except Exception:
+                        pass
 
                     external_procs_pool.append({
                         "pid": pid,
-                        "name": p.info.get('name') or f"proc_{pid}",
+                        "name": friendly_name,
+                        "raw_name": raw_name,
+                        "category": category,
+                        "ecosystem": "external",
                         "user": p.info.get('username') or "-",
                         "cpu_percent": round(cpu_p, 1),
                         "memory_mb": round(mem_rss, 1)
@@ -629,12 +732,17 @@ class TelemetryManager:
         except Exception as e:
             logger.debug(f"External process scan exception: {e}")
 
-        # Top 5 external processes prioritized by CPU then RAM
-        top_external = sorted(
-            external_procs_pool,
-            key=lambda x: (x["cpu_percent"], x["memory_mb"]),
-            reverse=True
-        )[:5]
+        # Top external processes prioritizing both CPU and RAM
+        by_cpu = sorted(external_procs_pool, key=lambda x: (x["cpu_percent"], x["memory_mb"]), reverse=True)[:15]
+        by_ram = sorted(external_procs_pool, key=lambda x: (x["memory_mb"], x["cpu_percent"]), reverse=True)[:15]
+        seen_pids = set()
+        top_external: List[Dict[str, Any]] = []
+        for p in by_cpu + by_ram:
+            if p["pid"] not in seen_pids:
+                seen_pids.add(p["pid"])
+                top_external.append(p)
+        top_external.sort(key=lambda x: (x["cpu_percent"], x["memory_mb"]), reverse=True)
+        top_external = top_external[:20]
 
         # Attribution Calculations
         ram_total_mb = round(ram.total / (1024 * 1024), 1)
