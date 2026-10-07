@@ -89,7 +89,6 @@ export default memo(({ data, isConnectable, id }) => {
   const nodes = usePipelineStore((state) => state.nodes);
   const edges = usePipelineStore((state) => state.edges);
   const dirtyNodeIds = usePipelineStore((state) => state.dirtyNodeIds || []);
-  const debugData = usePipelineStore((state) => state.debugData || {});
   const projectId = usePipelineStore((state) => state.projectId);
   const isProjectRunning = usePipelineStore((state) => state.isProjectRunning);
   const highlightedNodeIds = usePipelineStore((state) => state.highlightedNodeIds);
@@ -98,13 +97,17 @@ export default memo(({ data, isConnectable, id }) => {
   const isWikiMode = data?.isWikiMode;
   const activeProjectId = isWikiMode ? 'wiki_sandbox' : projectId;
   const isStreamActive = Boolean(isWikiMode || isProjectRunning);
-  
   const connections = useHandleConnections({ type: 'target' });
   const incomingEdge = edges.find((e) => e.target === id);
   const sourceNodeId = connections[0]?.source || incomingEdge?.source;
   const hookSourceNode = useNodesData(connections[0]?.source || 'empty-id');
   const sourceNode = (hookSourceNode && hookSourceNode.type) ? hookSourceNode : nodes.find(n => n.id === sourceNodeId);
   const sourceHandle = connections[0]?.sourceHandle || incomingEdge?.sourceHandle;
+
+  // Selective subscription to debugData only for the connected source node to prevent 30fps re-render overhead
+  const sourceDebugData = usePipelineStore(
+    useCallback((state) => (sourceNodeId ? state.debugData?.[sourceNodeId] : null), [sourceNodeId])
+  );
 
   const isForkliftNode = sourceNode?.type === 'forkliftZoneNode';
   const isForkliftVideoHandle = !sourceHandle || sourceHandle === 'debug' || sourceHandle === 'telemetry';
@@ -282,15 +285,23 @@ export default memo(({ data, isConnectable, id }) => {
   }, [currentStreamId, inputNode]);
 
   // Check store debugData for EOS flag as well
+  const isStreamEosInStore = usePipelineStore(
+    useCallback((state) => {
+      if (!isNonLoop) return false;
+      const dbg = state.debugData;
+      if (!dbg) return false;
+      if (currentStreamId && dbg[currentStreamId]?.eos) return true;
+      if (inputNode?.id && dbg[inputNode.id]?.eos) return true;
+      if (inputNode?.data?.entityId && dbg[inputNode.data.entityId]?.eos) return true;
+      return false;
+    }, [isNonLoop, currentStreamId, inputNode])
+  );
+
   useEffect(() => {
-    if (isNonLoop && debugData) {
-      if (currentStreamId && debugData[currentStreamId]?.eos) {
-        setIsEos(true);
-      } else if (inputNode && (debugData[inputNode.id]?.eos || (inputNode.data?.entityId && debugData[inputNode.data.entityId]?.eos))) {
-        setIsEos(true);
-      }
+    if (isStreamEosInStore) {
+      setIsEos(true);
     }
-  }, [debugData, currentStreamId, inputNode, isNonLoop]);
+  }, [isStreamEosInStore]);
 
   const { status, reconnect } = useWhepStream(activeWhepUrl, videoRef, { disableAutoReconnect: isNonLoop });
   const [resolution, setResolution] = useState(null);
@@ -315,15 +326,25 @@ export default memo(({ data, isConnectable, id }) => {
 
   const shouldDrawBoxes = isStreamActive && (sourceNode?.type === 'aiNode' || (isForkliftNode && isVideoMode)) && !data?.isPaused && !isWaitingForDeploy && !isVideoEnd;
   const lastBoxesRef = useRef({ items: [], time: 0 });
+  const lastRoiRef = useRef(null);
+  const lastFpsRef = useRef(null);
+  const lastFpsTimeRef = useRef(0);
   const latestDataRef = useRef(null);
 
+  // Initialize latestDataRef from store once if available and not yet set
   useEffect(() => {
-    if (debugData && currentStreamId && isStreamActive && !isWaitingForDeploy && !isVideoEnd) {
-      if (debugData[currentStreamId]) {
-        latestDataRef.current = debugData[currentStreamId];
+    if (currentStreamId && isStreamActive && !isWaitingForDeploy && !isVideoEnd && !latestDataRef.current) {
+      const initialData = usePipelineStore.getState().debugData?.[currentStreamId];
+      if (initialData) {
+        latestDataRef.current = initialData;
+        if (initialData.roi) lastRoiRef.current = initialData.roi;
+        if (initialData.fps !== undefined) {
+          lastFpsRef.current = initialData.fps;
+          lastFpsTimeRef.current = Date.now();
+        }
       }
     }
-  }, [debugData, currentStreamId, isStreamActive, isWaitingForDeploy, isVideoEnd]);
+  }, [currentStreamId, isStreamActive, isWaitingForDeploy, isVideoEnd]);
 
   // High-frequency WebSocket 'ai_metadata' listener (avoids React state re-render lag)
   useEffect(() => {
@@ -332,21 +353,29 @@ export default memo(({ data, isConnectable, id }) => {
       if (!msg) return;
       if (!isStreamActive || isWaitingForDeploy || isVideoEnd) return;
 
-      const matches = !msg.camera_id ||
-        !currentStreamId ||
-        msg.camera_id === currentStreamId ||
-        (inputNode?.data?.entityId && msg.camera_id === inputNode.data.entityId);
+      // Only accept AI metadata packets matching this camera/stream ID (avoids overwriting by non-camera messages)
+      if (!msg.camera_id) return;
+      const targetStreamId = currentStreamId;
+      const targetCameraId = inputNode?.data?.entityId;
+
+      const matches = (targetStreamId && msg.camera_id === targetStreamId) ||
+                      (targetCameraId && msg.camera_id === targetCameraId);
 
       if (matches) {
         latestDataRef.current = msg;
+        if (msg.roi) {
+          lastRoiRef.current = msg.roi;
+        }
+        if (msg.fps !== undefined) {
+          lastFpsRef.current = msg.fps;
+          lastFpsTimeRef.current = Date.now();
+        }
       }
     };
 
     window.addEventListener('ai_metadata', handleAiMeta);
-    window.addEventListener('pido_ws_message', handleAiMeta);
     return () => {
       window.removeEventListener('ai_metadata', handleAiMeta);
-      window.removeEventListener('pido_ws_message', handleAiMeta);
     };
   }, [currentStreamId, inputNode, isStreamActive, isWaitingForDeploy, isVideoEnd]);
 
@@ -354,6 +383,11 @@ export default memo(({ data, isConnectable, id }) => {
     if (!isStreamActive || isWaitingForDeploy || isVideoEnd) {
       latestDataRef.current = null;
       lastBoxesRef.current = { items: [], time: 0 };
+      lastFpsRef.current = null;
+      lastFpsTimeRef.current = 0;
+      if (!isStreamActive) {
+        lastRoiRef.current = null;
+      }
       if (videoRef.current) {
         videoRef.current.pause();
         if (!isStreamActive || isWaitingForDeploy) {
@@ -395,7 +429,7 @@ export default memo(({ data, isConnectable, id }) => {
 
         // 1. Draw Polygon Danger Zones for Forklift Safety Monitor
         if (isForkliftNode) {
-          const forkliftDebug = debugData[sourceNode.id];
+          const forkliftDebug = usePipelineStore.getState().debugData?.[sourceNode.id] || sourceDebugData;
           const configuredZones = sourceNode.data?.zones || [];
           const liveZonesObj = forkliftDebug?.zones || {};
 
@@ -459,8 +493,13 @@ export default memo(({ data, isConnectable, id }) => {
           });
         }
 
-        if (payload?.roi) {
-          const { x, y, w, h } = payload.roi;
+        // Draw ROI Box with persistence and fallback to AI node settings to eliminate flickering
+        const activeRoi = payload?.roi || 
+          lastRoiRef.current || 
+          ((sourceNode?.data?.roiEnabled || sourceNode?.data?.showRoi) ? sourceNode?.data?.roi : null);
+
+        if (activeRoi) {
+          const { x, y, w, h } = activeRoi;
           ctx.strokeStyle = 'rgba(255, 165, 0, 0.9)';
           ctx.lineWidth = 2;
           ctx.setLineDash([8, 6]);
@@ -540,7 +579,7 @@ export default memo(({ data, isConnectable, id }) => {
 
         // Draw Live Hazard HUD Banner on video top
         if (isForkliftNode) {
-          const forkliftDebug = debugData[sourceNode.id];
+          const forkliftDebug = usePipelineStore.getState().debugData?.[sourceNode.id] || sourceDebugData;
           const hLevel = forkliftDebug?.hazard_level ?? 0;
 
           ctx.save();
@@ -570,13 +609,21 @@ export default memo(({ data, isConnectable, id }) => {
         }
       }
       
-      // Draw FPS if available (only for AI nodes)
+      // Draw FPS if available (only for AI nodes) with persistence to prevent canvas flicker
+      const now = Date.now();
       const currentMeta = latestDataRef.current;
-      if (shouldDrawBoxes && currentMeta && currentMeta.fps !== undefined) {
-        const fpsStr = `AI FPS: ${currentMeta.fps}`;
+      if (currentMeta?.fps !== undefined) {
+        lastFpsRef.current = currentMeta.fps;
+        lastFpsTimeRef.current = now;
+      }
+
+      const displayFps = (now - lastFpsTimeRef.current < 2000) ? lastFpsRef.current : null;
+
+      if (shouldDrawBoxes && displayFps !== null && displayFps !== undefined) {
+        const fpsStr = `AI FPS: ${displayFps}`;
         let fpsColor = '#22c55e'; // green
-        if (currentMeta.fps < 10) fpsColor = '#ef4444'; // red
-        else if (currentMeta.fps < 20) fpsColor = '#eab308'; // yellow
+        if (displayFps < 10) fpsColor = '#ef4444'; // red
+        else if (displayFps < 20) fpsColor = '#eab308'; // yellow
         
         ctx.font = 'bold 10px monospace';
         const tw = ctx.measureText(fpsStr).width + 8;
@@ -730,7 +777,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (sourceNode.type === 'logicNode') {
-    const state = debugData[sourceNode.id];
+    const state = sourceDebugData;
     let displayValue = "--", color = "text-fg-muted";
     if (state !== undefined) {
       if (typeof state === 'boolean' || typeof state?.value === 'boolean') {
@@ -749,7 +796,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (sourceNode.type === 'flowCounterNode') {
-    const debugState = debugData[sourceNode.id];
+    const debugState = sourceDebugData;
     const counts = debugState?.counts || sourceNode.data?.counts || {};
     const total = debugState?.total ?? sourceNode.data?.total ?? 0;
     const entries = Object.entries(counts);
@@ -786,7 +833,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (sourceNode.type === 'counterNode') {
-    const debugState = debugData[sourceNode.id];
+    const debugState = sourceDebugData;
     const val = debugState?.value ?? 0;
     content = (
       <div className="flex flex-col items-center justify-center p-3 gap-1 bg-surface/50 min-w-[160px]">
@@ -795,7 +842,7 @@ export default memo(({ data, isConnectable, id }) => {
       </div>
     );
   } else if (isForkliftNode) {
-    const debugState = debugData[sourceNode.id];
+    const debugState = sourceDebugData;
     const isCriticalVal = debugState?.is_critical ?? false;
     const isDangerVal = debugState?.is_danger ?? false;
     const liveZones = debugState?.zones || {};
