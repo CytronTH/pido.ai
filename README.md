@@ -109,8 +109,8 @@ pido-ai/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/CytronTH/pido-ai.git
-   cd pido-ai
+   git clone https://github.com/CytronTH/pido.ai.git
+   cd pido.ai
    ```
 
 2. **Frontend Setup:**
