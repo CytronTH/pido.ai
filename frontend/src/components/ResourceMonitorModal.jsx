@@ -119,255 +119,45 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
   const isSwapHigh = (system.swap_percent || 0) > 80;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col bg-canvas border border-line rounded-2xl shadow-2xl overflow-hidden font-sans text-fg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-6xl h-[92vh] max-h-[92vh] flex flex-col bg-canvas border border-line rounded-2xl shadow-2xl overflow-hidden font-sans text-fg my-auto">
         
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-line/80 bg-surface/50">
+        {/* Modal Header (Always Fixed at Top) */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line/80 bg-surface/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30 text-blue-400">
-              <Activity size={22} className="animate-pulse text-blue-600 dark:text-blue-400" />
+              <Activity size={20} className="animate-pulse text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold tracking-tight text-fg">Precision Resource &amp; Workload Profiler</h2>
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-800/60 text-emerald-600 dark:text-emerald-400">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-fg">Precision Resource &amp; Workload Profiler</h2>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-800/60 text-emerald-600 dark:text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  Live (1 Hz Precision)
+                  Live (1 Hz)
                 </span>
                 {!isHealthy && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-950/90 border border-red-700 text-red-400 animate-pulse">
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium bg-red-950/90 border border-red-700 text-red-400 animate-pulse">
                     <ShieldAlert size={12} />
                     Hardware Alert
                   </span>
                 )}
               </div>
-              <p className="text-xs text-fg-muted">
+              <p className="text-[11px] text-fg-muted">
                 Fine-grained attribution: In-Platform (PiDo.AI) vs External Host OS on Raspberry Pi 5 &amp; Hailo-8L
               </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl hover:text-fg hover:bg-surface-2/80 transition-colors text-fg-muted"
-            title="Close"
+            className="p-2 rounded-xl hover:text-fg hover:bg-surface-2/80 transition-colors text-fg-muted cursor-pointer"
+            title="Close (ESC)"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Top KPI Cards (4 Main Cards) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 sm:p-5 border-b border-line/60 bg-canvas/40">
-          
-          {/* Card 1: CPU Workload (Segmented Stacked Bar) */}
-          <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                  <Cpu size={15} className="text-blue-600 dark:text-blue-400" /> CPU Allocation
-                </span>
-                <span className="text-base font-bold font-mono text-blue-600 dark:text-blue-400">
-                  {system.cpu_percent?.toFixed(1)}%
-                </span>
-              </div>
-
-              {/* Segmented Stacked Bar (PiDo vs External vs Idle) */}
-              <div 
-                className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden flex my-2 border border-line/40 shadow-inner"
-                title={`PiDo: ${attribution.internal_cpu_percent}% | External: ${attribution.external_cpu_percent}% | Idle: ${attribution.idle_cpu_percent}%`}
-              >
-                {/* PiDo Internal (Blue) */}
-                <div 
-                  className="bg-blue-500 h-full transition-all duration-300" 
-                  style={{ width: `${Math.min(100, Math.max(0, attribution.internal_cpu_percent || 0))}%` }}
-                />
-                {/* External OS (Orange) */}
-                <div 
-                  className="bg-orange-500 h-full transition-all duration-300" 
-                  style={{ width: `${Math.min(100, Math.max(0, attribution.external_cpu_percent || 0))}%` }}
-                />
-                {/* Idle is remaining */}
-              </div>
-
-              {/* Attribution Legend */}
-              <div className="flex justify-between items-center text-[10px] font-mono text-fg-subtle">
-                <span className="flex items-center gap-1 text-blue-700 dark:text-blue-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-                  PiDo: {attribution.internal_cpu_percent?.toFixed(1)}%
-                </span>
-                <span className="flex items-center gap-1 text-orange-700 dark:text-orange-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                  Ext: {attribution.external_cpu_percent?.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-
-            {/* Core Mini Bars */}
-            <div className="grid grid-cols-4 gap-1.5 mt-2.5 pt-2 border-t border-line/40">
-              {(system.cpu_cores || [0, 0, 0, 0]).slice(0, 4).map((core, i) => (
-                <div key={i} className="flex flex-col gap-0.5">
-                  <div className="h-1.5 w-full bg-surface-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        core > 80 ? 'bg-red-500' : core > 50 ? 'bg-amber-400' : 'bg-blue-500'
-                      }`}
-                      style={{ width: `${Math.min(100, Math.max(5, core))}%` }}
-                    />
-                  </div>
-                  <span className="text-[8px] font-mono text-center text-fg-subtle">C{i}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 2: NPU Hailo Card */}
-          <div className="p-3.5 rounded-xl bg-surface/70 border border-purple-900/40 shadow-sm relative overflow-hidden flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/5 rounded-full blur-2xl pointer-events-none" />
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-secondary">
-                  <Zap size={15} className="text-purple-600 dark:text-purple-400" /> NPU Hailo-8L
-                </span>
-                <span className="text-base font-bold font-mono text-purple-600 dark:text-purple-400">
-                  {system.npu_percent?.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
-                <div 
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    system.npu_percent > 85 ? 'bg-red-500' : system.npu_percent > 50 ? 'bg-purple-500' : 'bg-purple-400'
-                  }`}
-                  style={{ width: `${Math.min(100, Math.max(4, system.npu_percent || 0))}%` }}
-                />
-              </div>
-              <div className="flex justify-between items-center text-[10px] mt-2 font-mono text-fg-muted">
-                <span className="truncate max-w-[130px]" title={system.npu_device}>13 TOPS AI NPU</span>
-                <span className={system.npu_percent > 0 ? 'text-purple-700 dark:text-purple-300 font-medium' : 'text-fg-subtle'}>
-                  {system.npu_percent > 0 ? 'Inferencing' : 'Standby'}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-2.5 pt-2 border-t border-line/40 flex items-center justify-between text-[10px] font-mono text-fg-subtle">
-              <span>PCIe Gen2/3</span>
-              <span className="text-purple-600 dark:text-purple-400">Zero-Copy Buffer</span>
-            </div>
-          </div>
-
-          {/* Card 3: RAM & Swap Memory */}
-          <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                  <HardDrive size={15} className="text-emerald-600 dark:text-emerald-400" /> Memory (RAM)
-                </span>
-                <span className={`text-base font-bold font-mono ${system.ram_percent > 80 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {system.ram_percent?.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
-                <div 
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    system.ram_percent > 80 ? 'bg-red-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(100, system.ram_percent || 0)}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] mt-1.5 font-mono text-fg-subtle">
-                <span>Used: {system.ram_used_mb ? `${(system.ram_used_mb / 1024).toFixed(1)} GB` : ''}</span>
-                <span>Total: {system.ram_total_mb ? `${(system.ram_total_mb / 1024).toFixed(1)} GB` : ''}</span>
-              </div>
-            </div>
-
-            {/* Swap / ZRAM Sub-Indicator */}
-            <div className="mt-2.5 pt-2 border-t border-line/40">
-              <div className="flex items-center justify-between text-[10px] font-mono mb-1">
-                <span className="text-fg-muted">Swap / ZRAM:</span>
-                <span className={isSwapHigh ? 'text-amber-500 font-bold' : 'text-fg-secondary'}>
-                  {system.swap_percent?.toFixed(0)}% ({system.swap_used_mb?.toFixed(0)} MB)
-                </span>
-              </div>
-              <div className="w-full h-1 bg-surface-2 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full ${isSwapHigh ? 'bg-amber-500' : 'bg-emerald-400'}`}
-                  style={{ width: `${Math.min(100, system.swap_percent || 0)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Thermal & Hardware Health (Raspberry Pi 5) */}
-          <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
-                  <Thermometer size={15} className="text-orange-700 dark:text-orange-400" /> SoC Health
-                </span>
-                <span className={`text-base font-bold font-mono ${system.temp_c > 75 ? 'text-red-600 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                  {system.temp_c ? `${system.temp_c.toFixed(1)}°C` : 'N/A'}
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
-                <div 
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    system.temp_c > 75 ? 'bg-red-500' : system.temp_c > 60 ? 'bg-orange-500' : 'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min(100, Math.max(10, ((system.temp_c || 40) - 30) * 1.5))}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] mt-1.5 font-mono text-fg-subtle">
-                <span>Clock: {system.cpu_freq_mhz ? `${system.cpu_freq_mhz} MHz` : '2400 MHz'}</span>
-                <span>Core: {system.core_voltage_v ? `${system.core_voltage_v} V` : '0.85 V'}</span>
-              </div>
-            </div>
-
-            {/* Health Status Badge */}
-            <div className="mt-2.5 pt-2 border-t border-line/40">
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-fg-muted">Throttle State:</span>
-                <span className={`font-semibold flex items-center gap-1 ${
-                  isHealthy ? 'text-emerald-500' : 'text-red-500 font-bold'
-                }`}>
-                  {isHealthy ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
-                  {system.hardware_health?.message || 'Optimal'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Mini Ribbon: Disk I/O & Network Throughput */}
-        <div className="px-6 py-2 bg-surface/40 border-b border-line/50 flex flex-wrap items-center justify-between text-[11px] font-mono text-fg-muted gap-2">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <Disc size={13} className="text-blue-500" />
-              <span>Disk:</span>
-              <strong className="text-fg">{system.disk_free_gb?.toFixed(1)} GB Free</strong>
-              <span className="text-fg-subtle">({system.disk_percent}% used)</span>
-            </span>
-            <span className="text-fg-subtle">•</span>
-            <span className="flex items-center gap-1">
-              <span>I/O:</span>
-              <span className="text-emerald-600 dark:text-emerald-400">R: {system.disk_read_mbps?.toFixed(2)} MB/s</span>
-              <span>|</span>
-              <span className="text-amber-600 dark:text-amber-400">W: {system.disk_write_mbps?.toFixed(2)} MB/s</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <Wifi size={13} className="text-purple-500" />
-              <span>Net:</span>
-              <span className="text-blue-600 dark:text-blue-400">RX: {system.net_rx_kbps?.toFixed(1)} kbps</span>
-              <span>|</span>
-              <span className="text-purple-600 dark:text-purple-400">TX: {system.net_tx_kbps?.toFixed(1)} kbps</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Tab Selection & Controls */}
-        <div className="flex flex-wrap items-center justify-between px-6 py-3 border-b border-line bg-surface/30 gap-3">
+        {/* Tab Selection & Controls (Always Fixed at Top under Header!) */}
+        <div className="flex flex-wrap items-center justify-between px-5 py-2.5 border-b border-line bg-surface/40 gap-2 shrink-0">
           <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-line shadow-xs">
             <button
               onClick={() => setActiveTab('hierarchy')}
@@ -415,7 +205,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
             </button>
           </div>
 
-          {activeTab === 'hierarchy' && (
+          {activeTab === 'hierarchy' && pipelines.length > 0 && (
             <div className="relative w-64">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
               <input
@@ -429,12 +219,219 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
           )}
         </div>
 
-        {/* Modal Body Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Modal Body Content (Scrollable with min-h-0) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4">
           
           {/* TAB 1: OVERVIEW & PIPELINES HIERARCHY */}
           {activeTab === 'hierarchy' && (
             <div className="space-y-4">
+
+              {/* Top KPI Cards (4 Main Cards) */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                
+                {/* Card 1: CPU Workload (Segmented Stacked Bar) */}
+                <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
+                        <Cpu size={15} className="text-blue-600 dark:text-blue-400" /> CPU Allocation
+                      </span>
+                      <span className="text-base font-bold font-mono text-blue-600 dark:text-blue-400">
+                        {system.cpu_percent?.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    {/* Segmented Stacked Bar (PiDo vs External vs Idle) */}
+                    <div 
+                      className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden flex my-2 border border-line/40 shadow-inner"
+                      title={`PiDo: ${attribution.internal_cpu_percent}% | External: ${attribution.external_cpu_percent}% | Idle: ${attribution.idle_cpu_percent}%`}
+                    >
+                      <div 
+                        className="bg-blue-500 h-full transition-all duration-300" 
+                        style={{ width: `${Math.min(100, Math.max(0, attribution.internal_cpu_percent || 0))}%` }}
+                      />
+                      <div 
+                        className="bg-orange-500 h-full transition-all duration-300" 
+                        style={{ width: `${Math.min(100, Math.max(0, attribution.external_cpu_percent || 0))}%` }}
+                      />
+                    </div>
+
+                    {/* Attribution Legend */}
+                    <div className="flex justify-between items-center text-[10px] font-mono text-fg-subtle">
+                      <span className="flex items-center gap-1 text-blue-700 dark:text-blue-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                        PiDo: {attribution.internal_cpu_percent?.toFixed(1)}%
+                      </span>
+                      <span className="flex items-center gap-1 text-orange-700 dark:text-orange-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                        Ext: {attribution.external_cpu_percent?.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Core Mini Bars */}
+                  <div className="grid grid-cols-4 gap-1.5 mt-2.5 pt-2 border-t border-line/40">
+                    {(system.cpu_cores || [0, 0, 0, 0]).slice(0, 4).map((core, i) => (
+                      <div key={i} className="flex flex-col gap-0.5">
+                        <div className="h-1.5 w-full bg-surface-2 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              core > 80 ? 'bg-red-500' : core > 50 ? 'bg-amber-400' : 'bg-blue-500'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(5, core))}%` }}
+                          />
+                        </div>
+                        <span className="text-[8px] font-mono text-center text-fg-subtle">C{i}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Card 2: NPU Hailo Card */}
+                <div className="p-3.5 rounded-xl bg-surface/70 border border-purple-900/40 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/5 rounded-full blur-2xl pointer-events-none" />
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-secondary">
+                        <Zap size={15} className="text-purple-600 dark:text-purple-400" /> NPU Hailo-8L
+                      </span>
+                      <span className="text-base font-bold font-mono text-purple-600 dark:text-purple-400">
+                        {system.npu_percent?.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          system.npu_percent > 85 ? 'bg-red-500' : system.npu_percent > 50 ? 'bg-purple-500' : 'bg-purple-400'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(4, system.npu_percent || 0))}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] mt-2 font-mono text-fg-muted">
+                      <span className="truncate max-w-[130px]" title={system.npu_device}>13 TOPS AI NPU</span>
+                      <span className={system.npu_percent > 0 ? 'text-purple-700 dark:text-purple-300 font-medium' : 'text-fg-subtle'}>
+                        {system.npu_percent > 0 ? 'Inferencing' : 'Standby'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 pt-2 border-t border-line/40 flex items-center justify-between text-[10px] font-mono text-fg-subtle">
+                    <span>PCIe Gen2/3</span>
+                    <span className="text-purple-600 dark:text-purple-400 font-medium">Zero-Copy</span>
+                  </div>
+                </div>
+
+                {/* Card 3: RAM & Swap Memory */}
+                <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
+                        <HardDrive size={15} className="text-emerald-600 dark:text-emerald-400" /> Memory (RAM)
+                      </span>
+                      <span className={`text-base font-bold font-mono ${system.ram_percent > 80 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {system.ram_percent?.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          system.ram_percent > 80 ? 'bg-red-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(100, system.ram_percent || 0)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] mt-1.5 font-mono text-fg-subtle">
+                      <span>Used: {system.ram_used_mb ? `${(system.ram_used_mb / 1024).toFixed(1)} GB` : ''}</span>
+                      <span>Total: {system.ram_total_mb ? `${(system.ram_total_mb / 1024).toFixed(1)} GB` : ''}</span>
+                    </div>
+                  </div>
+
+                  {/* Swap / ZRAM Sub-Indicator */}
+                  <div className="mt-2.5 pt-2 border-t border-line/40">
+                    <div className="flex items-center justify-between text-[10px] font-mono mb-1">
+                      <span className="text-fg-muted">Swap / ZRAM:</span>
+                      <span className={isSwapHigh ? 'text-amber-500 font-bold' : 'text-fg-secondary'}>
+                        {system.swap_percent?.toFixed(0)}% ({system.swap_used_mb?.toFixed(0)} MB)
+                      </span>
+                    </div>
+                    <div className="w-full h-1 bg-surface-2 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${isSwapHigh ? 'bg-amber-500' : 'bg-emerald-400'}`}
+                        style={{ width: `${Math.min(100, system.swap_percent || 0)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: Thermal & Hardware Health (Raspberry Pi 5) */}
+                <div className="p-3.5 rounded-xl bg-surface/70 border border-line shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-muted">
+                        <Thermometer size={15} className="text-orange-700 dark:text-orange-400" /> SoC Health
+                      </span>
+                      <span className={`text-base font-bold font-mono ${system.temp_c > 75 ? 'text-red-600 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                        {system.temp_c ? `${system.temp_c.toFixed(1)}°C` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden mt-2">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          system.temp_c > 75 ? 'bg-red-500' : system.temp_c > 60 ? 'bg-orange-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(10, ((system.temp_c || 40) - 30) * 1.5))}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] mt-1.5 font-mono text-fg-subtle">
+                      <span>Clock: {system.cpu_freq_mhz ? `${system.cpu_freq_mhz} MHz` : '2400 MHz'}</span>
+                      <span>Core: {system.core_voltage_v ? `${system.core_voltage_v} V` : '0.85 V'}</span>
+                    </div>
+                  </div>
+
+                  {/* Health Status Badge */}
+                  <div className="mt-2.5 pt-2 border-t border-line/40">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-fg-muted">Throttle State:</span>
+                      <span className={`font-semibold flex items-center gap-1 ${
+                        isHealthy ? 'text-emerald-500' : 'text-red-500 font-bold'
+                      }`}>
+                        {isHealthy ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+                        {system.hardware_health?.message || 'Optimal'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Mini Ribbon: Disk I/O & Network Throughput */}
+              <div className="px-4 py-2 bg-surface/50 border border-line rounded-xl flex flex-wrap items-center justify-between text-[11px] font-mono text-fg-muted gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5">
+                    <Disc size={13} className="text-blue-500" />
+                    <span>Disk:</span>
+                    <strong className="text-fg">{system.disk_free_gb?.toFixed(1)} GB Free</strong>
+                    <span className="text-fg-subtle">({system.disk_percent}% used)</span>
+                  </span>
+                  <span className="text-fg-subtle">•</span>
+                  <span className="flex items-center gap-1">
+                    <span>I/O:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">R: {system.disk_read_mbps?.toFixed(2)} MB/s</span>
+                    <span>|</span>
+                    <span className="text-amber-600 dark:text-amber-400">W: {system.disk_write_mbps?.toFixed(2)} MB/s</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5">
+                    <Wifi size={13} className="text-purple-500" />
+                    <span>Net:</span>
+                    <span className="text-blue-600 dark:text-blue-400">RX: {system.net_rx_kbps?.toFixed(1)} kbps</span>
+                    <span>|</span>
+                    <span className="text-purple-600 dark:text-purple-400">TX: {system.net_tx_kbps?.toFixed(1)} kbps</span>
+                  </span>
+                </div>
+              </div>
               {filteredPipelines.length === 0 ? (
                 <div className="space-y-4">
                   {/* System Readiness Summary Cards */}
