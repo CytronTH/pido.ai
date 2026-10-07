@@ -1705,6 +1705,7 @@ class MessageRouter:
                         if target_node:
                             try:
                                 t_node_start = time.perf_counter()
+                                t_node_cpu_start = time.process_time()
                                 # Route handle-specific payload if applicable
                                 if source_handle and isinstance(curr_msg.get("_handle_payloads"), dict) and source_handle in curr_msg["_handle_payloads"]:
                                     routed_msg = curr_msg.copy()
@@ -1715,6 +1716,7 @@ class MessageRouter:
 
                                 out_msg = target_node.process(routed_msg)
                                 t_node_dur = time.perf_counter() - t_node_start
+                                t_node_cpu_dur = time.process_time() - t_node_cpu_start
 
                                 try:
                                     from ai_engine.telemetry_manager import telemetry_mgr
@@ -1723,7 +1725,8 @@ class MessageRouter:
                                         self.project_id,
                                         target_id,
                                         n_type,
-                                        t_node_dur
+                                        t_node_dur,
+                                        cpu_sec=t_node_cpu_dur
                                     )
                                 except Exception:
                                     pass
