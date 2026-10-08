@@ -248,8 +248,8 @@ class PipelineParser:
                     mock_video_url = "/videos/wiki_obj_det.mp4"
                 else:
                     mock_video_url = node_data.get("mockVideoUrl", "/videos/default.mp4")
-                    
-                abs_path = f"/home/pi/pido-ai/frontend/public{mock_video_url}"
+                project_root = Path(__file__).resolve().parent.parent.parent
+                abs_path = str(project_root / "frontend" / "public" / mock_video_url.lstrip("/"))
                 camera = {
                     "id": entity_id,
                     "name": f"Wiki Video ({entity_id})",

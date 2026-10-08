@@ -1055,7 +1055,7 @@ class SnapshotNode(PipelineNode):
                 from pathlib import Path
                 import time
                 
-                snapshots_dir = Path("/home/pi/pido-ai/snapshots")
+                snapshots_dir = Path(__file__).resolve().parent.parent.parent / "snapshots"
                 snapshots_dir.mkdir(parents=True, exist_ok=True)
                 
                 timestamp = int(time.time() * 1000)
@@ -1247,7 +1247,7 @@ class SnapshotNode(PipelineNode):
                     
                     # Log to DB
                     import sys
-                    backend_dir = Path("/home/pi/pido-ai/backend")
+                    backend_dir = Path(__file__).resolve().parent.parent
                     if str(backend_dir) not in sys.path:
                         sys.path.insert(0, str(backend_dir))
                     from db.database import db

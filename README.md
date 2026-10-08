@@ -107,26 +107,32 @@ pido-ai/
 
 ### Installation
 
+#### ⚡ Quick Install (Recommended for New Users)
+Install PiDo.AI and all system dependencies (Node.js, GStreamer, Hailo drivers, Auto-start service) with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CytronTH/pido.ai/main/install.sh | bash
+```
+
+*The installer will run pre-flight diagnostics, configure dependencies, compile the frontend, set up system services, and print your web dashboard URL.*
+
+---
+
+#### 🛠️ Manual Installation from Source
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/CytronTH/pido.ai.git
    cd pido.ai
    ```
 
-2. **Frontend Setup:**
+2. **Run Installer locally:**
    ```bash
-   cd frontend
-   npm install
-   npm run build
+   chmod +x install.sh
+   ./install.sh
    ```
 
-3. **Backend Setup:**
-   ```bash
-   cd ../backend
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
+*(Or set up manually by running `npm install && npm run build` in `frontend` and `python3 -m venv --system-site-packages venv && pip install -r requirements.txt` in `backend`)*
 
 ### Running the Application
 

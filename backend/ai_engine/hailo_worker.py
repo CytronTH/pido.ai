@@ -227,7 +227,8 @@ class HailoPipelineWorker:
                 if has_ai:
                     if not os.path.exists(hef):
                         logger.error(f"HEF file not found: {hef}. Falling back to default YOLOv8s.")
-                        hef = "/home/pi/pido-ai/backend/models/yolov8s.hef"
+                        models_dir = Path(__file__).resolve().parent.parent / "models"
+                        hef = str(models_dir / "yolov8s.hef")
                         so = "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so"
                         if not os.path.exists(hef):
                             logger.error("Default HEF also not found! Disabling AI for this stream.")
@@ -326,7 +327,8 @@ class HailoPipelineWorker:
                     if has_ai:
                         if not os.path.exists(hef):
                             logger.error(f"HEF file not found: {hef}. Falling back to default.")
-                            hef = "/home/pi/pido-ai/backend/models/yolov8s.hef"
+                            models_dir = Path(__file__).resolve().parent.parent / "models"
+                            hef = str(models_dir / "yolov8s.hef")
                             so = "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so"
                     
                     if has_ai:
