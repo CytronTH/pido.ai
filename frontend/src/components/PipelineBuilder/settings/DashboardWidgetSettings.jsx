@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { List, Edit3, Layers } from 'lucide-react';
+import { List, Edit3, Layers, Lock } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 import { useShallow } from 'zustand/react/shallow';
 import PayloadPathSelector from './PayloadPathSelector';
@@ -15,6 +15,20 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
 
   const upstreamEdge = edges.find(e => e.target === nodeId);
   const upstreamNode = upstreamEdge ? nodes.find(n => n.id === upstreamEdge.source) : null;
+  const isDbWriterUpstream = upstreamNode?.type === 'databaseWriterNode';
+
+  const dbWriterProperty = upstreamNode?.data?.propertyPath || 'value';
+  const dbWriterVarName = upstreamNode?.data?.variableName || 'metric';
+  const dbWriterLabel = upstreamNode?.data?.label || 'Database Writer';
+
+  // Automatically lock and sync the sourcePath when connected to a Database Writer
+  useEffect(() => {
+    if (isDbWriterUpstream) {
+      if (data?.sourcePath !== dbWriterProperty) {
+        onChange({ sourcePath: dbWriterProperty });
+      }
+    }
+  }, [isDbWriterUpstream, dbWriterProperty, data?.sourcePath]);
 
   useEffect(() => {
     fetch('/api/entities', { cache: 'no-store' })
@@ -79,6 +93,15 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
       ];
     }
     
+    if (upstreamNode.type === 'databaseWriterNode') {
+      const varName = upstreamNode.data?.variableName || 'Metric';
+      return [
+        { value: 'value', label: `value (${varName})` },
+        { value: 'msg.payload.value', label: `msg.payload.value (${varName})` },
+        { value: 'msg.payload', label: 'msg.payload (Full Payload)' }
+      ];
+    }
+    
     return [
       { value: 'msg.payload.value', label: 'msg.payload.value (Value)' },
       { value: 'msg.payload', label: 'msg.payload (Full Payload)' }
@@ -107,7 +130,7 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
           <label className="text-xs font-bold uppercase tracking-wider text-fg-subtle">
             Property / Payload Path
           </label>
-          {upstreamNode && (
+          {!isDbWriterUpstream && upstreamNode && (
             <button
               type="button"
               onClick={() => setIsCustomMode(!showCustomInput)}
@@ -129,7 +152,24 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
           )}
         </div>
 
-        {!upstreamNode ? (
+        {isDbWriterUpstream ? (
+          <div className="bg-teal-500/10 border border-teal-500/30 rounded-lg p-2.5 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 dark:text-teal-400">
+                <Lock size={12} />
+                <span>Locked to Database Writer</span>
+              </span>
+              <span className="text-[10px] bg-teal-500/20 text-teal-700 dark:text-teal-300 font-mono px-2 py-0.5 rounded font-medium">
+                {dbWriterProperty}
+              </span>
+            </div>
+            <p className="text-[10px] text-fg-subtle leading-relaxed">
+              This Chart Widget automatically inherits and locks to the exact payload configured in{' '}
+              <span className="font-semibold text-fg">{dbWriterLabel}</span>
+              {dbWriterVarName ? ` (${dbWriterVarName})` : ''}.
+            </p>
+          </div>
+        ) : !upstreamNode ? (
           <input
             type="text"
             className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm text-fg-subtle nodrag disabled:opacity-50 cursor-not-allowed"
@@ -169,11 +209,21 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
         <div className="flex items-center gap-1.5 text-xs font-semibold text-fg-secondary">
           <Layers size={13} className="text-pink-500" />
           <span>Payload Explorer</span>
+          {isDbWriterUpstream && (
+            <span className="text-[9px] text-teal-600 dark:text-teal-400 bg-teal-500/10 border border-teal-500/20 px-1.5 py-0.5 rounded font-normal">
+              Locked
+            </span>
+          )}
         </div>
         <PayloadPathSelector 
           nodeId={nodeId} 
           selectedPath={data?.sourcePath} 
-          onSelect={(path) => onChange({ sourcePath: path })} 
+          onSelect={(path) => {
+            if (!isDbWriterUpstream) {
+              onChange({ sourcePath: path });
+            }
+          }} 
+          isLocked={isDbWriterUpstream}
         />
       </div>
 
