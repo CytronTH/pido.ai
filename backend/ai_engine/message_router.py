@@ -384,6 +384,7 @@ class TargetTrackerNode(PipelineNode):
         self.is_complete = False
         self.current_rate_per_minute = 0.0
         self.eta_seconds = None
+        self._last_rate_calc_ts = None
         self._last_update_ts = time.time()
 
     def process(self, msg: dict):
@@ -406,6 +407,7 @@ class TargetTrackerNode(PipelineNode):
         if trigger and not self.is_complete:
             if self.actual == 0:
                 self.start_time = now
+                self._last_rate_calc_ts = now
                 
             self.actual += 1
             updated = True
@@ -414,21 +416,24 @@ class TargetTrackerNode(PipelineNode):
                 self.is_complete = True
                 
         # To keep UI fresh even without trigger
-        if self.actual > 0 and self.start_time is not None and not self.is_complete:
+        if self.actual > 1 and self.start_time is not None and not self.is_complete:
             elapsed = now - self.start_time
-            if elapsed > 0:
+            if elapsed > 0.5:
                 # Recalculate rate ONLY every 1.0s to prevent rapid flickering on the dashboard
-                if now - getattr(self, '_last_rate_calc_ts', 0) > 1.0:
-                    rate_per_sec = self.actual / elapsed
-                    self.current_rate_per_minute = rate_per_sec * 60.0
+                if self._last_rate_calc_ts is None or (now - self._last_rate_calc_ts > 1.0):
+                    rate_per_sec = (self.actual - 1) / elapsed
+                    self.current_rate_per_minute = round(rate_per_sec * 60.0, 2)
                     if rate_per_sec > 0:
                         remaining = self.target - self.actual
-                        self.eta_seconds = remaining / rate_per_sec
+                        self.eta_seconds = round(remaining / rate_per_sec, 1)
                     else:
                         self.eta_seconds = None
                     self._last_rate_calc_ts = now
             if now - getattr(self, '_last_update_ts', 0) > 1.0:
                 updated = True
+        elif self.actual <= 1 and self.start_time is not None and not self.is_complete:
+            self.current_rate_per_minute = 0.0
+            self.eta_seconds = None
         elif self.is_complete:
             self.eta_seconds = 0
             
@@ -470,6 +475,8 @@ class TargetTrackerNode(PipelineNode):
         self.is_complete = False
         self.current_rate_per_minute = 0.0
         self.eta_seconds = None
+        self._last_rate_calc_ts = None
+        self._last_update_ts = time.time()
         
         if self.router.metadata_callback:
             self.router.metadata_callback({
@@ -486,6 +493,7 @@ class TargetTrackerNode(PipelineNode):
 class UnitThroughputNode(PipelineNode):
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="unitThroughputNode")
+        from collections import deque
         from ai_engine.centroid_tracker import CentroidTracker
 
         self.start_trigger = data.get("startTrigger", "first_object")
@@ -493,6 +501,7 @@ class UnitThroughputNode(PipelineNode):
         self.pause_timeout_seconds = float(data.get("pauseTimeoutSeconds", 60.0))
         self.rate_unit = data.get("rateUnit", "minute")
         self.decimal_places = int(data.get("decimalPlaces", 2))
+        self.window_seconds = float(data.get("windowSeconds", 60.0))
         
         self.tracker = CentroidTracker(
             max_disappeared=20,
@@ -504,16 +513,29 @@ class UnitThroughputNode(PipelineNode):
         self.current_count = 0
         self.last_object_time = None
         self.throughput = 0.0
+        self.current_rate = 0.0
+        self.average_rate = 0.0
+        
+        # Sliding window history of (timestamp, count_increment)
+        self._history = deque(maxlen=500)
+        self._last_rate_calc_ts = None
         
         # Used for manual API toggling
         self.manual_state = False
 
     def reset_counts(self):
+        from collections import deque
         self.is_running = False
         self.start_time = None
         self.current_count = 0
         self.last_object_time = None
         self.throughput = 0.0
+        self.current_rate = 0.0
+        self.average_rate = 0.0
+        self._history = deque(maxlen=500)
+        self._last_rate_calc_ts = None
+        self._last_numeric_payload = None
+        self._last_bool_payload = False
         self.manual_state = False
         self.tracker = __import__('ai_engine.centroid_tracker', fromlist=['CentroidTracker']).CentroidTracker(max_disappeared=20, max_distance=0.15)
         
@@ -521,10 +543,15 @@ class UnitThroughputNode(PipelineNode):
 
     def set_manual_state(self, state: bool):
         import time
+        now = time.time()
         self.manual_state = state
         self.is_running = state
         if state and self.start_time is None:
-            self.start_time = time.time()
+            self.start_time = now
+            self._last_rate_calc_ts = now
+        elif not state:
+            self.current_rate = 0.0
+            self.throughput = 0.0
         self._emit_telemetry()
 
     def process(self, msg: dict):
@@ -579,38 +606,88 @@ class UnitThroughputNode(PipelineNode):
                 if newly_counted > 0:
                     self.is_running = True
                     self.start_time = now
+                    self._last_rate_calc_ts = now
             elif self.start_trigger == "manual":
                 if self.manual_state:
                     self.is_running = True
                     if self.start_time is None:
                         self.start_time = now
+                        self._last_rate_calc_ts = now
             
         # Evaluate Pause Trigger
         if self.is_running:
             if self.pause_trigger == "timeout":
                 if self.last_object_time and (now - self.last_object_time) > self.pause_timeout_seconds:
                     self.is_running = False
+                    self.current_rate = 0.0
+                    self.throughput = 0.0
             elif self.pause_trigger == "manual":
                 if not self.manual_state:
                     self.is_running = False
+                    self.current_rate = 0.0
+                    self.throughput = 0.0
 
-        # Update Counts
+        # Update Counts & Sliding Window History
         if self.is_running and newly_counted > 0:
             self.current_count += newly_counted
+            self._history.append((now, newly_counted))
+
+        # Prune old history outside window (keep at least 5s window minimum)
+        window_cutoff = now - max(self.window_seconds, 5.0)
+        while self._history and self._history[0][0] < window_cutoff:
+            self._history.popleft()
             
-        # Calculate Throughput
+        # Calculate Dual Throughput Rates (Current Rolling Window + Cumulative Average)
         if self.is_running and self.start_time:
-            elapsed = now - self.start_time
-            if elapsed > 0:
-                if now - getattr(self, '_last_rate_calc_ts', 0) > 1.0:
-                    rate_per_sec = self.current_count / elapsed
-                    if self.rate_unit == "minute":
-                        self.throughput = round(rate_per_sec * 60, self.decimal_places)
-                    elif self.rate_unit == "hour":
-                        self.throughput = round(rate_per_sec * 3600, self.decimal_places)
+            # Throttle rate recalculation to 0.5s to prevent jitter and CPU load
+            if self._last_rate_calc_ts is None or (now - self._last_rate_calc_ts >= 0.5):
+                # 1. Current Rate (Rolling Window with Idle Decay)
+                units_in_window = sum(item[1] for item in self._history)
+                idle_since_last = (now - self.last_object_time) if self.last_object_time else 0.0
+
+                if units_in_window < 2 or len(self._history) < 2:
+                    current_rate_per_sec = 0.0
+                else:
+                    t_first = self._history[0][0]
+                    t_last = self._history[-1][0]
+                    t_span = t_last - t_first
+                    completed_intervals = units_in_window - 1
+
+                    if completed_intervals > 0 and t_span > 0:
+                        avg_interval = t_span / completed_intervals
                     else:
-                        self.throughput = round(rate_per_sec, self.decimal_places)
-                    self._last_rate_calc_ts = now
+                        avg_interval = 1.0
+
+                    # Idle Decay: if current idle exceeds expected interval, decay smoothly
+                    if idle_since_last > avg_interval:
+                        effective_dt = t_span + (idle_since_last - avg_interval)
+                    else:
+                        effective_dt = max(t_span, 0.5)
+
+                    current_rate_per_sec = completed_intervals / max(effective_dt, 0.5)
+
+                # 2. Average Rate (Cumulative from start)
+                elapsed_total = now - self.start_time
+                if self.current_count < 2 or elapsed_total <= 0.5:
+                    avg_rate_per_sec = 0.0
+                else:
+                    if self.start_trigger == "first_object":
+                        avg_rate_per_sec = (self.current_count - 1) / elapsed_total
+                    else:
+                        avg_rate_per_sec = self.current_count / elapsed_total
+
+                # Multiplier for Rate Unit
+                if self.rate_unit == "minute":
+                    mult = 60.0
+                elif self.rate_unit == "hour":
+                    mult = 3600.0
+                else:
+                    mult = 1.0
+
+                self.current_rate = round(current_rate_per_sec * mult, self.decimal_places)
+                self.average_rate = round(avg_rate_per_sec * mult, self.decimal_places)
+                self.throughput = self.current_rate
+                self._last_rate_calc_ts = now
             
         # Emit telemetry throttled (e.g. 0.5s) to avoid UI blurring and excessive React re-renders
         should_broadcast = False
@@ -626,17 +703,23 @@ class UnitThroughputNode(PipelineNode):
             self._last_is_running = self.is_running
             self._emit_telemetry(msg)
         
-        rate_per_min = self.throughput
+        curr_rate_per_min = self.current_rate
+        avg_rate_per_min = self.average_rate
         if self.rate_unit == "second":
-            rate_per_min = round(self.throughput * 60, self.decimal_places)
+            curr_rate_per_min = round(self.current_rate * 60.0, self.decimal_places)
+            avg_rate_per_min = round(self.average_rate * 60.0, self.decimal_places)
         elif self.rate_unit == "hour":
-            rate_per_min = round(self.throughput / 60, self.decimal_places)
+            curr_rate_per_min = round(self.current_rate / 60.0, self.decimal_places)
+            avg_rate_per_min = round(self.average_rate / 60.0, self.decimal_places)
 
         msg["payload"] = {
             "current_unit": self.current_count,
             "total_units": self.current_count,
             "throughput": self.throughput,
-            "current_rate_per_minute": rate_per_min,
+            "current_rate": self.current_rate,
+            "current_rate_per_minute": curr_rate_per_min,
+            "average_rate": self.average_rate,
+            "average_rate_per_minute": avg_rate_per_min,
             "is_running": self.is_running,
             "rate_unit": self.rate_unit
         }
@@ -649,11 +732,14 @@ class UnitThroughputNode(PipelineNode):
             if not camera_id and msg:
                 camera_id = msg.get("metadata", {}).get("camera_id", "default")
                 
-            rate_per_min = self.throughput
+            curr_rate_per_min = self.current_rate
+            avg_rate_per_min = self.average_rate
             if self.rate_unit == "second":
-                rate_per_min = round(self.throughput * 60, self.decimal_places)
+                curr_rate_per_min = round(self.current_rate * 60.0, self.decimal_places)
+                avg_rate_per_min = round(self.average_rate * 60.0, self.decimal_places)
             elif self.rate_unit == "hour":
-                rate_per_min = round(self.throughput / 60, self.decimal_places)
+                curr_rate_per_min = round(self.current_rate / 60.0, self.decimal_places)
+                avg_rate_per_min = round(self.average_rate / 60.0, self.decimal_places)
 
             self.router.metadata_callback({
                 "type": "unit_throughput_update",
@@ -661,7 +747,10 @@ class UnitThroughputNode(PipelineNode):
                 "current_unit": self.current_count,
                 "total_units": self.current_count,
                 "throughput": self.throughput,
-                "current_rate_per_minute": rate_per_min,
+                "current_rate": self.current_rate,
+                "current_rate_per_minute": curr_rate_per_min,
+                "average_rate": self.average_rate,
+                "average_rate_per_minute": avg_rate_per_min,
                 "is_running": self.is_running,
                 "rate_unit": self.rate_unit,
                 "camera_id": camera_id,
@@ -1637,7 +1726,12 @@ class MessageRouter:
                         new_node.current_count = old_node.current_count
                         new_node.is_running = getattr(old_node, 'is_running', False)
                         new_node.start_time = getattr(old_node, 'start_time', None)
+                        new_node.last_object_time = getattr(old_node, 'last_object_time', None)
                         new_node.throughput = getattr(old_node, 'throughput', 0.0)
+                        new_node.current_rate = getattr(old_node, 'current_rate', 0.0)
+                        new_node.average_rate = getattr(old_node, 'average_rate', 0.0)
+                        new_node._history = getattr(old_node, '_history', deque(maxlen=500))
+                        new_node._last_rate_calc_ts = getattr(old_node, '_last_rate_calc_ts', None)
                         if hasattr(old_node, 'tracker') and hasattr(new_node, 'tracker'):
                             new_node.tracker = old_node.tracker
 

@@ -5,6 +5,7 @@ import usePipelineStore from '../../../store/usePipelineStore';
 export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isSidebar }) {
   const debugState = usePipelineStore((state) => state.debugData?.[nodeId]) || {};
   const liveRate = debugState?.throughput ?? debugState?.current_rate_per_minute ?? data?.throughput ?? 0;
+  const liveAvgRate = debugState?.average_rate ?? debugState?.average_rate_per_minute ?? 0;
   const liveCount = debugState?.current_unit ?? debugState?.total_units ?? data?.current_unit ?? 0;
   const isRunning = debugState?.is_running ?? data?.is_running ?? false;
 
@@ -119,6 +120,22 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
             />
           )}
         </div>
+
+        {/* Sliding Window for Current Rate */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-fg-secondary">Sliding Window</label>
+          <div className="flex items-center gap-2">
+            <input 
+              type="number" 
+              min="5"
+              max="3600"
+              className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-24 text-fg"
+              value={data?.windowSeconds ?? 60}
+              onChange={(e) => onChange({ windowSeconds: parseInt(e.target.value, 10) || 60 })}
+            />
+            <span className="text-xs text-fg-muted">sec (for Current Rate)</span>
+          </div>
+        </div>
         
         {/* Mode Selector for rate calculation */}
         <div className="flex flex-col gap-1.5">
@@ -177,11 +194,23 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Throughput:</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current Rate:</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
               {Number(liveRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-cyan-600 dark:text-cyan-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Avg Rate:</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">
+              {Number(liveAvgRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
             </span>
           </div>
         </div>

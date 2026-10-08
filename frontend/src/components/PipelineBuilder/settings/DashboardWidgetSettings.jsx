@@ -77,8 +77,10 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
 
     if (upstreamNode.type === 'unitThroughputNode') {
       return [
-        { value: 'msg.payload.throughput', label: 'msg.payload.throughput (Throughput Rate)' },
-        { value: 'msg.payload.current_rate_per_minute', label: 'msg.payload.current_rate_per_minute (Rate/min)' },
+        { value: 'msg.payload.throughput', label: 'msg.payload.throughput (Current Rate / Throughput)' },
+        { value: 'msg.payload.current_rate_per_minute', label: 'msg.payload.current_rate_per_minute (Current Rate/min)' },
+        { value: 'msg.payload.average_rate', label: 'msg.payload.average_rate (Average Rate)' },
+        { value: 'msg.payload.average_rate_per_minute', label: 'msg.payload.average_rate_per_minute (Avg Rate/min)' },
         { value: 'msg.payload.current_unit', label: 'msg.payload.current_unit (Current Units)' },
         { value: 'msg.payload.total_units', label: 'msg.payload.total_units (Total Units)' },
         { value: 'msg.payload.is_running', label: 'msg.payload.is_running (Running Status)' }

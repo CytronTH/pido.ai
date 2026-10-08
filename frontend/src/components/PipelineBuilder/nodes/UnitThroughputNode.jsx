@@ -13,6 +13,7 @@ export default function UnitThroughputNode({ id, data, selected }) {
   const debugState = debugData[id] || {};
   
   const liveRate = debugState?.throughput ?? debugState?.current_rate_per_minute ?? data?.throughput ?? 0;
+  const liveAvgRate = debugState?.average_rate ?? debugState?.average_rate_per_minute ?? 0;
   const liveCount = debugState?.current_unit ?? debugState?.total_units ?? data?.current_unit ?? 0;
   const isRunning = debugState?.is_running ?? data?.is_running ?? false;
   
@@ -34,6 +35,7 @@ export default function UnitThroughputNode({ id, data, selected }) {
         startTrigger: 'first_object',
         pauseTrigger: 'timeout',
         pauseTimeoutSeconds: 60,
+        windowSeconds: 60,
         rateUnit: 'minute'
       });
     }
@@ -83,15 +85,21 @@ export default function UnitThroughputNode({ id, data, selected }) {
           {/* Quick Stats on the Node itself */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="bg-canvas p-2 rounded border border-line text-center">
-              <div className="text-[10px] uppercase text-fg-subtle">Rate</div>
+              <div className="text-[10px] uppercase text-fg-subtle">Current Rate</div>
               <div className="text-sm font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                 {hasConflict ? '0.0' : Number(liveRate).toFixed(1)} <span className="text-[9px]">/{data?.rateUnit?.substring(0,1) || 'm'}</span>
               </div>
+              <div className="text-[9px] text-fg-muted font-mono mt-0.5" title="All-time average rate">
+                Avg: {hasConflict ? '0.0' : Number(liveAvgRate).toFixed(1)}
+              </div>
             </div>
             <div className="bg-canvas p-2 rounded border border-line text-center">
-              <div className="text-[10px] uppercase text-fg-subtle">Units</div>
+              <div className="text-[10px] uppercase text-fg-subtle">Total Units</div>
               <div className="text-sm font-mono text-blue-600 dark:text-blue-400 font-bold">
                 {hasConflict ? '0' : liveCount}
+              </div>
+              <div className="text-[9px] text-fg-muted mt-0.5">
+                {isRunning ? '● Running' : '○ Paused'}
               </div>
             </div>
           </div>
