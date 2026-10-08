@@ -395,6 +395,10 @@ class HailoPipelineWorker:
             pipeline_str = " ".join(pipeline_substrings)
             logger.info(f"Building pipeline for {input_key}: {pipeline_str}")
             
+            if "x264enc" in pipeline_str and not Gst.ElementFactory.find("x264enc"):
+                logger.error("GStreamer element 'x264enc' is missing! Please install: sudo apt-get install -y gstreamer1.0-plugins-ugly")
+                raise RuntimeError("GStreamer element 'x264enc' is missing. Please run: sudo apt-get install -y gstreamer1.0-plugins-ugly")
+
             try:
                 pipeline = Gst.parse_launch(pipeline_str)
                 # Store loop count for non-looping files so _on_eos can replay them

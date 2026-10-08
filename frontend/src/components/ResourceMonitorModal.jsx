@@ -60,7 +60,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
     cpu_freq_mhz: 0,
     core_voltage_v: 0,
     npu_percent: telemetry?.npu_percent || 0,
-    npu_device: 'Hailo-8L (PCIe)',
+    npu_device: telemetry?.npu_device || 'Hailo NPU (PCIe)',
     hardware_health: {
       healthy: true,
       message: 'Optimal (Normal)',
@@ -434,7 +434,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-semibold flex items-center gap-1.5 text-fg-secondary">
-                        <Zap size={15} className="text-purple-600 dark:text-purple-400" /> NPU Hailo-8L
+                        <Zap size={15} className="text-purple-600 dark:text-purple-400" /> NPU {system.npu_device ? system.npu_device.split(' ')[0] : 'Hailo'}
                       </span>
                       <span className="text-base font-bold font-mono text-purple-600 dark:text-purple-400">
                         {system.npu_percent?.toFixed(1)}%
@@ -600,7 +600,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
                         <Zap size={20} />
                       </div>
                       <div>
-                        <span className="text-xs font-semibold text-fg">Hailo-8L AI NPU</span>
+                        <span className="text-xs font-semibold text-fg">{system.npu_device ? system.npu_device.split(' ')[0] : 'Hailo'} AI NPU</span>
                         <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-mono font-medium mt-0.5">
                           <CheckCircle size={12} /> {system.npu_device || 'Ready (PCIe Gen2/3)'}
                         </p>
@@ -1410,7 +1410,7 @@ export default function ResourceMonitorModal({ isOpen, onClose, telemetry, histo
           <div className="flex items-center gap-2">
             <span>Hardware: Raspberry Pi 5 ({system.cpu_cores?.length || 4} Cores @ {system.cpu_freq_mhz || 2400} MHz)</span>
             <span>&bull;</span>
-            <span>AI Hat: {system.npu_device || 'Hailo-8L (13 TOPS)'}</span>
+            <span>AI Hat: {system.npu_device || 'Hailo NPU'}</span>
             <span>&bull;</span>
             <span className={isHealthy ? 'text-emerald-500' : 'text-red-500 font-bold'}>
               Power/Throttle: {system.hardware_health?.message || 'OK'}

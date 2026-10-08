@@ -10,6 +10,25 @@ export default function AINode({ id, data, selected }) {
   const isCompact = data?.viewMode === 'compact';
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
   const [modelDetails, setModelDetails] = useState(null);
+  const [hailoDevice, setHailoDevice] = useState('Hailo NPU');
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/system/hailo')
+      .then(res => res.json())
+      .then(info => {
+        if (!isMounted) return;
+        if (info?.board_name) {
+          setHailoDevice(`${info.board_name} NPU`);
+        } else if (info?.device_arch === 'HAILO8') {
+          setHailoDevice('Hailo-8 NPU');
+        } else if (info?.device_arch === 'HAILO8L') {
+          setHailoDevice('Hailo-8L NPU');
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -46,7 +65,7 @@ export default function AINode({ id, data, selected }) {
         iconBg="bg-purple-600"
         headerBg="bg-purple-600/20 border-purple-900/50"
         defaultName="AI Model"
-        defaultSubtitle="Hailo-8L NPU"
+        defaultSubtitle={hailoDevice}
         data={data}
       />
 

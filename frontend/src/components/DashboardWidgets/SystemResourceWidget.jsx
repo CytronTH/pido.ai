@@ -101,7 +101,7 @@ export default function SystemResourceWidget({ config = {} }) {
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2 text-fg-muted font-medium">
               <Zap size={15} className="text-purple-500" />
-              <span>NPU Hailo-8L</span>
+              <span>NPU {metrics?.npu_device ? metrics.npu_device.split(' ')[0] : 'Hailo'}</span>
             </div>
             <span className={`text-xs font-mono w-10 text-right ${npuPercent > 0 ? 'text-purple-700 dark:text-purple-300 font-bold' : 'text-fg-subtle'}`}>
               {npuPercent.toFixed(0)}%
