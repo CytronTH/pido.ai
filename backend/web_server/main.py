@@ -1608,14 +1608,39 @@ class ThroughputTogglePayload(BaseModel):
 async def reset_throughput(payload: CounterResetPayload = CounterResetPayload()):
     try:
         global active_workers
-        worker = active_workers.get(payload.project_id)
-        if worker and hasattr(worker, 'config') and getattr(worker.config, 'router', None):
-            router = worker.config.router
-            for nid, node in router.nodes.items():
-                if getattr(node, 'node_type', None) == 'unitThroughputNode' and hasattr(node, 'reset_counts'):
-                    if payload.node_id is None or payload.node_id == nid:
-                        node.reset_counts()
-        return {"status": "success", "message": "Throughput reset successfully"}
+        found = False
+        workers = [active_workers[payload.project_id]] if payload.project_id in active_workers else list(active_workers.values())
+        for worker in workers:
+            if hasattr(worker, 'config') and getattr(worker.config, 'router', None):
+                router = worker.config.router
+                for nid, node in router.nodes.items():
+                    if getattr(node, 'node_type', None) == 'unitThroughputNode' and hasattr(node, 'reset_counts'):
+                        if payload.node_id is None or payload.node_id == nid:
+                            node.reset_counts()
+                            found = True
+
+        # Also reset persisted state in db/node_states.json
+        try:
+            state_file = Path(__file__).resolve().parent.parent / "db" / "node_states.json"
+            if state_file.exists():
+                with open(state_file, "r", encoding="utf-8") as f:
+                    all_states = json.load(f)
+                updated = False
+                for k in list(all_states.keys()):
+                    if payload.node_id is None or k.endswith(f"_{payload.node_id}") or k == payload.node_id:
+                        all_states[k]["current_count"] = 0
+                        all_states[k]["accumulated_run_time"] = 0.0
+                        all_states[k]["updated_at"] = time.time()
+                        updated = True
+                if updated:
+                    temp_file = state_file.with_suffix(".tmp")
+                    with open(temp_file, "w", encoding="utf-8") as f:
+                        json.dump(all_states, f, indent=2)
+                    temp_file.replace(state_file)
+        except Exception as se:
+            logger.warning(f"Error resetting persisted state for throughput node {payload.node_id}: {se}")
+
+        return {"status": "success", "message": "Throughput reset successfully", "found": found}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -1623,13 +1648,14 @@ async def reset_throughput(payload: CounterResetPayload = CounterResetPayload())
 async def toggle_throughput(payload: ThroughputTogglePayload):
     try:
         global active_workers
-        worker = active_workers.get(payload.project_id)
-        if worker and hasattr(worker, 'config') and getattr(worker.config, 'router', None):
-            router = worker.config.router
-            node = router.nodes.get(payload.node_id)
-            if node and hasattr(node, 'set_manual_state'):
-                node.set_manual_state(payload.state)
-                return {"status": "success", "message": f"Throughput state toggled to {payload.state}"}
+        workers = [active_workers[payload.project_id]] if payload.project_id in active_workers else list(active_workers.values())
+        for worker in workers:
+            if hasattr(worker, 'config') and getattr(worker.config, 'router', None):
+                router = worker.config.router
+                node = router.nodes.get(payload.node_id)
+                if node and hasattr(node, 'set_manual_state'):
+                    node.set_manual_state(payload.state)
+                    return {"status": "success", "message": f"Throughput state toggled to {payload.state}"}
         return {"status": "error", "message": "Node not found or unsupported"}
     except Exception as e:
         return {"status": "error", "message": str(e)}

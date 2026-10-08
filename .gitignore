@@ -15,6 +15,7 @@ backups/
 *.tar.gz
 *.zip
 backend/db/*.sqlite*
+backend/db/node_states.json
 
 # Video files are never committed (uploaded sources, wiki demo clips, etc.)
 *.mp4

@@ -194,44 +194,96 @@ export default memo(({ data, selected, isConnectable, id }) => {
     // Unit Throughput Node output
     if (meta.type === 'unit_throughput_update') {
       const isRunning = meta.is_running ?? false;
-      const rate = Number(meta.throughput ?? meta.current_rate_per_minute ?? 0).toFixed(1);
-      const avgRate = meta.average_rate !== undefined ? Number(meta.average_rate).toFixed(1) : null;
+      const primaryUnit = meta.rate_unit || 'minute';
+      const activeUnits = Array.isArray(meta.rate_units) && meta.rate_units.length > 0 
+        ? meta.rate_units 
+        : [primaryUnit];
       const units = meta.current_unit ?? meta.total_units ?? 0;
-      const unitLabel = meta.rate_unit || 'minute';
+
+      const getUnitRates = (u) => {
+        if (u === 'second') {
+          return {
+            label: '/sec',
+            name: 'Per Second',
+            rate: meta.current_rate_per_sec ?? (primaryUnit === 'second' ? meta.throughput : undefined),
+            avg: meta.average_rate_per_sec ?? (primaryUnit === 'second' ? meta.average_rate : undefined)
+          };
+        }
+        if (u === 'hour') {
+          return {
+            label: '/hr',
+            name: 'Per Hour',
+            rate: meta.current_rate_per_hour ?? (primaryUnit === 'hour' ? meta.throughput : undefined),
+            avg: meta.average_rate_per_hour ?? (primaryUnit === 'hour' ? meta.average_rate : undefined)
+          };
+        }
+        return {
+          label: '/min',
+          name: 'Per Minute',
+          rate: meta.current_rate_per_min ?? meta.current_rate_per_minute ?? (primaryUnit === 'minute' ? meta.throughput : undefined),
+          avg: meta.average_rate_per_min ?? meta.average_rate_per_minute ?? (primaryUnit === 'minute' ? meta.average_rate : undefined)
+        };
+      };
 
       return (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 font-semibold">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between font-semibold">
             <span className="text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-              ⏱️ Unit Throughput:
+              ⏱️ Unit Throughput
             </span>
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
-                isRunning
-                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                  : 'bg-surface-3 text-fg-muted border border-line'
-              }`}
-            >
-              {isRunning ? '● RUNNING' : '○ PAUSED'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-fg-muted font-mono">
+                Total: <strong className="text-blue-500 font-bold">{units}</strong>
+              </span>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                  isRunning
+                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                    : 'bg-surface-3 text-fg-muted border border-line'
+                }`}
+              >
+                {isRunning ? '● RUNNING' : '○ PAUSED'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3 ml-2 text-xs flex-wrap">
-            <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
-              <span className="text-fg-subtle">Rate:</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{rate}</span>
-              <span className="text-fg-faint text-[10px]">/{unitLabel.substring(0, 1)}</span>
-            </div>
-            {avgRate !== null && (
-              <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
-                <span className="text-fg-subtle">Avg:</span>
-                <span className="text-cyan-600 dark:text-cyan-400 font-bold font-mono">{avgRate}</span>
-                <span className="text-fg-faint text-[10px]">/{unitLabel.substring(0, 1)}</span>
-              </div>
-            )}
-            <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
-              <span className="text-fg-subtle">Units:</span>
-              <span className="text-blue-600 dark:text-blue-400 font-bold font-mono">{units}</span>
-            </div>
+
+          {/* Rates for each active rate unit */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {activeUnits.map(u => {
+              const info = getUnitRates(u);
+              const isPrimary = u === primaryUnit;
+              const rateVal = info.rate !== undefined ? Number(info.rate).toFixed(1) : '-';
+              const avgVal = info.avg !== undefined ? Number(info.avg).toFixed(1) : null;
+
+              return (
+                <div 
+                  key={u} 
+                  className={`p-1.5 rounded border flex flex-col gap-0.5 ${
+                    isPrimary 
+                      ? 'bg-surface-2/80 border-indigo-500/40 shadow-sm' 
+                      : 'bg-canvas border-line'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-bold text-fg-secondary uppercase tracking-wider font-mono">
+                      {info.label} {isPrimary && <span className="text-[9px] text-indigo-400 font-normal lowercase">(primary)</span>}
+                    </span>
+                    <span className="text-[9px] text-fg-subtle">{info.name}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between mt-0.5 font-mono">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xs font-bold text-emerald-500">{rateVal}</span>
+                      <span className="text-[9px] text-fg-faint">{info.label}</span>
+                    </div>
+                    {avgVal !== null && (
+                      <span className="text-[10px] text-cyan-600 dark:text-cyan-400" title="Average Rate">
+                        Avg: {avgVal}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       );

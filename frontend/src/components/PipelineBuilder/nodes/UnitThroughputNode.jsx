@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Activity, AlertTriangle } from 'lucide-react';
+import { Activity, AlertTriangle, RotateCcw } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 import NodeHeader from './NodeHeader';
 import UnitThroughputNodeSettings from '../settings/UnitThroughputNodeSettings';
@@ -108,8 +108,48 @@ export default function UnitThroughputNode({ id, data, selected }) {
                 Avg: {hasConflict ? '0.0' : Number(liveAvgRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))}
               </div>
             </div>
-            <div className="bg-canvas p-2 rounded border border-line text-center">
-              <div className="text-[10px] uppercase text-fg-subtle">Total Units</div>
+            <div className="bg-canvas p-2 rounded border border-line text-center relative group">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] uppercase text-fg-subtle">Total Units</span>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    const pid = usePipelineStore.getState().projectId || 'default';
+                    try {
+                      await fetch('/api/analytics/throughput/reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ project_id: pid, node_id: id })
+                      });
+                      const setDebugData = usePipelineStore.getState().setDebugData;
+                      if (setDebugData) {
+                        setDebugData(id, {
+                          ...debugState,
+                          current_unit: 0,
+                          total_units: 0,
+                          throughput: 0,
+                          current_rate: 0,
+                          average_rate: 0,
+                          current_rate_per_sec: 0,
+                          average_rate_per_sec: 0,
+                          current_rate_per_min: 0,
+                          average_rate_per_min: 0,
+                          current_rate_per_hour: 0,
+                          average_rate_per_hour: 0
+                        });
+                      }
+                      updateNodeData(id, { current_unit: 0, total_units: 0, throughput: 0 });
+                    } catch (err) {
+                      console.error("Failed to reset throughput counter:", err);
+                    }
+                  }}
+                  className="text-fg-faint hover:text-red-500 hover:bg-surface-2 p-0.5 rounded transition-colors"
+                  title="Reset Counter to 0"
+                >
+                  <RotateCcw size={11} />
+                </button>
+              </div>
               <div className="text-sm font-mono text-blue-600 dark:text-blue-400 font-bold">
                 {hasConflict ? '0' : liveCount}
               </div>
