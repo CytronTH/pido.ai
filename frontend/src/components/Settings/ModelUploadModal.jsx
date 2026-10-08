@@ -448,7 +448,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
                   ))}
                 </select>
                 <span className="text-[10px] text-fg-subtle block">
-                  Installed TAPPAS shared libraries on device. By default, IRIV Vision Studio pairs the appropriate YOLO or classification library automatically.
+                  Installed TAPPAS shared libraries on device. By default, PiDo.AI pairs the appropriate YOLO or classification library automatically.
                 </span>
               </div>
             )}

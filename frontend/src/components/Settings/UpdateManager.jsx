@@ -12,6 +12,7 @@ export default function UpdateManager() {
   const [versionLoading, setVersionLoading] = useState(true);
 
   // Update Check State
+  const [selectedChannel, setSelectedChannel] = useState('dev');
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [checkError, setCheckError] = useState(null);
@@ -47,6 +48,8 @@ export default function UpdateManager() {
       const data = await res.json();
       if (data.status === 'success') {
         setVersionInfo(data);
+        const ch = data.branch === 'main' ? 'main' : 'dev';
+        setSelectedChannel(ch);
       }
     } catch (err) {
       console.error('Failed to fetch system version:', err);
@@ -55,16 +58,17 @@ export default function UpdateManager() {
     }
   };
 
-  const handleCheckUpdates = async () => {
+  const handleCheckUpdates = async (channelToUse) => {
+    const targetChannel = channelToUse || selectedChannel;
     try {
       setCheckingUpdate(true);
       setCheckError(null);
-      const res = await fetch('/api/system/update/check');
+      const res = await fetch(`/api/system/update/check?channel=${targetChannel}`);
       const data = await res.json();
 
       if (data.status === 'offline') {
         setCheckError('System appears to be offline or unable to reach GitHub remote repository.');
-        setUpdateInfo({ has_update: false, offline: true });
+        setUpdateInfo({ has_update: false, offline: true, branch: versionInfo?.branch, target_branch: targetChannel });
       } else if (data.status === 'success') {
         setUpdateInfo(data);
       } else {
@@ -75,6 +79,11 @@ export default function UpdateManager() {
     } finally {
       setCheckingUpdate(false);
     }
+  };
+
+  const handleChannelSelect = (newChannel) => {
+    setSelectedChannel(newChannel);
+    handleCheckUpdates(newChannel);
   };
 
   const checkCurrentUpdateStatus = async () => {
@@ -155,9 +164,17 @@ export default function UpdateManager() {
   };
 
   const handleApplyUpdate = async () => {
-    const confirmMsg = updateInfo?.commits_behind 
-      ? `Update platform with ${updateInfo.commits_behind} new commit(s)? System will restart automatically.`
-      : "Update platform to latest version? System will restart automatically.";
+    const isSwitch = updateInfo?.is_channel_switch;
+    const targetBranch = updateInfo?.target_branch || selectedChannel;
+
+    let confirmMsg = '';
+    if (isSwitch) {
+      confirmMsg = `Switch release channel from "${updateInfo?.branch}" to "${targetBranch}"? Platform will sync and restart automatically.`;
+    } else if (updateInfo?.commits_behind) {
+      confirmMsg = `Update platform with ${updateInfo.commits_behind} new commit(s) on "${targetBranch}"? System will restart automatically.`;
+    } else {
+      confirmMsg = `Force re-sync platform to latest "${targetBranch}"? System will restart automatically.`;
+    }
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -167,7 +184,7 @@ export default function UpdateManager() {
       const res = await fetch('/api/system/update/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target_version: updateInfo?.latest_version || 'main' })
+        body: JSON.stringify({ target_version: targetBranch })
       });
       const data = await res.json();
       if (data.status === 'success') {
@@ -241,7 +258,7 @@ export default function UpdateManager() {
             <h3 className="text-lg font-bold text-fg flex items-center gap-2">
               Platform & System Updates
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 font-semibold">
-                IRIV Vision Studio
+                PiDo.AI Platform
               </span>
             </h3>
             <p className="text-sm text-fg-muted mt-0.5">
@@ -251,13 +268,70 @@ export default function UpdateManager() {
         </div>
 
         <button
-          onClick={handleCheckUpdates}
+          onClick={() => handleCheckUpdates()}
           disabled={checkingUpdate || updating}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-blue-900/30 active:scale-95 shrink-0 w-full sm:w-auto justify-center"
         >
           <RefreshCw size={16} className={checkingUpdate ? 'animate-spin' : ''} />
           {checkingUpdate ? 'Checking Remote...' : 'Check for Updates'}
         </button>
+      </div>
+
+      {/* ── Release Channel Selector ── */}
+      <div className="bg-surface/90 border border-line rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <GitBranch size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-fg">Update Channel</span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-fg-muted border border-line font-mono">
+                Active: {versionInfo?.branch || 'dev'}
+              </span>
+            </div>
+            <p className="text-xs text-fg-muted mt-0.5">
+              Select between stable production releases or development beta updates.
+            </p>
+          </div>
+        </div>
+
+        {/* 2-Option Segmented Switcher */}
+        <div className="flex items-center p-1 bg-surface-2 rounded-xl border border-line w-full md:w-auto shrink-0">
+          <button
+            type="button"
+            onClick={() => handleChannelSelect('main')}
+            disabled={checkingUpdate || updating}
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              selectedChannel === 'main'
+                ? 'bg-surface text-emerald-600 dark:text-emerald-400 shadow-sm border border-line'
+                : 'text-fg-muted hover:text-fg'
+            }`}
+          >
+            <ShieldCheck size={14} className={selectedChannel === 'main' ? 'text-emerald-500' : 'text-fg-subtle'} />
+            <span>Stable (main)</span>
+            {versionInfo?.branch === 'main' && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-mono font-bold">CURRENT</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleChannelSelect('dev')}
+            disabled={checkingUpdate || updating}
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              selectedChannel === 'dev'
+                ? 'bg-surface text-purple-600 dark:text-purple-400 shadow-sm border border-line'
+                : 'text-fg-muted hover:text-fg'
+            }`}
+          >
+            <Sparkles size={14} className={selectedChannel === 'dev' ? 'text-purple-500' : 'text-fg-subtle'} />
+            <span>Development (dev)</span>
+            {versionInfo?.branch === 'dev' && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 font-mono font-bold">CURRENT</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Grid: Current Version & System Info */}
@@ -331,7 +405,7 @@ export default function UpdateManager() {
               Database & Models Safeguarded
             </div>
             <p className="text-xs text-fg-muted mt-1">
-              Previous configurations are backed up to <code className="text-fg-secondary bg-surface-2 px-1 rounded">/home/pi/iriv-backups/</code> before update.
+              Previous configurations are backed up to <code className="text-fg-secondary bg-surface-2 px-1 rounded">/home/pi/pido-ai-backups/</code> before update.
             </p>
           </div>
           <div className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 pt-3 mt-2 border-t border-line/80 flex items-center gap-1">
@@ -361,15 +435,21 @@ export default function UpdateManager() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
-                    New Update Available
+                  <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                    updateInfo.is_channel_switch
+                      ? 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20'
+                      : 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20'
+                  }`}>
+                    {updateInfo.is_channel_switch ? 'Channel Switch Ready' : 'New Update Available'}
                   </span>
                   <span className="text-sm font-semibold text-fg-secondary font-mono">
-                    {updateInfo.commits_behind} commit(s) ahead
+                    {updateInfo.is_channel_switch
+                      ? `Target: ${updateInfo.target_branch}`
+                      : `${updateInfo.commits_behind} commit(s) ahead`}
                   </span>
                 </div>
                 <h4 className="text-xl font-bold text-fg mt-1">
-                  IRIV Vision Studio {updateInfo.latest_version || 'Latest'}
+                  PiDo.AI Platform {updateInfo.latest_version || 'Latest'}
                 </h4>
                 <p className="text-xs sm:text-sm text-fg-secondary mt-1">
                   Ready to upgrade from <span className="font-mono text-fg-muted">{updateInfo.current_version}</span> to latest remote code.
@@ -380,10 +460,18 @@ export default function UpdateManager() {
             <button
               onClick={handleApplyUpdate}
               disabled={updating}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-900/30 active:scale-95 shrink-0"
+              className={`flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 shrink-0 ${
+                updateInfo.is_channel_switch
+                  ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/30'
+                  : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/30'
+              }`}
             >
               <DownloadCloud size={18} />
-              {updating ? 'Updating System...' : 'Update to Latest Now'}
+              {updating 
+                ? 'Updating System...' 
+                : updateInfo.is_channel_switch
+                ? `Switch to ${updateInfo.target_branch === 'main' ? 'Stable (main)' : 'Development (dev)'}`
+                : 'Update to Latest Now'}
             </button>
           </div>
 
@@ -415,9 +503,11 @@ export default function UpdateManager() {
               <Check size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-fg">IRIV Vision Studio is Up to Date</h4>
+              <h4 className="text-sm font-semibold text-fg">
+                PiDo.AI Platform is Up to Date ({updateInfo.target_branch === 'main' ? 'Stable Channel' : 'Development Channel'})
+              </h4>
               <p className="text-xs text-fg-muted mt-0.5">
-                Your system is running the latest commits on branch <span className="font-mono text-fg-secondary">{updateInfo.branch || 'main'}</span>.
+                Your system is running the latest commits on branch <span className="font-mono text-fg-secondary">{updateInfo.target_branch || updateInfo.branch || 'main'}</span>.
               </p>
             </div>
           </div>
@@ -437,23 +527,51 @@ export default function UpdateManager() {
         <div className="bg-surface border border-blue-500/40 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <Loader2 size={18} className="animate-spin text-blue-600 dark:text-blue-400" />
+              {updateStatus?.status === 'completed' ? (
+                <CheckCircle2 size={18} className="text-emerald-500" />
+              ) : updateStatus?.status === 'failed' ? (
+                <AlertCircle size={18} className="text-red-500" />
+              ) : (
+                <Loader2 size={18} className="animate-spin text-blue-600 dark:text-blue-400" />
+              )}
               <span className="text-sm font-bold text-fg">
-                {updateStatus?.step === 'restart' || reconnecting ? 'Platform Restarting...' : 'Applying Platform Update...'}
+                {updateStatus?.status === 'completed'
+                  ? 'Update Completed Successfully'
+                  : updateStatus?.status === 'failed'
+                  ? 'Update Failed'
+                  : updateStatus?.step === 'restart' || reconnecting
+                  ? 'Platform Restarting...'
+                  : 'Applying Platform Update...'}
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 font-mono font-semibold">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-mono font-semibold ${
+                updateStatus?.status === 'completed'
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : updateStatus?.status === 'failed'
+                  ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                  : 'bg-blue-500/20 text-blue-700 dark:text-blue-300'
+              }`}>
                 {updateStatus?.progress || 0}%
               </span>
             </div>
 
-            <button
-              onClick={() => setShowLogDrawer(!showLogDrawer)}
-              className="text-xs text-fg-muted hover:text-fg flex items-center gap-1 transition-colors"
-            >
-              <Terminal size={14} />
-              {showLogDrawer ? 'Hide Logs' : 'View Logs'}
-              {showLogDrawer ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowLogDrawer(!showLogDrawer)}
+                className="text-xs text-fg-muted hover:text-fg flex items-center gap-1 transition-colors"
+              >
+                <Terminal size={14} />
+                {showLogDrawer ? 'Hide Logs' : 'View Logs'}
+                {showLogDrawer ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              {(updateStatus?.status === 'completed' || updateStatus?.status === 'failed') && !updating && (
+                <button
+                  onClick={() => setUpdateStatus(null)}
+                  className="text-xs text-fg-muted hover:text-fg px-2 py-1 rounded bg-surface-2 hover:bg-surface-3 transition-colors"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Progress Bar */}
@@ -498,7 +616,7 @@ export default function UpdateManager() {
             </div>
             <h3 className="text-xl font-bold text-fg">Restarting Platform</h3>
             <p className="text-sm text-fg-secondary mt-2">
-              IRIV Vision Studio is restarting with the latest updates. Reconnecting to services automatically...
+              PiDo.AI Platform is restarting with the latest updates. Reconnecting to services automatically...
             </p>
             <div className="mt-6 flex items-center justify-center gap-2">
               <span className="text-xs text-fg-muted">Estimated reconnect:</span>

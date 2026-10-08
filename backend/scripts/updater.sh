@@ -11,12 +11,12 @@ export GIT_TERMINAL_PROMPT=0
 # ── Paths & Constants ─────────────────────────────────────────────────────────
 PROJECT_ROOT="/home/pi/pido-ai"
 BACKUP_BASE_DIR="/home/pi/pido-ai-backups"
-STATUS_FILE="/tmp/pido_pi_update_status.json"
-LOG_FILE="/tmp/pido_pi_update.log"
-LOCK_FILE="/tmp/pido_pi_update.lock"
+STATUS_FILE="/tmp/pido_update_status.json"
+LOG_FILE="/tmp/pido_update.log"
+LOCK_FILE="/tmp/pido_update.lock"
 
 MODE="online"           # "online" or "offline"
-TARGET_VERSION="main"   # Tag, commit, or branch
+TARGET_VERSION=""       # Tag, commit, or branch (defaults to current branch if empty)
 PACKAGE_PATH=""         # Path to uploaded .tar.gz for offline mode
 
 # ── Parse Arguments ───────────────────────────────────────────────────────────
@@ -86,6 +86,9 @@ handle_error() {
     if [ -n "$CURRENT_BACKUP_DIR" ] && [ -d "$CURRENT_BACKUP_DIR" ]; then
         echo "Attempting to restore database from backup $CURRENT_BACKUP_DIR..." >> "$LOG_FILE"
         cp -r "$CURRENT_BACKUP_DIR/db/"* "$PROJECT_ROOT/backend/db/" 2>/dev/null || true
+        if [ -f "$CURRENT_BACKUP_DIR/.env" ]; then
+            cp "$CURRENT_BACKUP_DIR/.env" "$PROJECT_ROOT/backend/.env" 2>/dev/null || true
+        fi
     fi
 
     update_status "failed" "error" 0 "$err_msg"
@@ -124,7 +127,7 @@ fi
 # Rotate backups: keep last 5 backups
 mkdir -p "$BACKUP_BASE_DIR"
 cd "$BACKUP_BASE_DIR"
-ls -dt backup_* 2>/dev/null | tail -n +6 | xargs -r rm -rf
+(ls -dt backup_* 2>/dev/null || true) | tail -n +6 | xargs -r rm -rf
 
 echo "Backup created at $CURRENT_BACKUP_DIR" >> "$LOG_FILE"
 update_status "running" "backup" 30 "Backup completed successfully."
@@ -140,23 +143,35 @@ if [ "$MODE" = "online" ]; then
 
     git fetch origin --tags >> "$LOG_FILE" 2>&1
 
-    if [ "$TARGET_VERSION" != "main" ] && [ "$TARGET_VERSION" != "origin/main" ]; then
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "dev")
+    if [ -z "$TARGET_VERSION" ] || [ "$TARGET_VERSION" = "current" ]; then
+        TARGET_VERSION="$CURRENT_BRANCH"
+    fi
+
+    # Check if TARGET_VERSION is a local or remote branch
+    if git show-ref --verify --quiet "refs/heads/$TARGET_VERSION" || git show-ref --verify --quiet "refs/remotes/origin/$TARGET_VERSION"; then
+        update_status "running" "pull" 55 "Updating branch $TARGET_VERSION to latest origin/$TARGET_VERSION..."
+        if ! git show-ref --verify --quiet "refs/heads/$TARGET_VERSION"; then
+            git checkout -b "$TARGET_VERSION" --track "origin/$TARGET_VERSION" >> "$LOG_FILE" 2>&1 || git checkout -f "$TARGET_VERSION" >> "$LOG_FILE" 2>&1
+        else
+            git checkout -f "$TARGET_VERSION" >> "$LOG_FILE" 2>&1
+        fi
+        git pull origin "$TARGET_VERSION" >> "$LOG_FILE" 2>&1
+    else
         update_status "running" "pull" 55 "Checking out release tag/commit: $TARGET_VERSION..."
         git checkout -f "$TARGET_VERSION" >> "$LOG_FILE" 2>&1
-    else
-        update_status "running" "pull" 55 "Updating branch main to latest origin/main..."
-        git checkout -f main >> "$LOG_FILE" 2>&1
-        git pull origin main >> "$LOG_FILE" 2>&1
     fi
 
 elif [ "$MODE" = "offline" ]; then
     if [ -z "$PACKAGE_PATH" ] || [ ! -f "$PACKAGE_PATH" ]; then
         echo "Offline package not found at: $PACKAGE_PATH" >> "$LOG_FILE"
+        update_status "failed" "error" 0 "Offline package not found at: $PACKAGE_PATH"
+        rm -f "$LOCK_FILE"
         exit 2
     fi
 
     update_status "running" "pull" 45 "Extracting offline update package..."
-    TMP_EXTRACT="/tmp/pido_pi_update_extracted"
+    TMP_EXTRACT="/tmp/pido_update_extracted"
     rm -rf "$TMP_EXTRACT"
     mkdir -p "$TMP_EXTRACT"
     tar -xzf "$PACKAGE_PATH" -C "$TMP_EXTRACT" >> "$LOG_FILE" 2>&1
@@ -170,12 +185,15 @@ elif [ "$MODE" = "offline" ]; then
               --exclude='*.log' \
               "$TMP_EXTRACT/" "$PROJECT_ROOT/" >> "$LOG_FILE" 2>&1
     rm -rf "$TMP_EXTRACT"
+    if [[ "$PACKAGE_PATH" == /tmp/* ]] && [ -f "$PACKAGE_PATH" ]; then
+        rm -f "$PACKAGE_PATH"
+    fi
 fi
 
 # Re-ensure assume-unchanged on DB files
 git update-index --assume-unchanged backend/db/vision_studio.sqlite backend/db/vision_studio.sqlite-shm backend/db/vision_studio.sqlite-wal 2>/dev/null || true
 
-# ── Step 3: Install & Sync Dependencies ───────────────────────────────────────
+# ── Step 3: Install & Sync Dependencies & Build Frontend ──────────────────────
 update_status "running" "install" 70 "Checking and installing dependencies..."
 
 # Python dependencies
@@ -188,11 +206,15 @@ if [ -f "$PROJECT_ROOT/backend/requirements.txt" ]; then
     fi
 fi
 
-# Frontend dependencies
+# Frontend dependencies & build production bundle
 if [ -f "$PROJECT_ROOT/frontend/package.json" ]; then
     echo "Syncing Frontend packages..." >> "$LOG_FILE"
     cd "$PROJECT_ROOT/frontend"
     npm install --prefer-offline >> "$LOG_FILE" 2>&1 || true
+
+    update_status "running" "install" 80 "Building frontend production bundle..."
+    echo "Building frontend production bundle..." >> "$LOG_FILE"
+    npm run build >> "$LOG_FILE" 2>&1 || true
 fi
 
 # ── Step 4: Run Database Migrations ───────────────────────────────────────────
