@@ -128,6 +128,10 @@ PACKAGES=(
     psmisc
     curl
     git
+    python3-opencv
+    python3-serial
+    python3-yaml
+    python3-psutil
 )
 
 sudo apt-get install -y "${PACKAGES[@]}"
@@ -193,7 +197,7 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 pip install --upgrade pip --quiet
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt
 deactivate
 log_success "Backend environment configured successfully."
 
