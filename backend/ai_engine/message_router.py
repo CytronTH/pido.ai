@@ -495,7 +495,6 @@ class UnitThroughputNode(PipelineNode):
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="unitThroughputNode")
         from collections import deque
-        from ai_engine.centroid_tracker import CentroidTracker
 
         self.start_trigger = data.get("startTrigger", "first_object")
         self.pause_trigger = data.get("pauseTrigger", "timeout")
@@ -504,13 +503,10 @@ class UnitThroughputNode(PipelineNode):
         self.decimal_places = int(data.get("decimalPlaces", 2))
         self.window_seconds = float(data.get("windowSeconds", 60.0))
         
-        self.tracker = CentroidTracker(
-            max_disappeared=20,
-            max_distance=0.15
-        )
-        
         self.is_running = False
-        self.start_time = None
+        self.start_time = None          # Overall initial start timestamp
+        self.session_start_time = None  # Timestamp when current active running session began
+        self.accumulated_run_time = 0.0 # Total active operating duration in seconds across all past sessions
         self.current_count = 0
         self.last_object_time = None
         self.throughput = 0.0
@@ -525,34 +521,53 @@ class UnitThroughputNode(PipelineNode):
         self.manual_state = False
 
     def reset_counts(self):
-        from collections import deque
         self.is_running = False
         self.start_time = None
+        self.session_start_time = None
+        self.accumulated_run_time = 0.0
         self.current_count = 0
         self.last_object_time = None
         self.throughput = 0.0
         self.current_rate = 0.0
         self.average_rate = 0.0
-        self._history = deque(maxlen=500)
+        self._history.clear()
         self._last_rate_calc_ts = None
         self._last_numeric_payload = None
         self._last_bool_payload = False
         self.manual_state = False
-        self.tracker = __import__('ai_engine.centroid_tracker', fromlist=['CentroidTracker']).CentroidTracker(max_disappeared=20, max_distance=0.15)
         
         self._emit_telemetry()
+
+    def _trigger_pause(self, now: float, reason: str = "timeout") -> None:
+        if not self.is_running:
+            return
+        self.is_running = False
+        self.current_rate = 0.0
+        self.throughput = 0.0
+        self._history.clear()
+        
+        # Accumulate active duration of this session
+        if self.session_start_time is not None:
+            if reason == "timeout" and self.last_object_time:
+                session_end = max(self.last_object_time, self.session_start_time)
+            else:
+                session_end = now
+            active_duration = max(session_end - self.session_start_time, 0.0)
+            self.accumulated_run_time += active_duration
+            self.session_start_time = None
 
     def set_manual_state(self, state: bool):
         import time
         now = time.time()
         self.manual_state = state
-        self.is_running = state
-        if state and self.start_time is None:
-            self.start_time = now
+        if state:
+            self.is_running = True
+            self.session_start_time = now
+            if self.start_time is None:
+                self.start_time = now
             self._last_rate_calc_ts = now
-        elif not state:
-            self.current_rate = 0.0
-            self.throughput = 0.0
+        else:
+            self._trigger_pause(now, reason="manual")
         self._emit_telemetry()
 
     def process(self, msg: dict):
@@ -606,27 +621,26 @@ class UnitThroughputNode(PipelineNode):
             if self.start_trigger == "first_object":
                 if newly_counted > 0:
                     self.is_running = True
-                    self.start_time = now
+                    self.session_start_time = now
+                    if self.start_time is None:
+                        self.start_time = now
                     self._last_rate_calc_ts = now
             elif self.start_trigger == "manual":
                 if self.manual_state:
                     self.is_running = True
+                    self.session_start_time = now
                     if self.start_time is None:
                         self.start_time = now
-                        self._last_rate_calc_ts = now
+                    self._last_rate_calc_ts = now
             
         # Evaluate Pause Trigger
         if self.is_running:
             if self.pause_trigger == "timeout":
                 if self.last_object_time and (now - self.last_object_time) > self.pause_timeout_seconds:
-                    self.is_running = False
-                    self.current_rate = 0.0
-                    self.throughput = 0.0
+                    self._trigger_pause(now, reason="timeout")
             elif self.pause_trigger == "manual":
                 if not self.manual_state:
-                    self.is_running = False
-                    self.current_rate = 0.0
-                    self.throughput = 0.0
+                    self._trigger_pause(now, reason="manual")
 
         # Update Counts & Sliding Window History
         if self.is_running and newly_counted > 0:
@@ -667,15 +681,17 @@ class UnitThroughputNode(PipelineNode):
 
                     current_rate_per_sec = completed_intervals / max(effective_dt, 0.5)
 
-                # 2. Average Rate (Cumulative from start)
-                elapsed_total = now - self.start_time
-                if self.current_count < 2 or elapsed_total <= 0.5:
+                # 2. Average Rate (Cumulative active operating time across all running sessions)
+                current_session_dur = (now - self.session_start_time) if (self.is_running and self.session_start_time) else 0.0
+                total_active_elapsed = self.accumulated_run_time + current_session_dur
+
+                if self.current_count < 2 or total_active_elapsed <= 0.5:
                     avg_rate_per_sec = 0.0
                 else:
                     if self.start_trigger == "first_object":
-                        avg_rate_per_sec = (self.current_count - 1) / elapsed_total
+                        avg_rate_per_sec = (self.current_count - 1) / total_active_elapsed
                     else:
-                        avg_rate_per_sec = self.current_count / elapsed_total
+                        avg_rate_per_sec = self.current_count / total_active_elapsed
 
                 # Multiplier for Rate Unit
                 if self.rate_unit == "minute":
@@ -1727,6 +1743,8 @@ class MessageRouter:
                         new_node.current_count = old_node.current_count
                         new_node.is_running = getattr(old_node, 'is_running', False)
                         new_node.start_time = getattr(old_node, 'start_time', None)
+                        new_node.session_start_time = getattr(old_node, 'session_start_time', None)
+                        new_node.accumulated_run_time = getattr(old_node, 'accumulated_run_time', 0.0)
                         new_node.last_object_time = getattr(old_node, 'last_object_time', None)
                         new_node._history = getattr(old_node, '_history', deque(maxlen=500))
 
@@ -1750,9 +1768,6 @@ class MessageRouter:
                             new_node.current_rate = getattr(old_node, 'current_rate', 0.0)
                             new_node.average_rate = getattr(old_node, 'average_rate', 0.0)
                             new_node._last_rate_calc_ts = getattr(old_node, '_last_rate_calc_ts', None)
-
-                        if hasattr(old_node, 'tracker') and hasattr(new_node, 'tracker'):
-                            new_node.tracker = old_node.tracker
 
             # Update nodes' router reference
             for node in new_nodes.values():
