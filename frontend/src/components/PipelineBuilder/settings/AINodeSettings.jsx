@@ -25,6 +25,23 @@ export default function AINodeSettings({ nodeId, data, onChange, isSidebar }) {
   const upstreamNode = upstreamEdge ? nodes.find(n => n.id === upstreamEdge.source) : null;
   const isInputNode = upstreamNode?.type === 'inputNode';
 
+  const [hailoDevice, setHailoDevice] = useState('Hailo NPU');
+
+  useEffect(() => {
+    fetch('/api/system/hailo')
+      .then(res => res.json())
+      .then(info => {
+        if (info?.board_name) {
+          setHailoDevice(`${info.board_name} NPU`);
+        } else if (info?.device_arch === 'HAILO8') {
+          setHailoDevice('Hailo-8 NPU');
+        } else if (info?.device_arch === 'HAILO8L') {
+          setHailoDevice('Hailo-8L NPU');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetch('/api/entities', { cache: 'no-store' })
       .then(res => res.json())
@@ -83,7 +100,7 @@ export default function AINodeSettings({ nodeId, data, onChange, isSidebar }) {
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-semibold text-fg-secondary">Hardware</label>
         <select className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-purple-500 w-full text-fg-muted" disabled>
-          <option>Hailo-8L NPU</option>
+          <option>{hailoDevice}</option>
         </select>
       </div>
       

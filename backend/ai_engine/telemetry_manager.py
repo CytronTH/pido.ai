@@ -214,7 +214,17 @@ class TelemetryManager:
         )
         self._sampler_thread.start()
 
-        logger.info("TelemetryManager initialized with dedicated 1Hz Precision Sampler.")
+        # Detect connected Hailo NPU device dynamically
+        try:
+            from ai_engine.hailo_detector import get_hailo_device_info
+            hailo_info = get_hailo_device_info()
+            board_name = hailo_info.get("board_name") or ("Hailo-8" if hailo_info.get("device_arch") == "HAILO8" else "Hailo-8L")
+            device_id = hailo_info.get("device_id")
+            self._npu_device_label = f"{board_name} (PCIe {device_id})" if device_id else f"{board_name} NPU"
+        except Exception:
+            self._npu_device_label = "Hailo NPU (PCIe)"
+
+        logger.info(f"TelemetryManager initialized with dedicated 1Hz Precision Sampler (NPU: {self._npu_device_label}).")
 
     def _find_mediamtx_process(self) -> None:
         """Locates the MediaMTX daemon process if running."""
@@ -811,7 +821,7 @@ class TelemetryManager:
                 "cpu_freq_mhz": freq_mhz,
                 "core_voltage_v": core_volt,
                 "npu_percent": round(global_npu_util, 1),
-                "npu_device": "Hailo-8L (PCIe 0001:03:00.0)",
+                "npu_device": getattr(self, "_npu_device_label", "Hailo NPU (PCIe)"),
                 "hardware_health": health
             },
             "attribution": {
