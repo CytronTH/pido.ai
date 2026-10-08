@@ -13,6 +13,7 @@ export default function UnitThroughputNode({ id, data, selected }) {
   const debugState = debugData[id] || {};
   
   const liveRate = debugState?.throughput ?? debugState?.current_rate_per_minute ?? data?.throughput ?? 0;
+  const liveAvgRate = debugState?.average_rate ?? debugState?.average_rate_per_minute ?? 0;
   const liveCount = debugState?.current_unit ?? debugState?.total_units ?? data?.current_unit ?? 0;
   const isRunning = debugState?.is_running ?? data?.is_running ?? false;
   
@@ -34,6 +35,12 @@ export default function UnitThroughputNode({ id, data, selected }) {
         startTrigger: 'first_object',
         pauseTrigger: 'timeout',
         pauseTimeoutSeconds: 60,
+        windowMode: 'time',
+        windowSeconds: 60,
+        windowSamples: 10,
+        startTimeConfig: '08:00',
+        pauseTimeConfig: '17:00',
+        autoResetDaily: false,
         rateUnit: 'minute'
       });
     }
@@ -80,18 +87,34 @@ export default function UnitThroughputNode({ id, data, selected }) {
 
       {!isCompact && (
         <div className="p-4 flex flex-col gap-3">
+          {/* Node mode badges */}
+          <div className="flex items-center justify-between text-[10px] text-fg-subtle px-0.5">
+            <span className="font-mono bg-surface-2 px-1.5 py-0.5 rounded border border-line-strong text-fg-muted">
+              {data?.windowMode === 'count' ? `Window: ${data?.windowSamples ?? 10} pcs` : `Window: ${data?.windowSeconds ?? 60}s`}
+            </span>
+            <span className="text-fg-muted">
+              {data?.startTrigger === 'time' ? `⏰ ${data?.startTimeConfig || '08:00'}` : (data?.startTrigger === 'first_object' ? '🎯 1st Obj' : '✋ Manual')}
+            </span>
+          </div>
+
           {/* Quick Stats on the Node itself */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="bg-canvas p-2 rounded border border-line text-center">
-              <div className="text-[10px] uppercase text-fg-subtle">Rate</div>
+              <div className="text-[10px] uppercase text-fg-subtle">Current Rate</div>
               <div className="text-sm font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                {hasConflict ? '0.0' : Number(liveRate).toFixed(1)} <span className="text-[9px]">/{data?.rateUnit?.substring(0,1) || 'm'}</span>
+                {hasConflict ? '0.0' : Number(liveRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))} <span className="text-[9px]">/{data?.rateUnit === 'second' ? 's' : (data?.rateUnit === 'hour' ? 'h' : 'm')}</span>
+              </div>
+              <div className="text-[9px] text-fg-muted font-mono mt-0.5" title="All-time average rate">
+                Avg: {hasConflict ? '0.0' : Number(liveAvgRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))}
               </div>
             </div>
             <div className="bg-canvas p-2 rounded border border-line text-center">
-              <div className="text-[10px] uppercase text-fg-subtle">Units</div>
+              <div className="text-[10px] uppercase text-fg-subtle">Total Units</div>
               <div className="text-sm font-mono text-blue-600 dark:text-blue-400 font-bold">
                 {hasConflict ? '0' : liveCount}
+              </div>
+              <div className="text-[9px] text-fg-muted mt-0.5">
+                {isRunning ? '● Running' : '○ Paused'}
               </div>
             </div>
           </div>

@@ -195,6 +195,7 @@ export default memo(({ data, selected, isConnectable, id }) => {
     if (meta.type === 'unit_throughput_update') {
       const isRunning = meta.is_running ?? false;
       const rate = Number(meta.throughput ?? meta.current_rate_per_minute ?? 0).toFixed(1);
+      const avgRate = meta.average_rate !== undefined ? Number(meta.average_rate).toFixed(1) : null;
       const units = meta.current_unit ?? meta.total_units ?? 0;
       const unitLabel = meta.rate_unit || 'minute';
 
@@ -214,12 +215,19 @@ export default memo(({ data, selected, isConnectable, id }) => {
               {isRunning ? '● RUNNING' : '○ PAUSED'}
             </span>
           </div>
-          <div className="flex items-center gap-3 ml-2 text-xs">
+          <div className="flex items-center gap-3 ml-2 text-xs flex-wrap">
             <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
               <span className="text-fg-subtle">Rate:</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{rate}</span>
               <span className="text-fg-faint text-[10px]">/{unitLabel.substring(0, 1)}</span>
             </div>
+            {avgRate !== null && (
+              <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
+                <span className="text-fg-subtle">Avg:</span>
+                <span className="text-cyan-600 dark:text-cyan-400 font-bold font-mono">{avgRate}</span>
+                <span className="text-fg-faint text-[10px]">/{unitLabel.substring(0, 1)}</span>
+              </div>
+            )}
             <div className="bg-canvas px-2 py-0.5 rounded border border-line flex items-center gap-1.5">
               <span className="text-fg-subtle">Units:</span>
               <span className="text-blue-600 dark:text-blue-400 font-bold font-mono">{units}</span>
