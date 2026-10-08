@@ -35,7 +35,12 @@ export default function UnitThroughputNode({ id, data, selected }) {
         startTrigger: 'first_object',
         pauseTrigger: 'timeout',
         pauseTimeoutSeconds: 60,
+        windowMode: 'time',
         windowSeconds: 60,
+        windowSamples: 10,
+        startTimeConfig: '08:00',
+        pauseTimeConfig: '17:00',
+        autoResetDaily: false,
         rateUnit: 'minute'
       });
     }
@@ -82,6 +87,16 @@ export default function UnitThroughputNode({ id, data, selected }) {
 
       {!isCompact && (
         <div className="p-4 flex flex-col gap-3">
+          {/* Node mode badges */}
+          <div className="flex items-center justify-between text-[10px] text-fg-subtle px-0.5">
+            <span className="font-mono bg-surface-2 px-1.5 py-0.5 rounded border border-line-strong text-fg-muted">
+              {data?.windowMode === 'count' ? `Window: ${data?.windowSamples ?? 10} pcs` : `Window: ${data?.windowSeconds ?? 60}s`}
+            </span>
+            <span className="text-fg-muted">
+              {data?.startTrigger === 'time' ? `⏰ ${data?.startTimeConfig || '08:00'}` : (data?.startTrigger === 'first_object' ? '🎯 1st Obj' : '✋ Manual')}
+            </span>
+          </div>
+
           {/* Quick Stats on the Node itself */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div className="bg-canvas p-2 rounded border border-line text-center">

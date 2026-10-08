@@ -492,7 +492,7 @@ class TargetTrackerNode(PipelineNode):
             })
 
 class UnitThroughputNode(PipelineNode):
-    def __init__(self, node_id, data, router):
+    def __init__(self, node_id: str, data: dict, router):
         super().__init__(node_id, data, router, node_type="unitThroughputNode")
         from collections import deque
 
@@ -501,7 +501,17 @@ class UnitThroughputNode(PipelineNode):
         self.pause_timeout_seconds = float(data.get("pauseTimeoutSeconds", 60.0))
         self.rate_unit = data.get("rateUnit", "minute")
         self.decimal_places = int(data.get("decimalPlaces", 2))
+
+        # Window configuration (time-based or count-based)
+        self.window_mode = data.get("windowMode", "time")  # "time" | "count"
         self.window_seconds = float(data.get("windowSeconds", 60.0))
+        self.window_samples = max(int(data.get("windowSamples", 10)), 2)
+
+        # Scheduled Time configurations
+        self.start_time_config = str(data.get("startTimeConfig", "08:00")).strip()
+        self.pause_time_config = str(data.get("pauseTimeConfig", "17:00")).strip()
+        self.auto_reset_daily = bool(data.get("autoResetDaily", False))
+        self._last_schedule_date = None
         
         self.is_running = False
         self.start_time = None          # Overall initial start timestamp
@@ -520,7 +530,35 @@ class UnitThroughputNode(PipelineNode):
         # Used for manual API toggling
         self.manual_state = False
 
-    def reset_counts(self):
+    @staticmethod
+    def _parse_time(time_str: str):
+        """Parse HH:MM or HH:MM:SS safely into a datetime.time object."""
+        if not time_str:
+            return None
+        try:
+            parts = [int(p) for p in time_str.split(":")]
+            import datetime
+            if len(parts) == 2:
+                return datetime.time(parts[0], parts[1])
+            elif len(parts) >= 3:
+                return datetime.time(parts[0], parts[1], parts[2])
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _is_time_in_range(current_time, start_t, end_t) -> bool:
+        """Evaluate if current_time falls inside schedule, supporting overnight shifts."""
+        if start_t is None or end_t is None:
+            return False
+        if start_t <= end_t:
+            # Daytime shift (e.g. 08:00 to 17:00)
+            return start_t <= current_time < end_t
+        else:
+            # Overnight shift (e.g. 22:00 to 06:00)
+            return current_time >= start_t or current_time < end_t
+
+    def reset_counts(self) -> None:
         self.is_running = False
         self.start_time = None
         self.session_start_time = None
@@ -535,6 +573,7 @@ class UnitThroughputNode(PipelineNode):
         self._last_numeric_payload = None
         self._last_bool_payload = False
         self.manual_state = False
+        self._last_schedule_date = None
         
         self._emit_telemetry()
 
@@ -556,7 +595,7 @@ class UnitThroughputNode(PipelineNode):
             self.accumulated_run_time += active_duration
             self.session_start_time = None
 
-    def set_manual_state(self, state: bool):
+    def set_manual_state(self, state: bool) -> None:
         import time
         now = time.time()
         self.manual_state = state
@@ -570,9 +609,13 @@ class UnitThroughputNode(PipelineNode):
             self._trigger_pause(now, reason="manual")
         self._emit_telemetry()
 
-    def process(self, msg: dict):
+    def process(self, msg: dict) -> dict:
         import time
+        import datetime
         now = time.time()
+        now_dt = datetime.datetime.now()
+        now_time = now_dt.time()
+        today_date = now_dt.date()
         
         payload = msg.get("payload", {})
         detections = []
@@ -625,6 +668,25 @@ class UnitThroughputNode(PipelineNode):
                     if self.start_time is None:
                         self.start_time = now
                     self._last_rate_calc_ts = now
+            elif self.start_trigger == "time":
+                start_t = self._parse_time(self.start_time_config)
+                if self.pause_trigger == "time":
+                    pause_t = self._parse_time(self.pause_time_config)
+                    is_active = self._is_time_in_range(now_time, start_t, pause_t)
+                else:
+                    is_active = (now_time >= start_t) if start_t else False
+                
+                if is_active:
+                    # Auto-reset on new shift day if enabled
+                    if self.auto_reset_daily and self._last_schedule_date != today_date:
+                        if self._last_schedule_date is not None:
+                            self.reset_counts()
+                    self._last_schedule_date = today_date
+                    self.is_running = True
+                    self.session_start_time = now
+                    if self.start_time is None:
+                        self.start_time = now
+                    self._last_rate_calc_ts = now
             elif self.start_trigger == "manual":
                 if self.manual_state:
                     self.is_running = True
@@ -638,6 +700,15 @@ class UnitThroughputNode(PipelineNode):
             if self.pause_trigger == "timeout":
                 if self.last_object_time and (now - self.last_object_time) > self.pause_timeout_seconds:
                     self._trigger_pause(now, reason="timeout")
+            elif self.pause_trigger == "time":
+                start_t = self._parse_time(self.start_time_config)
+                pause_t = self._parse_time(self.pause_time_config)
+                if self.start_trigger == "time" and start_t and pause_t:
+                    if not self._is_time_in_range(now_time, start_t, pause_t):
+                        self._trigger_pause(now, reason="scheduled_time")
+                elif pause_t:
+                    if now_time >= pause_t:
+                        self._trigger_pause(now, reason="scheduled_time")
             elif self.pause_trigger == "manual":
                 if not self.manual_state:
                     self._trigger_pause(now, reason="manual")
@@ -647,10 +718,15 @@ class UnitThroughputNode(PipelineNode):
             self.current_count += newly_counted
             self._history.append((now, newly_counted))
 
-        # Prune old history outside window (keep at least 5s window minimum)
-        window_cutoff = now - max(self.window_seconds, 5.0)
-        while self._history and self._history[0][0] < window_cutoff:
-            self._history.popleft()
+        # Prune old history based on window_mode
+        if self.window_mode == "count":
+            while len(self._history) > self.window_samples:
+                self._history.popleft()
+        else:
+            # Time-based window: prune entries older than window_seconds (min 5.0s)
+            window_cutoff = now - max(self.window_seconds, 5.0)
+            while self._history and self._history[0][0] < window_cutoff:
+                self._history.popleft()
             
         # Calculate Dual Throughput Rates (Current Rolling Window + Cumulative Average)
         if self.is_running and self.start_time:
@@ -738,12 +814,17 @@ class UnitThroughputNode(PipelineNode):
             "average_rate": self.average_rate,
             "average_rate_per_minute": avg_rate_per_min,
             "is_running": self.is_running,
-            "rate_unit": self.rate_unit
+            "rate_unit": self.rate_unit,
+            "window_mode": self.window_mode,
+            "window_seconds": self.window_seconds,
+            "window_samples": self.window_samples,
+            "start_trigger": self.start_trigger,
+            "pause_trigger": self.pause_trigger
         }
         
         return msg
 
-    def _emit_telemetry(self, msg=None):
+    def _emit_telemetry(self, msg: dict = None) -> None:
         if self.router.metadata_callback:
             camera_id = msg.get("camera_id") if msg else "default"
             if not camera_id and msg:
@@ -770,6 +851,11 @@ class UnitThroughputNode(PipelineNode):
                 "average_rate_per_minute": avg_rate_per_min,
                 "is_running": self.is_running,
                 "rate_unit": self.rate_unit,
+                "window_mode": self.window_mode,
+                "window_seconds": self.window_seconds,
+                "window_samples": self.window_samples,
+                "start_trigger": self.start_trigger,
+                "pause_trigger": self.pause_trigger,
                 "camera_id": camera_id,
                 "msg": msg
             })
@@ -1747,6 +1833,10 @@ class MessageRouter:
                         new_node.accumulated_run_time = getattr(old_node, 'accumulated_run_time', 0.0)
                         new_node.last_object_time = getattr(old_node, 'last_object_time', None)
                         new_node._history = getattr(old_node, '_history', deque(maxlen=500))
+                        new_node._last_schedule_date = getattr(old_node, '_last_schedule_date', None)
+                        if getattr(new_node, 'window_mode', 'time') == 'count':
+                            while len(new_node._history) > getattr(new_node, 'window_samples', 10):
+                                new_node._history.popleft()
 
                         # If rate_unit changed, convert the existing rate and force fresh recalculation
                         old_unit = getattr(old_node, 'rate_unit', 'minute')
