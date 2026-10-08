@@ -712,6 +712,8 @@ class DashboardOutputNode(PipelineNode):
             source_path = self.data.get("sourcePath", "msg.payload")
             
             def get_nested(d, path):
+                if not path:
+                    return None
                 import re
                 # Convert array notation [0] to dot notation .0
                 clean_path = re.sub(r'\[(\d+)\]', r'.\1', path)
@@ -721,6 +723,10 @@ class DashboardOutputNode(PipelineNode):
                     keys = keys[1:]
                 
                 val = d
+                # Support direct property access without "payload." or "msg.payload." prefix
+                if keys and keys[0] != "payload" and isinstance(val, dict) and "payload" in val and isinstance(val["payload"], dict) and keys[0] in val["payload"]:
+                    val = val["payload"]
+
                 for k in keys:
                     if isinstance(val, dict) and k in val:
                         val = val[k]
@@ -742,6 +748,10 @@ class DashboardOutputNode(PipelineNode):
                 return val
 
             val = get_nested(msg, source_path)
+            if val is None and source_path in ("value", "msg.value", "msg.payload.value"):
+                val = msg.get("value", msg.get("payload"))
+                if isinstance(val, dict) and "value" in val:
+                    val = val["value"]
 
             import time
             current_time = time.time()
@@ -1316,6 +1326,8 @@ class DatabaseWriterNode(PipelineNode):
                 keys = keys[1:]
             
             target = msg
+            if keys and keys[0] != "payload" and isinstance(target, dict) and "payload" in target and isinstance(target["payload"], dict) and keys[0] in target["payload"]:
+                target = target["payload"]
             for k in keys:
                 if isinstance(target, dict) and k in target:
                     target = target[k]
@@ -1415,6 +1427,13 @@ class DatabaseWriterNode(PipelineNode):
             self.last_written_time = now
             self.last_payload = write_value
             
+        # Attach written metric so downstream nodes (like Chart/Output) can easily read it
+        msg["value"] = write_value
+        if isinstance(msg.get("payload"), dict):
+            msg["payload"]["value"] = write_value
+            if self.variable_name:
+                msg["payload"][self.variable_name] = write_value
+
         # Emit real-time value for dashboard, but throttle to prevent React state thrashing
         import time
         now = time.time()
@@ -1438,11 +1457,24 @@ class DatabaseWriterNode(PipelineNode):
         if should_broadcast_dash and self.router.metadata_callback and self.last_written_value is not None:
             self._last_dash_time = now
             self._last_dash_val = self.last_written_value
+            
+            # Broadcast database_writer_update for Pipeline Studio / Debug inspection
+            self.router.metadata_callback({
+                "type": "database_writer_update",
+                "node_id": self.node_id,
+                "value": self.last_written_value,
+                "variable_name": self.variable_name,
+                "property_path": self.property_path,
+                "msg": msg
+            })
+            
+            # Broadcast dashboard_update for Live Dashboard widgets
             self.router.metadata_callback({
                 "type": "dashboard_update",
                 "node_id": self.node_id,
                 "value": self.last_written_value,
-                "variable_name": self.variable_name
+                "variable_name": self.variable_name,
+                "msg": msg
             })
             
         return msg

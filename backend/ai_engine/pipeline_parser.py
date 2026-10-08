@@ -213,6 +213,12 @@ class PipelineParser:
                     pnode = next((n for n in nodes if n["id"] == pid), None)
                     if pnode and pnode.get("type") == "databaseWriterNode":
                         db_writer_id = pid
+                        # Lock chart widget runtime to the exact property configured in databaseWriterNode
+                        pdata = pnode.get("data", {})
+                        db_prop = pdata.get("propertyPath") or "value"
+                        chart_node = router.nodes.get(nid)
+                        if chart_node and hasattr(chart_node, "data"):
+                            chart_node.data["sourcePath"] = db_prop
                         break
                         
                 source_id = f"dashboard.{db_writer_id}.history" if db_writer_id else f"dashboard.{nid}.history"
