@@ -173,12 +173,13 @@ app.add_middleware(
 
 from fastapi.staticfiles import StaticFiles
 import os
-snapshots_dir = "/home/pi/pido-ai/snapshots"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+snapshots_dir = str(PROJECT_ROOT / "snapshots")
 os.makedirs(snapshots_dir, exist_ok=True)
 app.mount("/api/snapshots", StaticFiles(directory=snapshots_dir), name="snapshots")
 
 # Frontend production build static assets
-frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+frontend_dist = PROJECT_ROOT / "frontend" / "dist"
 if frontend_dist.is_dir():
     assets_dir = frontend_dist / "assets"
     if assets_dir.is_dir():
@@ -206,6 +207,12 @@ async def root():
     if frontend_dist.is_dir() and index_file.is_file():
         return FileResponse(str(index_file))
     return {"status": "ok", "message": "PiDo.AI Backend is running."}
+
+@app.get("/api/system/hailo")
+async def get_hailo_status() -> Dict[str, Any]:
+    """Returns detected Hailo device status (Hailo-8 vs Hailo-8L) and architecture info."""
+    from ai_engine.hailo_detector import get_hailo_device_info
+    return get_hailo_device_info()
 
 @app.websocket("/ws/metadata/{project_id}")
 async def websocket_metadata_endpoint(websocket: WebSocket, project_id: str):

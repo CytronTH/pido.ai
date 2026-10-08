@@ -12,6 +12,7 @@ from typing import Callable, Optional, Dict, Any, List
 from collections import deque
 from ai_engine.stream_quality import StreamQualityManager
 from ai_engine.telemetry_manager import telemetry_mgr
+from ai_engine.hailo_detector import resolve_compatible_hef, get_hailo_arch, get_hailo_device_info
 
 try:
     import hailo
@@ -225,13 +226,19 @@ class HailoPipelineWorker:
                 stream_id = getattr(cam_stream, 'stream_id', f"cam_{i}")
                 
                 if has_ai:
-                    if not os.path.exists(hef):
-                        logger.error(f"HEF file not found: {hef}. Falling back to default YOLOv8s.")
-                        hef = "/home/pi/pido-ai/backend/models/yolov8s.hef"
-                        so = "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so"
-                        if not os.path.exists(hef):
-                            logger.error("Default HEF also not found! Disabling AI for this stream.")
-                            has_ai = False
+                    models_dir = Path(__file__).resolve().parent.parent / "models"
+                    resolved_hef, is_compat, status_msg = resolve_compatible_hef(hef, models_dir=models_dir)
+                    if not resolved_hef or not os.path.exists(resolved_hef):
+                        logger.error(f"Cannot resolve valid HEF model for stream {stream_id} (Hardware: {get_hailo_arch()}). Disabling AI.")
+                        has_ai = False
+                    else:
+                        hef = resolved_hef
+                        if not is_compat:
+                            logger.warning(f"Stream {stream_id}: {status_msg}")
+                        else:
+                            logger.info(f"Stream {stream_id}: HEF model resolved: {hef} ({status_msg})")
+                        if not so or not os.path.exists(so):
+                            so = "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so"
                 
                 if has_ai:
                     config_path_arg = self._generate_label_config(cam_stream, stream_id)
@@ -324,10 +331,19 @@ class HailoPipelineWorker:
                     
                     
                     if has_ai:
-                        if not os.path.exists(hef):
-                            logger.error(f"HEF file not found: {hef}. Falling back to default.")
-                            hef = "/home/pi/pido-ai/backend/models/yolov8s.hef"
-                            so = "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so"
+                        models_dir = Path(__file__).resolve().parent.parent / "models"
+                        resolved_hef, is_compat, status_msg = resolve_compatible_hef(hef, models_dir=models_dir)
+                        if not resolved_hef or not os.path.exists(resolved_hef):
+                            logger.error(f"Cannot resolve valid HEF model for stream {stream_id} (Hardware: {get_hailo_arch()}). Disabling AI.")
+                            has_ai = False
+                        else:
+                            hef = resolved_hef
+                            if not is_compat:
+                                logger.warning(f"Stream {stream_id}: {status_msg}")
+                            else:
+                                logger.info(f"Stream {stream_id}: HEF model resolved: {hef} ({status_msg})")
+                            if not so or not os.path.exists(so):
+                                so = "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so"
                     
                     if has_ai:
                         config_path_arg = self._generate_label_config(cam_stream, stream_id)
