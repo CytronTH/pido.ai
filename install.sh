@@ -76,16 +76,25 @@ fi
 
 # Hailo Hardware Detection
 HAILO_FOUND=false
+HAILO_MODEL="Hailo NPU"
 if command -v lspci >/dev/null 2>&1; then
     if lspci | grep -qi "hailo"; then
         HAILO_FOUND=true
-        log_success "Hailo NPU device detected on PCIe bus!"
+        if command -v hailortcli >/dev/null 2>&1; then
+            ARCH_ID=$(hailortcli fw-control identify 2>/dev/null | grep -i "Device Architecture" | awk -F: '{print $2}' | tr -d ' \r\0' || true)
+            if [ "$ARCH_ID" = "HAILO8" ]; then
+                HAILO_MODEL="Hailo-8 (26 TOPS)"
+            elif [ "$ARCH_ID" = "HAILO8L" ]; then
+                HAILO_MODEL="Hailo-8L (13 TOPS)"
+            fi
+        fi
+        log_success "AI Accelerator detected: ${HAILO_MODEL} on PCIe bus!"
     fi
 fi
 
 if [ "$HAILO_FOUND" = false ]; then
     log_warn "Hailo PCIe device not detected."
-    log_warn "If you have a Hailo-8L M.2 HAT connected, ensure PCIe is enabled in /boot/firmware/config.txt:"
+    log_warn "If you have a Hailo-8 or Hailo-8L M.2 HAT connected, ensure PCIe is enabled in /boot/firmware/config.txt:"
     log_warn "  dtparam=pciex1"
     log_warn "  dtparam=pciex1_gen=3"
     log_warn "Installation will continue. You can plug in the HAT and reboot later."
@@ -244,7 +253,7 @@ echo -e "  ${BOLD}🚀 Platform Status:${NC}  RUNNING (Active background service
 echo -e "  ${BOLD}🌐 Web Dashboard:${NC}    ${CYAN}http://${IP_ADDR}:8000${NC}"
 echo -e "  ${BOLD}🏠 Local Access:${NC}     ${CYAN}http://localhost:8000${NC} (or http://pido-ai.local:8000)"
 if [ "$HAILO_FOUND" = true ]; then
-    echo -e "  ${BOLD}🧠 AI Accelerator:${NC}   ${GREEN}Hailo-8L Detected & Active${NC}"
+    echo -e "  ${BOLD}🧠 AI Accelerator:${NC}   ${GREEN}${HAILO_MODEL} Detected & Active${NC}"
 else
     echo -e "  ${BOLD}🧠 AI Accelerator:${NC}   ${YELLOW}Not detected (CPU fallback)${NC}"
 fi
