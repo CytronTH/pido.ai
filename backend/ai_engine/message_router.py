@@ -2,6 +2,7 @@ import logging
 import time
 import queue
 import threading
+from collections import deque
 from typing import Dict, Any, List
 
 
@@ -1727,11 +1728,29 @@ class MessageRouter:
                         new_node.is_running = getattr(old_node, 'is_running', False)
                         new_node.start_time = getattr(old_node, 'start_time', None)
                         new_node.last_object_time = getattr(old_node, 'last_object_time', None)
-                        new_node.throughput = getattr(old_node, 'throughput', 0.0)
-                        new_node.current_rate = getattr(old_node, 'current_rate', 0.0)
-                        new_node.average_rate = getattr(old_node, 'average_rate', 0.0)
                         new_node._history = getattr(old_node, '_history', deque(maxlen=500))
-                        new_node._last_rate_calc_ts = getattr(old_node, '_last_rate_calc_ts', None)
+
+                        # If rate_unit changed, convert the existing rate and force fresh recalculation
+                        old_unit = getattr(old_node, 'rate_unit', 'minute')
+                        new_unit = getattr(new_node, 'rate_unit', 'minute')
+                        if old_unit != new_unit:
+                            new_node._last_rate_calc_ts = None
+                            conv = 1.0
+                            if old_unit == "second":
+                                conv = 60.0 if new_unit == "minute" else (3600.0 if new_unit == "hour" else 1.0)
+                            elif old_unit == "minute":
+                                conv = (1.0 / 60.0) if new_unit == "second" else (60.0 if new_unit == "hour" else 1.0)
+                            elif old_unit == "hour":
+                                conv = (1.0 / 3600.0) if new_unit == "second" else ((1.0 / 60.0) if new_unit == "minute" else 1.0)
+                            new_node.throughput = round(getattr(old_node, 'throughput', 0.0) * conv, new_node.decimal_places)
+                            new_node.current_rate = round(getattr(old_node, 'current_rate', 0.0) * conv, new_node.decimal_places)
+                            new_node.average_rate = round(getattr(old_node, 'average_rate', 0.0) * conv, new_node.decimal_places)
+                        else:
+                            new_node.throughput = getattr(old_node, 'throughput', 0.0)
+                            new_node.current_rate = getattr(old_node, 'current_rate', 0.0)
+                            new_node.average_rate = getattr(old_node, 'average_rate', 0.0)
+                            new_node._last_rate_calc_ts = getattr(old_node, '_last_rate_calc_ts', None)
+
                         if hasattr(old_node, 'tracker') and hasattr(new_node, 'tracker'):
                             new_node.tracker = old_node.tracker
 

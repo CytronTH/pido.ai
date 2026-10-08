@@ -87,10 +87,10 @@ export default function UnitThroughputNode({ id, data, selected }) {
             <div className="bg-canvas p-2 rounded border border-line text-center">
               <div className="text-[10px] uppercase text-fg-subtle">Current Rate</div>
               <div className="text-sm font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                {hasConflict ? '0.0' : Number(liveRate).toFixed(1)} <span className="text-[9px]">/{data?.rateUnit?.substring(0,1) || 'm'}</span>
+                {hasConflict ? '0.0' : Number(liveRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))} <span className="text-[9px]">/{data?.rateUnit === 'second' ? 's' : (data?.rateUnit === 'hour' ? 'h' : 'm')}</span>
               </div>
               <div className="text-[9px] text-fg-muted font-mono mt-0.5" title="All-time average rate">
-                Avg: {hasConflict ? '0.0' : Number(liveAvgRate).toFixed(1)}
+                Avg: {hasConflict ? '0.0' : Number(liveAvgRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))}
               </div>
             </div>
             <div className="bg-canvas p-2 rounded border border-line text-center">

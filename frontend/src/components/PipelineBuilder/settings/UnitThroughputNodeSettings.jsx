@@ -198,7 +198,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
-              {Number(liveRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
+              {Number(liveRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit === 'second' ? 'sec' : (data?.rateUnit === 'hour' ? 'hr' : 'min')}</span>
             </span>
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">
-              {Number(liveAvgRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
+              {Number(liveAvgRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit === 'second' ? 'sec' : (data?.rateUnit === 'hour' ? 'hr' : 'min')}</span>
             </span>
           </div>
         </div>
