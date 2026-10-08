@@ -37,12 +37,14 @@ if [ -f "$SCRIPT_DIR/backend/web_server/main.py" ]; then
 else
     INSTALL_DIR="$USER_HOME/pido.ai"
     log_info "Target installation directory: $INSTALL_DIR"
+    TARGET_BRANCH="${PIDO_BRANCH:-main}"
     if [ ! -d "$INSTALL_DIR" ]; then
-        log_info "Cloning PiDo.AI from GitHub (main branch)..."
-        git clone https://github.com/CytronTH/pido.ai.git "$INSTALL_DIR"
+        log_info "Cloning PiDo.AI from GitHub ($TARGET_BRANCH branch)..."
+        git clone -b "$TARGET_BRANCH" https://github.com/CytronTH/pido.ai.git "$INSTALL_DIR"
     else
-        log_info "Repository already exists at $INSTALL_DIR, pulling latest code..."
-        git -C "$INSTALL_DIR" pull origin main || true
+        log_info "Repository already exists at $INSTALL_DIR, pulling latest code ($TARGET_BRANCH)..."
+        git -C "$INSTALL_DIR" checkout "$TARGET_BRANCH" 2>/dev/null || true
+        git -C "$INSTALL_DIR" pull origin "$TARGET_BRANCH" || true
     fi
 fi
 
