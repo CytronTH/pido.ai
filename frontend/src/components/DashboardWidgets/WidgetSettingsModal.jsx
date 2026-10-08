@@ -627,14 +627,15 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                       <label className="block text-sm font-medium text-fg-secondary mb-1.5">Time Range</label>
                       <select
                         name="timeframe"
-                        value={formData.timeframe || '5m'}
+                        value={formData.timeframe || '15m'}
                         onChange={handleChange}
                         className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
                       >
-                        <option value="5m">5 นาทีล่าสุด</option>
-                        <option value="15m">15 นาทีล่าสุด</option>
-                        <option value="1h">1 ชั่วโมงล่าสุด</option>
-                        <option value="24h">24 ชั่วโมงล่าสุด</option>
+                        <option value="5m">5 นาทีล่าสุด (5m)</option>
+                        <option value="15m">15 นาทีล่าสุด (15m)</option>
+                        <option value="1h">1 ชั่วโมงล่าสุด (1h)</option>
+                        <option value="24h">24 ชั่วโมงล่าสุด (24h)</option>
+                        <option value="7d">7 วันล่าสุด (7d - 1h avg)</option>
                       </select>
                     </div>
                     <div>
@@ -1555,8 +1556,8 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         onChange={(e) => setFormData({ ...formData, lockTimeframe: e.target.value === 'true' })}
                         className="w-full bg-surface border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm outline-none cursor-pointer"
                       >
-                        <option value="false">Dynamic Auto-Fit (Zoom to actual data)</option>
-                        <option value="true">Strict Locked Timeframe (Crop overflow)</option>
+                        <option value="false">Follow Global Dashboard Timeframe (Default)</option>
+                        <option value="true">Strict Locked Timeframe (Fixed to this widget)</option>
                       </select>
                     </div>
 

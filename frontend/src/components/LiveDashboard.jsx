@@ -30,7 +30,7 @@ import {
   Video, Gauge, CircleDot, Target, Hash, 
   Type, ListOrdered, LineChart, BarChart2, 
   Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move, History, Undo2, Check,
-  AlertTriangle 
+  AlertTriangle, Clock 
 } from 'lucide-react';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -107,6 +107,14 @@ const WIDGET_CATEGORIES = [
 ];
 
 // Widget minimum sizes above are written in legacy (v1) units; convert once for the v2 grid.
+const TIMEFRAME_PRESETS = [
+  { id: '5m', label: '5m', desc: '5 นาทีล่าสุด (Live 1s)' },
+  { id: '15m', label: '15m', desc: '15 นาทีล่าสุด' },
+  { id: '1h', label: '1h', desc: '1 ชั่วโมงล่าสุด (เฉลี่ยทุก 1m)' },
+  { id: '24h', label: '24h', desc: '24 ชั่วโมงล่าสุด (เฉลี่ยทุก 10m)' },
+  { id: '7d', label: '7d', desc: '7 วันล่าสุด (เฉลี่ยทุก 1h)' },
+];
+
 const WIDGET_TYPES = WIDGET_CATEGORIES.flatMap(c => c.widgets).map(w => ({
   ...w,
   minW: w.minW * V1_TO_V2_COL,
@@ -379,6 +387,22 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   const [saveError, setSaveError] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  // Global Timeframe state (Home Assistant Style)
+  const [globalTimeframe, setGlobalTimeframe] = useState(() => {
+    try {
+      return localStorage.getItem('pido_global_timeframe') || '15m';
+    } catch {
+      return '15m';
+    }
+  });
+
+  const handleGlobalTimeframeChange = (tf) => {
+    setGlobalTimeframe(tf);
+    try {
+      localStorage.setItem('pido_global_timeframe', tf);
+    } catch {}
+  };
   // RGL normalises (compacts) the layout on first render; adopt that result as the clean baseline.
   const adoptBaselineRef = useRef(false);
   const adoptTimerRef = useRef(null);
@@ -588,20 +612,46 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   return (
     <div className="animate-in fade-in duration-500 flex flex-col h-full relative">
       
-      {/* Floating Toolbar */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 flex gap-2">
+      {/* Dedicated Top Control Bar (Home Assistant Style Timeframe + Action Toolbar) */}
+      <div className="shrink-0 mb-3 flex flex-wrap items-center justify-between gap-2.5 z-20">
+        {/* Left: Global Timeframe Selector (Home Assistant Style) */}
+        <div className="flex items-center bg-surface-2/90 backdrop-blur-md border border-line-strong rounded-xl p-1 shadow-sm text-xs" role="group" aria-label="Global Timeframe">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 text-fg-subtle">
+            <Clock size={13} className="text-teal-500 shrink-0" />
+            <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Timeframe</span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            {TIMEFRAME_PRESETS.map(preset => (
+              <button
+                key={preset.id}
+                onClick={() => handleGlobalTimeframeChange(preset.id)}
+                className={`px-2 sm:px-2.5 py-1 rounded-lg font-medium transition-all text-[11px] sm:text-xs cursor-pointer ${
+                  globalTimeframe === preset.id
+                    ? 'bg-teal-600 text-white shadow-sm font-semibold'
+                    : 'text-fg-secondary hover:text-fg hover:bg-surface-3'
+                }`}
+                title={preset.desc}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: Existing Actions Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap">
         {isEditMode && (
-          <div className="flex items-center bg-surface-2/90 backdrop-blur-sm border border-line-strong rounded-lg p-0.5 shadow-lg text-xs sm:text-sm" role="group" aria-label="Layout mode">
+          <div className="flex items-center bg-surface-2/90 backdrop-blur-sm border border-line-strong rounded-xl p-1 shadow-sm text-xs sm:text-sm" role="group" aria-label="Layout mode">
             <button
               onClick={() => setCompactMode('vertical')}
-              className={`px-2.5 py-1 sm:py-1.5 rounded-md flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'vertical' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'vertical' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
               title="Auto-arrange: widget จะไหลขึ้นไปชิดด้านบนอัตโนมัติ"
             >
               <ArrowUpToLine size={14} /> <span className="hidden sm:inline">Auto-arrange</span>
             </button>
             <button
               onClick={() => setCompactMode('free')}
-              className={`px-2.5 py-1 sm:py-1.5 rounded-md flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'free' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'free' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
               title="Free placement: วางตรงไหนก็อยู่ตรงนั้น เว้นช่องว่างได้"
             >
               <Move size={14} /> <span className="hidden sm:inline">Free placement</span>
@@ -609,13 +659,13 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
           </div>
         )}
         {isDirty && (
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg backdrop-blur-sm" title="มีการแก้ไขที่ยังไม่ได้บันทึกเป็นเวอร์ชัน">
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-sm" title="มีการแก้ไขที่ยังไม่ได้บันทึกเป็นเวอร์ชัน">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> ยังไม่ได้บันทึก
           </div>
         )}
         <button
           onClick={() => setHistoryOpen(o => !o)}
-          className={`backdrop-blur-sm px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border shadow-lg active:scale-95 ${historyOpen ? 'bg-blue-600 text-white border-blue-600' : 'bg-surface-2/90 hover:bg-surface-3 text-fg-secondary border-line-strong'}`}
+          className={`backdrop-blur-sm px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border shadow-sm active:scale-95 ${historyOpen ? 'bg-blue-600 text-white border-blue-600' : 'bg-surface-2/90 hover:bg-surface-3 text-fg-secondary border-line-strong'}`}
           title="Version History"
         >
           <History size={15} />
@@ -625,7 +675,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
           <>
             <button
               onClick={handleDiscard}
-              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-lg active:scale-95"
+              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-sm active:scale-95"
               title={isDirty ? 'ยกเลิกการแก้ไขที่ยังไม่ได้บันทึก' : 'ออกจากโหมดแก้ไข'}
             >
               <Undo2 size={15} /> <span className="hidden sm:inline">{isDirty ? 'Discard' : 'Cancel'}</span>
@@ -633,14 +683,14 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
             {isDirty || currentVersion === null ? (
               <button 
                 onClick={openSaveModal}
-                className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
+                className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
               >
                 <Save size={15} /> <span>Save Version</span>
               </button>
             ) : (
               <button 
                 onClick={() => setIsEditMode(false)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
+                className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
                 title="ไม่มีการเปลี่ยนแปลง"
               >
                 <Check size={15} /> <span>Done</span>
@@ -650,14 +700,15 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         ) : (
           <button 
             onClick={() => setIsEditMode(true)}
-            className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors border border-line-strong shadow-lg active:scale-95"
+            className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors border border-line-strong shadow-sm active:scale-95"
           >
             <Unlock size={15} /> <span>Edit Layout</span>
           </button>
         )}
+        </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-canvas rounded-xl">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
@@ -863,6 +914,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                         config={config}
                         paths={paths}
                         metadata={metadata}
+                        globalTimeframe={globalTimeframe}
                       />
                     );
                   })()
@@ -871,6 +923,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                   <HistoricalChartWidget 
                     projectId={projectId} 
                     config={config} 
+                    globalTimeframe={globalTimeframe}
                   />
                 )}
               </div>
@@ -883,7 +936,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         <div 
           className={`absolute top-0 right-0 h-full w-80 bg-surface/95 backdrop-blur-md border-l border-line p-4 shrink-0 flex flex-col gap-4 overflow-y-auto custom-scrollbar transition-transform duration-300 z-30 shadow-2xl ${isEditMode ? 'translate-x-0' : 'translate-x-full'}`}
         >
-          <div className="mt-14 shrink-0">
+          <div className="shrink-0">
             <div className="flex items-center gap-2 text-fg font-bold text-sm tracking-wide">
               <LayoutGrid size={17} className="text-blue-500" />
               <span>Available Widgets</span>
