@@ -292,108 +292,169 @@ class DatabaseManager:
             logger.warning("Database log_queue is full (max 10000). Dropping metric to prevent memory exhaustion.")
             
 
-    def get_metric_history(self, node_id: str, limit: int = 300, timeframe_min: int = None, aggregate_min: int = None):
-        from sqlmodel import Session, select
-        from .models import CustomMetricLog
-        from datetime import datetime, timezone
-        import time
+    def get_metric_history(
+        self, 
+        node_id: str, 
+        limit: int = 300, 
+        timeframe_min: Optional[int] = None, 
+        aggregate_min: Optional[int] = None,
+        agg_func: str = "avg"
+    ) -> List[Dict[str, Any]]:
+        """Fetch time-series history for a node/variable from telemetry database using SQL aggregation."""
+        from sqlalchemy import text
+        from datetime import datetime, timedelta, timezone
 
         try:
-            with Session(self.engine_telemetry) as session:
-                stmt = select(CustomMetricLog).where(CustomMetricLog.node_id == node_id).order_by(CustomMetricLog.timestamp.desc())
-                if timeframe_min:
-                    min_ts = datetime.fromtimestamp(time.time() - (timeframe_min * 60), timezone.utc)
-                    stmt = stmt.where(CustomMetricLog.timestamp >= min_ts)
-                    stmt = stmt.limit(50000)
-                else:
-                    stmt = stmt.limit(limit)
-                
-                rows = session.exec(stmt).all()
-                
-                history = []
-                for row in reversed(rows):
-                    ts = row.timestamp.timestamp()
-                    dt_str = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-                    history.append({
-                        "time": dt_str,
-                        "timestamp_unix": ts,
-                        "value": row.value,
-                        "variable_name": row.variable_name
-                    })
-                
-                if aggregate_min and len(history) > 0:
-                    aggr_history = []
-                    current_bucket = None
-                    bucket_vals = []
-                    bucket_ts = 0
-                    
-                    for item in history:
-                        bucket = int(item["timestamp_unix"] / (aggregate_min * 60))
-                        if current_bucket is None:
-                            current_bucket = bucket
-                        
-                        if bucket == current_bucket:
-                            bucket_vals.append(item["value"])
-                            bucket_ts = item["timestamp_unix"]
-                        else:
-                            max_val = max(bucket_vals) if bucket_vals else 0
-                            if timeframe_min and timeframe_min > 1440:
-                                dt_str = datetime.fromtimestamp(bucket_ts).strftime("%d/%m %H:%M")
-                            else:
-                                dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
-                            aggr_history.append({
-                                "time": dt_str,
-                                "timestamp_unix": bucket_ts,
-                                "value": max_val
-                            })
-                            current_bucket = bucket
-                            bucket_vals = [item["value"]]
-                            bucket_ts = item["timestamp_unix"]
-                    
-                    if bucket_vals:
-                        max_val = max(bucket_vals)
-                        if timeframe_min and timeframe_min > 1440:
-                            dt_str = datetime.fromtimestamp(bucket_ts).strftime("%d/%m %H:%M")
-                        else:
-                            dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
-                        aggr_history.append({
-                            "time": dt_str,
-                            "timestamp_unix": bucket_ts,
-                            "value": max_val
-                        })
-                    
-                    return aggr_history
+            with self.engine_telemetry.connect() as conn:
+                where_clauses = ["(node_id = :node_id OR variable_name = :node_id)"]
+                params: Dict[str, Any] = {"node_id": node_id, "limit": limit}
 
-                return history
+                if timeframe_min and timeframe_min > 0:
+                    cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeframe_min)
+                    cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+                    where_clauses.append("timestamp >= :cutoff")
+                    params["cutoff"] = cutoff_str
+
+                where_sql = " AND ".join(where_clauses)
+
+                if aggregate_min and aggregate_min > 0:
+                    bucket_sec = aggregate_min * 60
+                    agg_lower = (agg_func or "avg").lower()
+                    if agg_lower == "max":
+                        agg_expr = "MAX(value)"
+                        hourly_col = "value_max"
+                    elif agg_lower == "min":
+                        agg_expr = "MIN(value)"
+                        hourly_col = "value_min"
+                    elif agg_lower == "sum":
+                        agg_expr = "SUM(value)"
+                        hourly_col = "value_sum"
+                    else:
+                        agg_expr = "AVG(value)"
+                        hourly_col = "value_avg"
+
+                    query = text(f"""
+                        SELECT 
+                            (CAST(strftime('%s', timestamp) AS INTEGER) / {bucket_sec}) * {bucket_sec} AS bucket_ts,
+                            {agg_expr} AS agg_val,
+                            variable_name
+                        FROM (
+                            SELECT timestamp, value, variable_name, node_id FROM custom_metric_log
+                            UNION ALL
+                            SELECT time_bucket AS timestamp, {hourly_col} AS value, variable_name, node_id 
+                            FROM custom_metric_hourly
+                            WHERE time_bucket < (
+                                SELECT COALESCE(MIN(timestamp), '9999-12-31') 
+                                FROM custom_metric_log 
+                                WHERE (node_id = :node_id OR variable_name = :node_id)
+                            )
+                        )
+                        WHERE {where_sql}
+                        GROUP BY bucket_ts
+                        ORDER BY bucket_ts ASC
+                        LIMIT :limit
+                    """)
+                    result = conn.execute(query, params)
+                    history = []
+                    for row in result:
+                        bts = row[0]
+                        val = round(row[1], 2) if row[1] is not None else 0.0
+                        var_name = row[2] or ""
+                        if timeframe_min and timeframe_min > 1440:
+                            dt_str = datetime.fromtimestamp(bts).strftime("%d/%m %H:%M")
+                        else:
+                            dt_str = datetime.fromtimestamp(bts).strftime("%H:%M")
+                        history.append({
+                            "time": dt_str,
+                            "timestamp_unix": bts,
+                            "value": val,
+                            "variable_name": var_name
+                        })
+                    return history
+                else:
+                    query = text(f"""
+                        SELECT 
+                            CAST(strftime('%s', timestamp) AS INTEGER) AS ts_unix,
+                            value,
+                            variable_name
+                        FROM custom_metric_log
+                        WHERE {where_sql}
+                        ORDER BY timestamp DESC
+                        LIMIT :limit
+                    """)
+                    result = conn.execute(query, params)
+                    rows = result.fetchall()
+                    history = []
+                    for row in reversed(rows):
+                        ts = row[0]
+                        val = round(row[1], 2) if row[1] is not None else 0.0
+                        var_name = row[2] or ""
+                        dt_str = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+                        history.append({
+                            "time": dt_str,
+                            "timestamp_unix": ts,
+                            "value": val,
+                            "variable_name": var_name
+                        })
+                    return history
         except Exception as e:
             logger.error(f"Failed to fetch metric history for {node_id}: {e}")
             return []
 
     def run_hourly_rollup(self):
-        """Aggregates custom metrics into hourly buckets."""
+        """Aggregates raw custom metrics into hourly buckets in custom_metric_hourly."""
+        from sqlalchemy import text
+        from datetime import datetime, timezone
         try:
-            with Session(self.engine_telemetry) as session:
-                # Custom Metric Rollup
-                pass
+            now_hour = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+            with self.engine_telemetry.connect() as conn:
+                sql = text("""
+                    INSERT OR REPLACE INTO custom_metric_hourly (
+                        time_bucket, project_id, node_id, variable_name, 
+                        value_sum, value_avg, value_max, value_min, count
+                    )
+                    SELECT 
+                        strftime('%Y-%m-%d %H:00:00', timestamp) AS time_bucket,
+                        project_id,
+                        node_id,
+                        variable_name,
+                        ROUND(SUM(value), 4) AS value_sum,
+                        ROUND(AVG(value), 4) AS value_avg,
+                        ROUND(MAX(value), 4) AS value_max,
+                        ROUND(MIN(value), 4) AS value_min,
+                        COUNT(id) AS count
+                    FROM custom_metric_log
+                    WHERE timestamp < :now_hour
+                    GROUP BY strftime('%Y-%m-%d %H:00:00', timestamp), project_id, node_id, variable_name;
+                """)
+                res = conn.execute(sql, {"now_hour": now_hour})
+                conn.commit()
+                if res.rowcount and res.rowcount > 0:
+                    logger.info(f"Hourly rollup generated/updated {res.rowcount} hourly metric records.")
         except Exception as e:
             logger.error(f"Error running hourly rollup: {e}")
             
     def run_data_retention_cleanup(self):
         """Deletes raw data older than the retention period (default 7 days) to prevent disk bloat."""
-        from sqlmodel import Session, text
+        from sqlalchemy import text
         from datetime import datetime, timedelta, timezone
         import os
         
+        # 1. Rollup raw data to hourly buckets before purging
+        self.run_hourly_rollup()
+        
         retention_days = 7
+        hourly_retention_days = 90
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
         cutoff_str = cutoff_date.strftime("%Y-%m-%d %H:%M:%S")
+        hourly_cutoff_str = (datetime.now(timezone.utc) - timedelta(days=hourly_retention_days)).strftime("%Y-%m-%d %H:%M:%S")
         
         try:
-            with Session(self.engine_telemetry) as session:
+            with self.engine_telemetry.connect() as conn:
                 # 1. Find and delete physical snapshot files
-                # Using text() since we are running raw SQL execution
-                old_events = session.execute(
-                    text(f"SELECT snapshot_path FROM event_logs WHERE timestamp < '{cutoff_str}' AND snapshot_path IS NOT NULL")
+                old_events = conn.execute(
+                    text("SELECT snapshot_path FROM event_logs WHERE timestamp < :cutoff AND snapshot_path IS NOT NULL"),
+                    {"cutoff": cutoff_str}
                 ).fetchall()
                 
                 deleted_files_count = 0
@@ -406,16 +467,25 @@ class DatabaseManager:
                         except Exception as e:
                             logger.error(f"Failed to delete old snapshot file {snap_path}: {e}")
 
-                # 2. Clean up CustomMetricLog
-                res1 = session.execute(text(f"DELETE FROM custom_metric_log WHERE timestamp < '{cutoff_str}'"))
-                # 3. Clean up EventLog
-                res2 = session.execute(text(f"DELETE FROM event_logs WHERE timestamp < '{cutoff_str}'"))
-                # 4. Clean up SystemMetric
-                res3 = session.execute(text(f"DELETE FROM system_metrics WHERE timestamp < '{cutoff_str}'"))
+                # 2. Clean up raw CustomMetricLog (safely preserved in custom_metric_hourly)
+                res1 = conn.execute(text("DELETE FROM custom_metric_log WHERE timestamp < :cutoff"), {"cutoff": cutoff_str})
+                # 3. Clean up custom_metric_hourly older than 90 days
+                res_h = conn.execute(text("DELETE FROM custom_metric_hourly WHERE time_bucket < :hourly_cutoff"), {"hourly_cutoff": hourly_cutoff_str})
+                # 4. Clean up EventLog
+                res2 = conn.execute(text("DELETE FROM event_logs WHERE timestamp < :cutoff"), {"cutoff": cutoff_str})
+                # 5. Clean up SystemMetric
+                res3 = conn.execute(text("DELETE FROM system_metrics WHERE timestamp < :cutoff"), {"cutoff": cutoff_str})
                 
-                session.commit()
+                conn.commit()
                 
-                deleted_total = res1.rowcount + res2.rowcount + res3.rowcount
+                # 6. Optimize SQLite storage to prevent fragmentation on Raspberry Pi SD card
+                try:
+                    conn.execute(text("PRAGMA optimize;"))
+                    conn.commit()
+                except Exception:
+                    pass
+                
+                deleted_total = (res1.rowcount or 0) + (res2.rowcount or 0) + (res3.rowcount or 0) + (res_h.rowcount or 0)
                 if deleted_total > 0 or deleted_files_count > 0:
                     logger.info(f"Data retention cleanup completed. Deleted {deleted_total} old rows and {deleted_files_count} snapshot files.")
         except Exception as e:
@@ -512,6 +582,12 @@ class DatabaseManager:
         2. If record count still exceeds `max_records`, trims oldest records to reach `max_records`.
         3. If `delete_files` is True, deletes matching snapshot image files from disk.
         """
+        # Also trigger telemetry downsampling & retention cleanup
+        try:
+            self.run_data_retention_cleanup()
+        except Exception as re_err:
+            logger.error(f"Failed to run telemetry retention cleanup in purge_old_logs: {re_err}")
+
         deleted_rows = 0
         deleted_files = 0
         errors = []

@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { BarChart2 } from 'lucide-react';
 import { chartTheme } from '../../utils/theme';
+import CanvasChart from './CanvasChart';
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
 const SAMPLE_SERIES_ID = '__sample';
@@ -110,10 +111,19 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   const lastUpdateRef = useRef({});
   const chartWrapperRef = useRef(null);
   const boundsRef = useRef({ min: 0, max: 0 });
+  const pendingBatchRef = useRef([]);
+  const batchTimeoutRef = useRef(null);
   const gradientPrefix = `chartGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+
+  useEffect(() => {
+    return () => {
+      if (batchTimeoutRef.current) clearTimeout(batchTimeoutRef.current);
+    };
+  }, []);
 
   const isPreview = config.__isPreview === true;
   const chartType = config.chartType || 'stepAfter'; // stepAfter, monotone, area, bar
+  const renderEngine = config.renderEngine || 'canvas'; // 'canvas' (60 FPS on Pi) or 'svg' (Recharts)
   const baseColor = config.color || COLORS[0];
   const unit = config.unit || '';
 
@@ -139,32 +149,51 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   const yConstraintsOn = config.enableYAxisConstraints !== false;
   const yMin = yConstraintsOn && parseNum(config.yMin) !== null ? parseNum(config.yMin) : 'auto';
   const yMax = yConstraintsOn && parseNum(config.yMax) !== null ? parseNum(config.yMax) : 'auto';
-  const maxPoints = Number(config.maxDataPoints) || 500;
-  
+  const AUTO_DATAPOINTS_BY_TIMEFRAME = {
+      '5m': 300,
+      '15m': 450,
+      '1h': 500,
+      '24h': 400,
+      '7d': 350,
+  };
+
   const timeframeMap = {
-      '5m': { tf: 5, aggr: null, label: '5m' },
-      '15m': { tf: 15, aggr: null, label: '15m' },
-      '1h': { tf: 60, aggr: 1, label: '1h' },
-      '24h': { tf: 1440, aggr: 10, label: '24h' },
-      '7d': { tf: 10080, aggr: 60, label: '7d' },
+      '5m': { tf: 5, aggr: null, label: '5m', tickInterval: 60 },
+      '15m': { tf: 15, aggr: null, label: '15m', tickInterval: 180 },
+      '1h': { tf: 60, aggr: 1, label: '1h', tickInterval: 600 },
+      '24h': { tf: 1440, aggr: 10, label: '24h', tickInterval: 14400 },
+      '7d': { tf: 10080, aggr: 60, label: '7d', tickInterval: 86400 },
   };
   const isLocked = config.lockTimeframe === true;
   const effectiveTimeframe = isLocked ? (config.timeframe || '5m') : (globalTimeframe || config.timeframe || '15m');
   const tfConfig = timeframeMap[effectiveTimeframe] || timeframeMap['15m'];
+  const periodSeconds = tfConfig.tf * 60;
 
-  // Extract nodeIds
-  const nodeIds = paths.map(p => {
-    const match = p.match(/^dashboard\.(.+?)\.(?:value|history)$/);
-    return match ? match[1] : null;
-  }).filter(Boolean);
+  // Auto calculate datapoints based on timeframe or respect manual custom setting
+  const isCustomPoints = config.dataPointsMode === 'custom';
+  const autoLimit = AUTO_DATAPOINTS_BY_TIMEFRAME[effectiveTimeframe] || 450;
+  const maxPoints = isCustomPoints ? (Number(config.maxDataPoints) || autoLimit) : autoLimit;
+
+  // Extract nodeIds safely from paths
+  const nodeIds = useMemo(() => {
+    return (paths || []).map(p => {
+      const match = String(p).match(/(?:dashboard\.)?([a-zA-Z0-9_-]+?)(?:\.(?:value|history))?$/);
+      return match ? match[1] : null;
+    }).filter(Boolean);
+  }, [paths]);
+
+  const nodeIdsKey = nodeIds.join(',');
 
   // Human-friendly series names: saved data source names, falling back to the node id
-  const seriesNames = { [SAMPLE_SERIES_ID]: 'Sample Data' };
-  const savedNames = config.dataPathNames || {};
-  paths.forEach(p => {
-    const match = p.match(/^dashboard\.(.+?)\.(?:value|history)$/);
-    if (match) seriesNames[match[1]] = savedNames[p] || `Node: ${match[1].split('_')[0]}`;
-  });
+  const seriesNames = useMemo(() => {
+    const names = { [SAMPLE_SERIES_ID]: 'Sample Data' };
+    const savedNames = config.dataPathNames || {};
+    (paths || []).forEach(p => {
+      const match = String(p).match(/(?:dashboard\.)?([a-zA-Z0-9_-]+?)(?:\.(?:value|history))?$/);
+      if (match) names[match[1]] = savedNames[p] || `Node: ${match[1].split('_')[0]}`;
+    });
+    return names;
+  }, [paths, config.dataPathNames]);
 
   const seriesIds = isPreview && nodeIds.length === 0 ? [SAMPLE_SERIES_ID] : nodeIds;
   const seriesKey = seriesIds.join('|');
@@ -174,15 +203,16 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     [isPreview, seriesKey, tfConfig.tf, chartType]
   );
 
-  // Fetch history on mount
+  // Fetch history on mount and whenever nodeIds or timeframe changes (both live and preview)
   useEffect(() => {
-    if (isPreview) return;
     if (nodeIds.length === 0) {
       setIsLoaded(true);
+      setHistoryData([]);
       return;
     }
 
-    let urlParams = `?limit=1000&timeframe_min=${tfConfig.tf}`;
+    const fetchLimit = Math.max(maxPoints * 2, 1000);
+    let urlParams = `?limit=${fetchLimit}&timeframe_min=${tfConfig.tf}`;
     if (tfConfig.aggr) urlParams += `&aggregate_min=${tfConfig.aggr}`;
 
     Promise.all(nodeIds.map(id => 
@@ -209,11 +239,11 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         console.error("Failed to fetch TSDB history", err);
         setIsLoaded(true);
     });
-  }, [config.dataPaths, config.dataPath, effectiveTimeframe, isPreview]);
+  }, [nodeIdsKey, effectiveTimeframe, tfConfig.tf, tfConfig.aggr, maxPoints]);
 
-  // Listen to live updates
+  // Listen to live updates from metadata
   useEffect(() => {
-    if (isPreview || !isLoaded || nodeIds.length === 0 || !metadata) return;
+    if (!isLoaded || nodeIds.length === 0 || !metadata) return;
 
     let newPoint = { timestamp_unix: Date.now() / 1000, time: new Date().toLocaleTimeString() };
     let hasChanges = false;
@@ -241,35 +271,129 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     });
 
     if (hasChanges) {
-        setHistoryData(prev => {
-            const newHistory = [...prev, newPoint];
-            // Keep a reasonable number of points for live viewing if no aggregation
-            if (!tfConfig.aggr && newHistory.length > maxPoints) return newHistory.slice(-maxPoints);
+      pendingBatchRef.current.push(newPoint);
+      if (!batchTimeoutRef.current) {
+        batchTimeoutRef.current = setTimeout(() => {
+          batchTimeoutRef.current = null;
+          if (pendingBatchRef.current.length === 0) return;
+          const batch = pendingBatchRef.current;
+          pendingBatchRef.current = [];
+          setHistoryData(prev => {
+            const newHistory = [...prev, ...batch];
+            // Keep a reasonable buffer so live points don't cause memory leaks
+            const bufferLimit = Math.max(maxPoints * 2, 1000);
+            if (!tfConfig.aggr && newHistory.length > bufferLimit) return newHistory.slice(-bufferLimit);
             return newHistory;
-        });
+          });
+        }, 100); // 100ms batching (caps React re-renders to max 10 FPS)
+      }
     }
-  }, [metadata, isLoaded, isPreview]);
+  }, [metadata, isLoaded, nodeIdsKey, tfConfig.aggr, maxPoints]);
 
-  const chartData = isPreview ? previewData : historyData;
+  // Use real data if available; fallback to preview sample data only if no data points yet in preview mode
+  const hasRealData = historyData && historyData.length > 0;
+  const chartData = hasRealData ? historyData : (isPreview ? (previewData || []) : []);
+
+  // Downsample or cap chartData if it exceeds maxPoints, ensuring even distribution across full timeframe
+  const displayChartData = useMemo(() => {
+    if (!chartData || chartData.length <= maxPoints) return chartData;
+    
+    // Sample evenly across the dataset so full time window is preserved
+    const step = (chartData.length - 1) / (maxPoints - 1);
+    const sampled = [];
+    for (let i = 0; i < maxPoints - 1; i++) {
+      sampled.push(chartData[Math.round(i * step)]);
+    }
+    sampled.push(chartData[chartData.length - 1]);
+    return sampled;
+  }, [chartData, maxPoints]);
+
+  // Compute Statistics (Min, Mean, Max, Current) for visible series based on true data in window
+  const seriesStats = useMemo(() => {
+    const stats = {};
+    seriesIds.forEach(id => {
+      const values = chartData
+        .map(row => row[id])
+        .filter(v => v !== null && v !== undefined && !isNaN(Number(v)))
+        .map(Number);
+      
+      if (values.length > 0) {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const sum = values.reduce((acc, v) => acc + v, 0);
+        const mean = sum / values.length;
+        const current = values[values.length - 1];
+        stats[id] = { min, max, mean, current, count: values.length };
+      } else {
+        stats[id] = null;
+      }
+    });
+    return stats;
+  }, [chartData, seriesIds]);
+
+  const primaryId = seriesIds[0];
+  const primaryStats = seriesStats[primaryId];
+
+  // Logarithmic scale handling
+  const useLogScale = config.yAxisLogScale === true;
+  let logYMin = 1;
+  if (useLogScale) {
+    let positiveMin = Infinity;
+    chartData.forEach(row => {
+      seriesIds.forEach(id => {
+        const val = Number(row[id]);
+        if (!isNaN(val) && val > 0 && val < positiveMin) {
+          positiveMin = val;
+        }
+      });
+    });
+    if (positiveMin !== Infinity) {
+      logYMin = positiveMin < 1 ? Math.pow(10, Math.floor(Math.log10(positiveMin))) : 1;
+    }
+    if (yConstraintsOn && parseNum(config.yMin) !== null && parseNum(config.yMin) > 0) {
+      logYMin = parseNum(config.yMin);
+    }
+  }
+
+  const yDomain = useLogScale 
+    ? [logYMin, yMax !== 'auto' ? yMax : 'auto']
+    : [yMin, yMax];
+
+  // Sanitized display data for Recharts (clamps non-positive values on log scale to prevent SVG crash)
+  const displayData = useMemo(() => {
+    if (!useLogScale) return displayChartData;
+    return displayChartData.map(row => {
+      const safeRow = { ...row };
+      seriesIds.forEach(id => {
+        const val = Number(safeRow[id]);
+        if (!isNaN(val)) {
+          safeRow[id] = val > 0 ? val : logYMin;
+        }
+      });
+      return safeRow;
+    });
+  }, [displayChartData, useLogScale, seriesIds, logYMin]);
 
   // Chart Component Selection
   const ChartComponent = chartType === 'bar' ? BarChart : (chartType === 'area' ? AreaChart : LineChart);
   const DataComponent = chartType === 'bar' ? Bar : (chartType === 'area' ? Area : Line);
-  
   const lineType = chartType === 'stepAfter' ? 'stepAfter' : 'monotone';
-  const lockTimeframe = config.lockTimeframe || false;
-  
-  // Track base bounds for zooming
-  if (lockTimeframe) {
-      boundsRef.current.max = Math.floor(Date.now() / 1000);
-      boundsRef.current.min = boundsRef.current.max - (tfConfig.tf * 60);
-  } else if (chartData.length > 0) {
-      boundsRef.current.min = chartData[0].timestamp_unix;
-      boundsRef.current.max = chartData[chartData.length - 1].timestamp_unix;
-  }
 
-  // Handle Wheel Zoom
+  // Base bounds for X-axis aligned to the selected period
+  const nowWallClock = Math.floor(Date.now() / 1000);
+  const latestDataTs = chartData.length > 0 ? chartData[chartData.length - 1].timestamp_unix : nowWallClock;
+  // If data is historical (far in past), anchor to latest data; otherwise anchor to live clock
+  const anchorNow = latestDataTs > 0 && Math.abs(nowWallClock - latestDataTs) > periodSeconds * 2
+    ? latestDataTs
+    : Math.max(nowWallClock, latestDataTs);
+  const minTs = anchorNow - periodSeconds;
+
+  boundsRef.current.max = anchorNow;
+  boundsRef.current.min = minTs;
+
+  // Handle Wheel Zoom (for SVG / Recharts mode; CanvasChart handles its own)
   useEffect(() => {
+    if (renderEngine === 'canvas') return;
     const el = chartWrapperRef.current;
     if (!el) return;
     
@@ -307,55 +431,51 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, []);
+  }, [renderEngine]);
   
-  let xDomain = zoomDomain || ['dataMin', 'dataMax'];
-  let xAxisProps = {
-      dataKey: "timestamp_unix",
-      type: "number",
-      domain: xDomain,
-      tickFormatter: (unixTime) => new Date(unixTime * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: zoomDomain ? '2-digit' : undefined}),
-      minTickGap: 30
-  };
-  
-  if (lockTimeframe && !zoomDomain) {
-      let now = Math.floor(Date.now() / 1000);
-      if (chartData.length > 0) {
-          now = chartData[chartData.length - 1].timestamp_unix;
-      }
-      
-      const minTs = now - (tfConfig.tf * 60);
-      
-      xDomain = [minTs, now];
-      
-      // Calculate nice stable ticks based on timeframe
-      const ticks = [];
-      let tickInterval = 60; // default 1 min for 5m timeframe
-      if (tfConfig.tf === 15) tickInterval = 300; // 5 min
-      else if (tfConfig.tf === 60) tickInterval = 900; // 15 min
-      else if (tfConfig.tf === 1440) tickInterval = 14400; // 4 hours
-      else if (tfConfig.tf >= 10080) tickInterval = 86400; // 1 day
-      
-      const firstTick = Math.ceil(minTs / tickInterval) * tickInterval;
-      for (let t = firstTick; t <= now; t += tickInterval) {
-          ticks.push(t);
-      }
-      
-      xAxisProps = {
-          dataKey: "timestamp_unix",
-          type: "number",
-          domain: xDomain,
-          ticks: ticks,
-          tickFormatter: (unixTime) => {
-              const d = new Date(unixTime * 1000);
-              if (tfConfig.tf >= 1440) {
-                  return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-              }
-              return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          },
-          minTickGap: 30
-      };
+  const xDomain = zoomDomain || [minTs, anchorNow];
+
+  // Calculate nice stable ticks based on timeframe
+  const tickInterval = tfConfig.tickInterval || Math.max(60, Math.floor(periodSeconds / 5));
+  const firstTick = Math.ceil(minTs / tickInterval) * tickInterval;
+  const ticks = [];
+  for (let t = firstTick; t <= anchorNow; t += tickInterval) {
+    ticks.push(t);
   }
+
+  const tickFormatter = (unixTime) => {
+    const d = new Date(unixTime * 1000);
+    if (zoomDomain) {
+      const span = zoomDomain[1] - zoomDomain[0];
+      if (span <= 300) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+      if (span >= 86400 * 2) {
+        return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    if (tfConfig.tf >= 10080) { // 7d
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    if (tfConfig.tf >= 1440) { // 24h
+      return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    if (tfConfig.tf <= 5) { // 5m
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const xAxisProps = {
+    dataKey: "timestamp_unix",
+    type: "number",
+    domain: xDomain,
+    ticks: zoomDomain ? undefined : ticks,
+    tickFormatter: tickFormatter,
+    minTickGap: 30,
+    allowDataOverflow: true,
+  };
 
   const seriesColor = (index) => (index === 0 ? baseColor : COLORS[index % COLORS.length]);
 
@@ -377,6 +497,16 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
                 Reset Zoom
               </button>
             )}
+            {useLogScale && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-medium text-purple-700 dark:text-purple-300 bg-purple-500/10 border border-purple-500/20">
+                Log Y
+              </span>
+            )}
+            {renderEngine === 'canvas' && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20" title="HTML5 Canvas Engine (Ultra-Fast 60FPS)">
+                Canvas
+              </span>
+            )}
             <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
               isLocked 
                 ? 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20' 
@@ -387,14 +517,78 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
           </div>
         </div>
       )}
+
+      {/* Mean / Min / Max / Current Statistics Bar */}
+      {config.showStatistics !== false && chartData.length > 0 && primaryStats && (
+        <div className="bg-surface-2/60 px-3 py-1.5 border-b border-line flex items-center justify-between gap-2 text-[11px] overflow-x-auto shrink-0 font-mono">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-wrap">
+            <div className="flex items-center gap-1 text-sky-600 dark:text-sky-400">
+              <span className="text-[10px] uppercase font-bold text-fg-subtle">Min</span>
+              <span className="font-semibold">{formatValue(primaryStats.min, unit)}</span>
+            </div>
+            <span className="text-line-strong">|</span>
+            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <span className="text-[10px] uppercase font-bold text-fg-subtle">Avg</span>
+              <span className="font-semibold">{formatValue(primaryStats.mean, unit)}</span>
+            </div>
+            <span className="text-line-strong">|</span>
+            <div className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+              <span className="text-[10px] uppercase font-bold text-fg-subtle">Max</span>
+              <span className="font-semibold">{formatValue(primaryStats.max, unit)}</span>
+            </div>
+            <span className="text-line-strong">|</span>
+            <div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+              <span className="text-[10px] uppercase font-bold text-fg-subtle">Cur</span>
+              <span className="font-semibold">{formatValue(primaryStats.current, unit)}</span>
+            </div>
+          </div>
+          {seriesIds.length > 1 && (
+            <span className="text-[10px] text-fg-muted font-sans truncate shrink-0">
+              ({seriesNames[primaryId] || primaryId})
+            </span>
+          )}
+        </div>
+      )}
+
       <div 
         className="flex-1 min-h-[150px] cursor-crosshair relative p-3"
         ref={chartWrapperRef}
         onDoubleClick={() => setZoomDomain(null)}
       >
         {chartData.length > 0 ? (
+          renderEngine === 'canvas' ? (
+            <CanvasChart
+              data={displayData}
+              seriesIds={seriesIds}
+              seriesNames={seriesNames}
+              chartType={chartType}
+              baseColor={baseColor}
+              unit={unit}
+              strokeWidth={strokeWidth}
+              showDots={showDots}
+              fillOpacity={fillOpacity}
+              useGradient={useGradient}
+              showGrid={showGrid}
+              gridDash={gridDash}
+              xDomain={xDomain}
+              yDomain={yDomain}
+              useLogScale={useLogScale}
+              tickFormatter={tickFormatter}
+              threshold={threshold}
+              thresholdLabel={thresholdLabel}
+              thresholdColor={config.thresholdColor || '#ef4444'}
+              thresholdMin={thresholdMin}
+              thresholdMinLabel={config.thresholdMinLabel || 'Lower Limit'}
+              thresholdMinColor={config.thresholdMinColor || '#3b82f6'}
+              primaryStats={primaryStats}
+              showMeanLine={config.showMeanLine}
+              showMinMaxLines={config.showMinMaxLines}
+              onZoom={(domain) => setZoomDomain(domain)}
+              onResetZoom={() => setZoomDomain(null)}
+            />
+          ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <ChartComponent data={chartData}>
+            <ChartComponent data={displayData}>
               {chartType === 'area' && useGradient && (
                 <defs>
                   {seriesIds.map((id, index) => (
@@ -414,7 +608,8 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
               <YAxis 
                 stroke={chartTheme.axis} 
                 fontSize={12} 
-                domain={[yMin, yMax]}
+                scale={useLogScale ? "log" : "auto"}
+                domain={yDomain}
                 allowDataOverflow={true}
               />
               <Tooltip 
@@ -429,6 +624,51 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
               )}
               {thresholdMin !== null && !isNaN(thresholdMin) && (
                   <ReferenceLine y={thresholdMin} stroke={config.thresholdMinColor || '#3b82f6'} strokeDasharray="3 3" label={{ position: 'bottom', value: config.thresholdMinLabel || 'Lower Limit', fill: config.thresholdMinColor || '#3b82f6', fontSize: 10 }} />
+              )}
+
+              {/* Mean / Min / Max Reference Lines */}
+              {config.showMeanLine && primaryStats && (
+                <ReferenceLine 
+                  y={primaryStats.mean} 
+                  stroke="#10b981" 
+                  strokeDasharray="4 4" 
+                  strokeWidth={1.5}
+                  label={{ 
+                    position: 'right', 
+                    value: `Avg: ${formatValue(primaryStats.mean, unit)}`, 
+                    fill: '#10b981', 
+                    fontSize: 10,
+                    fontWeight: 600
+                  }} 
+                />
+              )}
+              {config.showMinMaxLines && primaryStats && (
+                <>
+                  <ReferenceLine 
+                    y={primaryStats.min} 
+                    stroke="#0ea5e9" 
+                    strokeDasharray="3 3" 
+                    strokeWidth={1}
+                    label={{ 
+                      position: 'insideBottomRight', 
+                      value: `Min: ${formatValue(primaryStats.min, unit)}`, 
+                      fill: '#0ea5e9', 
+                      fontSize: 9 
+                    }} 
+                  />
+                  <ReferenceLine 
+                    y={primaryStats.max} 
+                    stroke="#f43f5e" 
+                    strokeDasharray="3 3" 
+                    strokeWidth={1}
+                    label={{ 
+                      position: 'insideTopRight', 
+                      value: `Max: ${formatValue(primaryStats.max, unit)}`, 
+                      fill: '#f43f5e', 
+                      fontSize: 9 
+                    }} 
+                  />
+                </>
               )}
               
               {seriesIds.map((id, index) => {
@@ -453,6 +693,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
               })}
             </ChartComponent>
           </ResponsiveContainer>
+          )
         ) : (
           <div className="text-fg-muted text-sm italic flex items-center justify-center h-full">
             Waiting for data...

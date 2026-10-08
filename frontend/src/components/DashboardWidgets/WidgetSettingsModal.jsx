@@ -43,6 +43,14 @@ const PRESET_COLOR_STOPS = [
 
 const QUICK_COLORS = ['#10b981', '#eab308', '#f97316', '#ef4444', '#3b82f6', '#8b5cf6', '#06b6d4'];
 
+const AUTO_DATAPOINTS_BY_TIMEFRAME = {
+  '5m': 300,
+  '15m': 450,
+  '1h': 500,
+  '24h': 400,
+  '7d': 350,
+};
+
 // Chart display templates: each one only sets presentation fields, never the data binding.
 const CHART_TEMPLATES = [
   {
@@ -181,7 +189,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
     }
     return String(val);
   };
-  const [formData, setFormData] = useState({ title: '', dataPath: '', unit: '', nodeId: '' });
+  const [formData, setFormData] = useState({ title: '', dataPath: '', unit: '', nodeId: '', renderEngine: 'canvas' });
   const [dataSources, setDataSources] = useState([]);
   const [pipelineNodes, setPipelineNodes] = useState([]);
 
@@ -212,6 +220,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         dataPaths: widgetItem.config.dataPaths || (widgetItem.config.dataPath ? [widgetItem.config.dataPath] : []),
         nodeId: widgetItem.config.nodeId || '',
         unit: widgetItem.config.unit || '',
+        renderEngine: widgetItem.config.renderEngine || 'canvas',
         chartType: widgetItem.config.chartType || 'stepAfter',
         color: widgetItem.config.color || '#10b981',
         threshold: widgetItem.config.threshold || '',
@@ -229,7 +238,8 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         lockTimeframe: widgetItem.config.lockTimeframe || false,
         yMin: widgetItem.config.yMin || '',
         yMax: widgetItem.config.yMax || '',
-        maxDataPoints: widgetItem.config.maxDataPoints || 600,
+        dataPointsMode: widgetItem.config.dataPointsMode || 'auto',
+        maxDataPoints: widgetItem.config.maxDataPoints !== undefined ? widgetItem.config.maxDataPoints : 600,
         strokeWidth: widgetItem.config.strokeWidth !== undefined ? widgetItem.config.strokeWidth : 2,
         showDots: widgetItem.config.showDots || false,
         fillOpacity: widgetItem.config.fillOpacity !== undefined ? widgetItem.config.fillOpacity : 20,
@@ -244,6 +254,9 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         unit: widgetItem.config.unit || '',
         yAxisMargin: widgetItem.config.yAxisMargin || '',
         yAxisLogScale: widgetItem.config.yAxisLogScale || false,
+        showStatistics: widgetItem.config.showStatistics ?? true,
+        showMeanLine: widgetItem.config.showMeanLine ?? false,
+        showMinMaxLines: widgetItem.config.showMinMaxLines ?? false,
         thickness: widgetItem.config.thickness || 16,
         gaugeStyle: widgetItem.config.gaugeStyle || 'half-circle',
         orientation: widgetItem.config.orientation || 'vertical',
@@ -405,7 +418,9 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
       case 'text':
         return <TextWidget {...previewProps} value={realValue !== null ? realValue : "System Nominal"} />;
       case 'chart': {
-        const previewPaths = formData.dataPaths || [];
+        const previewPaths = (formData.dataPaths && formData.dataPaths.length > 0)
+          ? formData.dataPaths
+          : (formData.dataPath ? [formData.dataPath] : []);
         const dataPathNames = {};
         previewPaths.forEach(id => {
           const ds = dataSources.find(d => d.id === id);
@@ -417,9 +432,18 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
             config={{ ...previewProps.config, dataPathNames }}
             paths={previewPaths}
             metadata={metadata}
+            globalTimeframe={formData.timeframe}
           />
         );
       }
+      case 'historicalChart':
+        return (
+          <HistoricalChartWidget
+            projectId={projectId}
+            config={formData}
+            globalTimeframe={formData.timeframe || '15m'}
+          />
+        );
       default:
         return <div className="text-fg-subtle text-sm">Preview not available</div>;
     }
@@ -622,33 +646,16 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Time Range</label>
-                      <select
-                        name="timeframe"
-                        value={formData.timeframe || '15m'}
-                        onChange={handleChange}
-                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner cursor-pointer"
-                      >
-                        <option value="5m">5 นาทีล่าสุด (5m)</option>
-                        <option value="15m">15 นาทีล่าสุด (15m)</option>
-                        <option value="1h">1 ชั่วโมงล่าสุด (1h)</option>
-                        <option value="24h">24 ชั่วโมงล่าสุด (24h)</option>
-                        <option value="7d">7 วันล่าสุด (7d - 1h avg)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit (แสดงใน Tooltip)</label>
-                      <input
-                        type="text"
-                        name="unit"
-                        value={formData.unit}
-                        onChange={handleChange}
-                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                        placeholder="e.g. °C, pcs, fps"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit (แสดงใน Tooltip)</label>
+                    <input
+                      type="text"
+                      name="unit"
+                      value={formData.unit}
+                      onChange={handleChange}
+                      className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
+                      placeholder="e.g. °C, pcs, fps"
+                    />
                   </div>
                 </div>
               )}
@@ -1276,6 +1283,43 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                   </div>
                   )}
                 </div>
+
+                <div className={`p-3.5 rounded-xl border transition-colors ${formData.showStatistics !== false ? 'bg-surface-2/60 border-line-strong' : 'bg-surface-2/40 border-line-strong/60 hover:border-line-strong'}`}>
+                  <ToggleSwitch 
+                    label={
+                      <div>
+                        <span className="text-sm font-semibold text-fg">Show Statistics Bar (Min / Mean / Max / Cur)</span>
+                        <p className="text-xs text-fg-subtle font-normal mt-0.5">แสดงแถบสรุปค่าต่ำสุด (Min), ค่าเฉลี่ย (Mean), ค่าสูงสุด (Max) และค่าล่าสุดบนกราฟ</p>
+                      </div>
+                    }
+                    checked={formData.showStatistics !== false} 
+                    onChange={(e) => setFormData({ ...formData, showStatistics: e.target.checked })} 
+                    className="mb-0"
+                  />
+                  
+                  {formData.showStatistics !== false && (
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-line-strong/50 animate-in fade-in duration-200 mt-3">
+                      <label className="flex items-center gap-2 cursor-pointer hover:bg-surface-2 p-2 rounded-lg transition-colors">
+                        <input 
+                          type="checkbox"
+                          checked={formData.showMeanLine || false}
+                          onChange={(e) => setFormData({ ...formData, showMeanLine: e.target.checked })}
+                          className="rounded border-line-stronger bg-surface text-blue-500 focus:ring-0"
+                        />
+                        <span className="text-sm text-fg-secondary">Mean (Average) Line</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer hover:bg-surface-2 p-2 rounded-lg transition-colors">
+                        <input 
+                          type="checkbox"
+                          checked={formData.showMinMaxLines || false}
+                          onChange={(e) => setFormData({ ...formData, showMinMaxLines: e.target.checked })}
+                          className="rounded border-line-stronger bg-surface text-blue-500 focus:ring-0"
+                        />
+                        <span className="text-sm text-fg-secondary">Min / Max Lines</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
                 </>
               )}
             </div>
@@ -1549,6 +1593,29 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                     <h4 className="text-xs font-semibold text-fg-subtle uppercase tracking-wider mb-2">Engine Settings</h4>
                     
                     <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-sm font-medium text-fg-secondary">
+                          Graphic Rendering Engine
+                        </label>
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                          {formData.renderEngine === 'svg' ? 'SVG DOM' : 'HTML5 Canvas (60 FPS)'}
+                        </span>
+                      </div>
+                      <select 
+                        name="renderEngine"
+                        value={formData.renderEngine || 'canvas'}
+                        onChange={(e) => setFormData({ ...formData, renderEngine: e.target.value })}
+                        className="w-full bg-surface border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm outline-none cursor-pointer"
+                      >
+                        <option value="canvas">🚀 HTML5 Canvas (Ultra-Fast 60FPS, Low CPU / Raspberry Pi 5 Optimized)</option>
+                        <option value="svg">📊 SVG / Recharts (Classic Declarative DOM)</option>
+                      </select>
+                      <p className="text-xs text-fg-subtle mt-1 leading-relaxed">
+                        HTML5 Canvas วาดบนกราฟิก Context2D โดยตรง ไร้ DOM Node สะสม รองรับจุดข้อมูลจำนวนมากได้ลื่นไหล ไม่กระตุกบน Raspberry Pi
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-line/60">
                       <label className="block text-sm font-medium text-fg-secondary mb-1.5">X-Axis Timeframe Behavior</label>
                       <select 
                         name="lockTimeframe"
@@ -1559,22 +1626,117 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                         <option value="false">Follow Global Dashboard Timeframe (Default)</option>
                         <option value="true">Strict Locked Timeframe (Fixed to this widget)</option>
                       </select>
+
+                      {formData.lockTimeframe && (
+                        <div className="mt-3 p-3 bg-surface border border-amber-500/30 rounded-lg animate-in fade-in duration-200">
+                          <label className="block text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1.5">
+                            Locked Time Range (ช่วงเวลาที่กำหนดตายตัว)
+                          </label>
+                          <select
+                            name="timeframe"
+                            value={formData.timeframe || '15m'}
+                            onChange={handleChange}
+                            className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-fg text-sm focus:border-amber-500 outline-none cursor-pointer"
+                          >
+                            <option value="5m">5 นาทีล่าสุด (5m)</option>
+                            <option value="15m">15 นาทีล่าสุด (15m)</option>
+                            <option value="1h">1 ชั่วโมงล่าสุด (1h)</option>
+                            <option value="24h">24 ชั่วโมงล่าสุด (24h)</option>
+                            <option value="7d">7 วันล่าสุด (7d - 1h avg)</option>
+                          </select>
+                          <p className="text-[11px] text-fg-subtle mt-1.5 leading-relaxed">
+                            วิดเจ็ตนี้จะแสดงผลตามช่วงเวลานี้เสมอ ไม่เปลี่ยนตามตัวเลือก Global Timeframe ของ Dashboard
+                          </p>
+                        </div>
+                      )}
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Data Points Render Limit</label>
-                      <input 
-                        type="number" 
-                        name="maxDataPoints"
-                        value={formData.maxDataPoints}
-                        onChange={handleChange}
-                        className="w-full bg-surface border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm outline-none"
-                        placeholder="e.g. 600"
-                        min="100" max="5000"
-                      />
-                      <p className="text-xs text-fg-subtle mt-2 leading-relaxed">
-                        Reduces browser memory usage by capping the number of SVG nodes drawn simultaneously. Default is 600.
-                      </p>
+                    <div className="pt-2 border-t border-line/60">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium text-fg-secondary">
+                          Data Points Render Limit
+                        </label>
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">
+                          {formData.dataPointsMode === 'custom' 
+                            ? `Manual: ${formData.maxDataPoints || 600} pts` 
+                            : `Auto: ~${AUTO_DATAPOINTS_BY_TIMEFRAME[formData.timeframe || '15m'] || 450} pts`}
+                        </span>
+                      </div>
+
+                      {/* Segmented Control for Auto vs Custom */}
+                      <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface border border-line-strong rounded-lg mb-3 text-xs font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, dataPointsMode: 'auto' })}
+                          className={`py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            formData.dataPointsMode !== 'custom'
+                              ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                              : 'text-fg-secondary hover:text-fg hover:bg-surface-2'
+                          }`}
+                        >
+                          <Sparkles size={13} />
+                          <span>คำนวณอัตโนมัติ (Auto)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, dataPointsMode: 'custom' })}
+                          className={`py-1.5 px-3 rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            formData.dataPointsMode === 'custom'
+                              ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                              : 'text-fg-secondary hover:text-fg hover:bg-surface-2'
+                          }`}
+                        >
+                          <Sliders size={13} />
+                          <span>ปรับเลือกเอง (Manual)</span>
+                        </button>
+                      </div>
+
+                      {formData.dataPointsMode === 'custom' ? (
+                        <div className="space-y-2 animate-in fade-in duration-200">
+                          <input 
+                            type="number" 
+                            name="maxDataPoints"
+                            value={formData.maxDataPoints}
+                            onChange={handleChange}
+                            className="w-full bg-surface border border-line-strong rounded-lg px-4 py-2 text-fg text-sm outline-none focus:border-blue-500 font-mono"
+                            placeholder="e.g. 600"
+                            min="50" max="5000"
+                          />
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span className="text-[11px] text-fg-subtle">Presets:</span>
+                            {[100, 300, 600, 1000].map(pt => (
+                              <button
+                                key={pt}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, maxDataPoints: pt })}
+                                className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                                  Number(formData.maxDataPoints) === pt
+                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/40 font-bold'
+                                    : 'bg-surface border-line-strong text-fg-muted hover:text-fg'
+                                }`}
+                              >
+                                {pt}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-fg-subtle mt-1.5 leading-relaxed">
+                            จำกัดจำนวนจุดข้อมูลสูงสุดที่วาดบนเบราว์เซอร์ เพื่อรักษาความลื่นไหลของหน้าจอ
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 bg-surface border border-line rounded-lg text-xs text-fg-muted leading-relaxed flex items-start gap-2 animate-in fade-in duration-200">
+                          <Sparkles size={14} className="text-blue-500 shrink-0 mt-0.5" />
+                          <div>
+                            ระบบจะคำนวณจำนวนจุด Render ให้สัมพันธ์กับ Timeframe โดยอัตโนมัติ:
+                            <span className="font-mono text-fg font-semibold ml-1">
+                              {AUTO_DATAPOINTS_BY_TIMEFRAME[formData.timeframe || '15m'] || 450} จุด
+                            </span>
+                            <div className="text-[10px] text-fg-subtle mt-0.5">
+                              (5m: 300 จุด | 15m: 450 จุด | 1h: 500 จุด | 24h: 400 จุด | 7d: 350 จุด)
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
