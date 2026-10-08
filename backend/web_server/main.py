@@ -1805,8 +1805,8 @@ def get_system_version():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/system/update/check")
-async def check_for_updates():
-    """Check remote repository for updates, release tags, and changelog"""
+async def check_for_updates(channel: Optional[str] = None) -> Dict[str, Any]:
+    """Check remote repository for updates, release tags, and changelog against target channel/branch"""
     try:
         project_root = Path(__file__).resolve().parent.parent.parent
         
@@ -1829,11 +1829,14 @@ async def check_for_updates():
         except Exception as e:
             return {"status": "error", "message": f"Failed to get git status: {e}"}
 
-        # Fetch remote updates with 8s timeout for air-gapped / slow connections
+        # Resolve target channel (default to current branch, e.g. dev or main)
+        target_branch = channel.strip() if (channel and channel.strip()) else current_branch
+
+        # Fetch remote updates for target branch and tags with 8s timeout
         git_env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
         try:
             subprocess.run(
-                ["git", "fetch", "origin", current_branch, "--tags"],
+                ["git", "fetch", "origin", target_branch, "--tags"],
                 cwd=str(project_root),
                 timeout=8,
                 capture_output=True,
@@ -1846,7 +1849,13 @@ async def check_for_updates():
                 "message": "Connection timed out. System might be offline or cannot reach remote repository.",
                 "current_version": current_tag,
                 "current_commit": current_commit,
-                "has_update": False
+                "has_update": False,
+                "branch": current_branch,
+                "target_branch": target_branch,
+                "available_channels": [
+                    {"id": "main", "name": "Stable (main)", "desc": "Production-ready, tested official releases"},
+                    {"id": "dev", "name": "Development (dev)", "desc": "Latest features and rapid updates"}
+                ]
             }
         except Exception as e:
             return {
@@ -1854,16 +1863,40 @@ async def check_for_updates():
                 "message": f"Fetch failed: {e}",
                 "current_version": current_tag,
                 "current_commit": current_commit,
-                "has_update": False
+                "has_update": False,
+                "branch": current_branch,
+                "target_branch": target_branch,
+                "available_channels": [
+                    {"id": "main", "name": "Stable (main)", "desc": "Production-ready, tested official releases"},
+                    {"id": "dev", "name": "Development (dev)", "desc": "Latest features and rapid updates"}
+                ]
             }
 
-        # Check how many commits behind origin/<current_branch>
-        behind_output = subprocess.check_output(
-            ["git", "rev-list", "--count", f"HEAD..origin/{current_branch}"],
-            cwd=str(project_root),
-            timeout=5
-        ).decode().strip()
-        behind_count = int(behind_output) if behind_output.isdigit() else 0
+        # Check if origin/<target_branch> exists
+        has_remote_branch = False
+        try:
+            subprocess.check_output(
+                ["git", "rev-parse", "--verify", f"origin/{target_branch}"],
+                cwd=str(project_root),
+                timeout=3,
+                stderr=subprocess.DEVNULL
+            )
+            has_remote_branch = True
+        except Exception:
+            has_remote_branch = False
+
+        behind_count = 0
+        if has_remote_branch:
+            try:
+                behind_output = subprocess.check_output(
+                    ["git", "rev-list", "--count", f"HEAD..origin/{target_branch}"],
+                    cwd=str(project_root),
+                    timeout=5,
+                    stderr=subprocess.DEVNULL
+                ).decode().strip()
+                behind_count = int(behind_output) if behind_output.isdigit() else 0
+            except Exception:
+                behind_count = 0
 
         # Latest tag on repository
         try:
@@ -1873,42 +1906,65 @@ async def check_for_updates():
                 timeout=5
             ).decode().split()
             latest_tag = tags_raw[0] if tags_raw else current_tag
-        except:
+        except Exception:
             latest_tag = current_tag
 
         changelog = []
-        if behind_count > 0:
-            lines = subprocess.check_output(
-                ["git", "log", f"HEAD..origin/{current_branch}", "--oneline", "-n", "15"],
-                cwd=str(project_root),
-                timeout=5
-            ).decode().strip().split("\n")
-            for line in lines:
-                parts = line.split(" ", 1)
-                if len(parts) == 2:
-                    changelog.append({"hash": parts[0], "message": parts[1]})
+        if behind_count > 0 and has_remote_branch:
+            try:
+                lines = subprocess.check_output(
+                    ["git", "log", f"HEAD..origin/{target_branch}", "--oneline", "-n", "15"],
+                    cwd=str(project_root),
+                    timeout=5,
+                    stderr=subprocess.DEVNULL
+                ).decode().strip().split("\n")
+                for line in lines:
+                    parts = line.split(" ", 1)
+                    if len(parts) == 2:
+                        changelog.append({"hash": parts[0], "message": parts[1]})
+            except Exception:
+                pass
 
-        has_update = behind_count > 0
+        is_channel_switch = (current_branch != target_branch)
+        has_update = (behind_count > 0) or is_channel_switch
+
+        latest_version_label = current_tag
+        if has_remote_branch:
+            try:
+                latest_remote_commit = subprocess.check_output(
+                    ["git", "rev-parse", "--short", f"origin/{target_branch}"],
+                    cwd=str(project_root),
+                    timeout=3
+                ).decode().strip()
+                latest_version_label = f"{target_branch}@{latest_remote_commit}"
+            except Exception:
+                latest_version_label = f"{target_branch} (latest)"
 
         return {
             "status": "success",
             "has_update": has_update,
             "current_version": current_tag,
             "current_commit": current_commit,
-            "latest_version": latest_tag if has_update else current_tag,
+            "latest_version": latest_version_label,
             "commits_behind": behind_count,
             "changelog": changelog,
-            "branch": current_branch
+            "branch": current_branch,
+            "target_branch": target_branch,
+            "is_channel_switch": is_channel_switch,
+            "available_channels": [
+                {"id": "main", "name": "Stable (main)", "desc": "Production-ready, tested official releases"},
+                {"id": "dev", "name": "Development (dev)", "desc": "Latest features and rapid updates"}
+            ]
         }
     except Exception as e:
         logger.error(f"Error checking update: {e}")
         return {"status": "error", "message": str(e)}
 
 class UpdateApplyPayload(BaseModel):
-    target_version: Optional[str] = "main"
+    target_version: Optional[str] = None
 
 @app.post("/api/system/update/apply")
-async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()):
+async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()) -> Dict[str, Any]:
     """Trigger background detached update runner"""
     try:
         lock_file = Path("/tmp/pido_update.lock")
@@ -1936,7 +1992,18 @@ async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()):
         }
         status_file.write_text(json.dumps(init_status))
 
-        target_ver = payload.target_version or "main"
+        project_root = Path(__file__).resolve().parent.parent.parent
+        target_ver = payload.target_version
+        if not target_ver:
+            try:
+                target_ver = subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    cwd=str(project_root),
+                    timeout=3
+                ).decode().strip()
+            except Exception:
+                target_ver = "dev"
+
         subprocess.Popen(
             ["/bin/bash", str(updater_script), "--mode=online", f"--target-version={target_ver}"],
             start_new_session=True,
@@ -1953,13 +2020,13 @@ async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/system/update/upload")
-async def upload_offline_update(package: UploadFile = File(...)):
+async def upload_offline_update(package: UploadFile = File(...)) -> Dict[str, Any]:
     """Accept offline update tarball (.tar.gz) and trigger offline updater"""
     try:
         if not package.filename.endswith((".tar.gz", ".tgz")):
             return {"status": "error", "message": "Invalid file type. Please upload a .tar.gz archive."}
 
-        upload_path = Path("/tmp/iriv_offline_update.tar.gz")
+        upload_path = Path("/tmp/pido_offline_update.tar.gz")
         with open(upload_path, "wb") as f:
             while chunk := await package.read(1024 * 1024):  # 1MB chunks
                 f.write(chunk)
@@ -1995,7 +2062,7 @@ async def upload_offline_update(package: UploadFile = File(...)):
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/system/update/status")
-async def get_update_status():
+async def get_update_status() -> Dict[str, Any]:
     """Poll update progress, current step, and recent logs"""
     try:
         status_file = Path("/tmp/pido_update_status.json")

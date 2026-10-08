@@ -25,6 +25,43 @@
 - 
 -->
 
+## [2026-10-09] - ปรับปรุงและแก้ไขระบบ Platform Updater (OTA & Offline) ให้พร้อมใช้งานจริง 100%
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ไข Critical Bugs ในระบบ Platform Updater เพื่อให้ผู้ใช้งานสามารถกดอัปเดตระบบได้จริงทั้งแบบ Online (GitHub) และ Offline Air-Gapped (.tar.gz)
+- [x] แก้ไขปัญหา UI ค้างที่ 5% จากพาธไฟล์สถานะและ Lock ไม่ตรงกัน
+- [x] แก้ไขปัญหาหน้าเว็บไม่เปลี่ยนหลังอัปเดตด้วยการเพิ่มคำสั่ง `npm run build` ในกระบวนการ Updater
+- [x] ปรับตรรกะ Git Flow ใน `updater.sh` และ Backend ให้ดึงโค้ดล่าสุดตาม Branch ปัจจุบัน (`dev` หรือ `main`) ป้องกันการ Rollback ไป tag เก่า
+- [x] เพิ่มระบบเลือก **Release Channel (Stable main / Development dev)** ให้ผู้ใช้สามารถเลือกสลับช่องทางการรับอัปเดตได้ผ่านหน้าเว็บโดยตรง
+- [x] ปรับปรุง UI ให้แสดงสถานะเสร็จสิ้น/ล้มเหลวอย่างชัดเจน พร้อมปุ่ม Dismiss และสร้างสคริปต์ `create_update_package.sh` สำหรับแพ็กเกจ Offline
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **`backend/scripts/updater.sh`**:
+  - เปลี่ยนพาธ `STATUS_FILE`, `LOG_FILE`, `LOCK_FILE` ให้ตรงกับ `/tmp/pido_update_*` ป้องกันการค้าง
+  - ปรับ Git update logic ให้ตรวจสอบ Branch ปัจจุบัน (`dev`, `main`) และทำ `git pull origin <branch>` อย่างถูกต้อง
+  - เพิ่มการตรวจสอบและสร้าง local tracking branch อัตโนมัติเมื่อสั่งสลับข้าม branch เช่น จาก `dev` ไป `main`
+  - เพิ่มขั้นตอนการคอมไพล์ Frontend `npm run build` ใน Step 3 ทำให้ production bundle (`frontend/dist`) อัปเดตเสมอ
+  - ปรับ Error Handling ในกรณี Offline package ไม่พบ ให้ลบ Lock file และแจ้งเตือนสถานะ failed อย่างถูกต้อง
+- **`backend/web_server/main.py`**:
+  - เพิ่มพารามิเตอร์ `channel` ใน `GET /api/system/update/check` เพื่อตรวจสอบอัปเดตตามช่องทางที่ผู้ใช้เลือก (Stable `main` หรือ Beta `dev`)
+  - ตรวจสอบ `is_channel_switch` เพื่อให้ผู้ใช้สามารถสั่งย้าย Channel ข้าม branch ได้อย่างปลอดภัย
+  - ปรับปรุงการระบุเป้าหมาย `target_version` ให้ตรงตาม branch ปัจจุบันโดยอัตโนมัติ
+  - เปลี่ยนชื่อพาธไฟล์อัปโหลดออฟไลน์เป็น `/tmp/pido_offline_update.tar.gz`
+- **`frontend/src/components/Settings/UpdateManager.jsx`**:
+  - เพิ่ม **Release Channel Selector** แบบ 2 ตัวเลือก: 🛡️ **Stable (`main`)** และ ⚡ **Development (`dev`)** พร้อมป้ายบอกช่องทางปัจจุบัน
+  - เพิ่มระบบตรวจจับการสลับ Channel พร้อมปุ่มสลับสายอัปเดตที่เปลี่ยนสีและข้อความให้เห็นชัดเจน
+  - อัปเดต Branding ทั้งหมดจาก `IRIV Vision Studio` เป็น `PiDo.AI Platform`
+  - ปรับพาธโฟลเดอร์ Backup ให้แสดงตรงกับความจริง (`/home/pi/pido-ai-backups/`)
+  - ปรับปรุงการ์ดแสดงผลความคืบหน้าให้รองรับสถานะ `completed` (ไอคอนสีเขียว) และ `failed` (ไอคอนสีแดง) พร้อมปุ่ม Dismiss
+- **`backend/scripts/create_update_package.sh`**:
+  - สร้างสคริปต์ตัวช่วยสร้างไฟล์แพ็กเกจ Offline `.tar.gz` แบบอัตโนมัติ พร้อม build frontend bundle ให้พร้อมนำไปใช้บนเครื่องที่ไม่มีอินเทอร์เน็ต
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** เพิ่ม Release Channel Selector ให้ผู้ใช้เลือกได้ว่าจะรับโค้ดสาย `main` (Stable) หรือ `dev` (Beta)
+- **เหตุผล:** ผู้ใช้และทีมงานต้องการความยืดหยุ่น โดยสามารถทดสอบฟีเจอร์ใหม่บน `dev` ได้ และเมื่อต้องการเสถียรภาพก็สามารถคลิกเดียวเพื่อสลับกลับมาใช้ `main` ได้ทันที
+
+---
+
 ## [2026-10-05] - แก้บั๊ก Pipeline Builder crash (`isCompact is not defined` ใน SnapshotNode)
 
 ### 🐛 สาเหตุ & การแก้ไข
