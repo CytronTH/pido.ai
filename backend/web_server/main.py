@@ -208,6 +208,12 @@ async def root():
         return FileResponse(str(index_file))
     return {"status": "ok", "message": "PiDo.AI Backend is running."}
 
+@app.get("/api/system/hailo")
+async def get_hailo_status() -> Dict[str, Any]:
+    """Returns detected Hailo device status (Hailo-8 vs Hailo-8L) and architecture info."""
+    from ai_engine.hailo_detector import get_hailo_device_info
+    return get_hailo_device_info()
+
 @app.websocket("/ws/metadata/{project_id}")
 async def websocket_metadata_endpoint(websocket: WebSocket, project_id: str):
     """
