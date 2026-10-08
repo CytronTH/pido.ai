@@ -2,12 +2,14 @@ import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
 from gi.repository import Gst, GLib
+import os
 import threading
 import logging
 import json
 import functools
 import subprocess
 import time
+from pathlib import Path
 from typing import Callable, Optional, Dict, Any, List
 from collections import deque
 from ai_engine.stream_quality import StreamQualityManager
