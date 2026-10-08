@@ -5,3 +5,8 @@ websockets==12.0
 bcrypt==5.0.0
 pyjwt==2.8.0
 python-multipart==0.0.9
+sqlmodel>=0.0.16
+pyserial>=3.5
+psutil>=5.9.0
+pyyaml>=6.0
+requests>=2.28.0
