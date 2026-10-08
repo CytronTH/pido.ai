@@ -337,7 +337,10 @@ class DatabaseManager:
                             bucket_ts = item["timestamp_unix"]
                         else:
                             max_val = max(bucket_vals) if bucket_vals else 0
-                            dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
+                            if timeframe_min and timeframe_min > 1440:
+                                dt_str = datetime.fromtimestamp(bucket_ts).strftime("%d/%m %H:%M")
+                            else:
+                                dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
                             aggr_history.append({
                                 "time": dt_str,
                                 "timestamp_unix": bucket_ts,
@@ -349,7 +352,10 @@ class DatabaseManager:
                     
                     if bucket_vals:
                         max_val = max(bucket_vals)
-                        dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
+                        if timeframe_min and timeframe_min > 1440:
+                            dt_str = datetime.fromtimestamp(bucket_ts).strftime("%d/%m %H:%M")
+                        else:
+                            dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
                         aggr_history.append({
                             "time": dt_str,
                             "timestamp_unix": bucket_ts,

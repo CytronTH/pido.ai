@@ -102,7 +102,7 @@ function buildSampleData(seriesIds, timeframeMin, chartType) {
   return data;
 }
 
-export default function ChartWidget({ title, config = {}, paths = [], metadata, icon: Icon = BarChart2 }) {
+export default function ChartWidget({ title, config = {}, paths = [], metadata, icon: Icon = BarChart2, globalTimeframe }) {
   const [historyData, setHistoryData] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [zoomDomain, setZoomDomain] = useState(null);
@@ -142,12 +142,15 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   const maxPoints = Number(config.maxDataPoints) || 500;
   
   const timeframeMap = {
-      '5m': { tf: 5, aggr: null },
-      '15m': { tf: 15, aggr: null },
-      '1h': { tf: 60, aggr: 1 },
-      '24h': { tf: 1440, aggr: 10 }
+      '5m': { tf: 5, aggr: null, label: '5m' },
+      '15m': { tf: 15, aggr: null, label: '15m' },
+      '1h': { tf: 60, aggr: 1, label: '1h' },
+      '24h': { tf: 1440, aggr: 10, label: '24h' },
+      '7d': { tf: 10080, aggr: 60, label: '7d' },
   };
-  const tfConfig = timeframeMap[config.timeframe] || timeframeMap['5m'];
+  const isLocked = config.lockTimeframe === true;
+  const effectiveTimeframe = isLocked ? (config.timeframe || '5m') : (globalTimeframe || config.timeframe || '15m');
+  const tfConfig = timeframeMap[effectiveTimeframe] || timeframeMap['15m'];
 
   // Extract nodeIds
   const nodeIds = paths.map(p => {
@@ -206,7 +209,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         console.error("Failed to fetch TSDB history", err);
         setIsLoaded(true);
     });
-  }, [config.dataPaths, config.dataPath, config.timeframe, isPreview]);
+  }, [config.dataPaths, config.dataPath, effectiveTimeframe, isPreview]);
 
   // Listen to live updates
   useEffect(() => {
@@ -331,6 +334,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
       if (tfConfig.tf === 15) tickInterval = 300; // 5 min
       else if (tfConfig.tf === 60) tickInterval = 900; // 15 min
       else if (tfConfig.tf === 1440) tickInterval = 14400; // 4 hours
+      else if (tfConfig.tf >= 10080) tickInterval = 86400; // 1 day
       
       const firstTick = Math.ceil(minTs / tickInterval) * tickInterval;
       for (let t = firstTick; t <= now; t += tickInterval) {
@@ -342,7 +346,13 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
           type: "number",
           domain: xDomain,
           ticks: ticks,
-          tickFormatter: (unixTime) => new Date(unixTime * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          tickFormatter: (unixTime) => {
+              const d = new Date(unixTime * 1000);
+              if (tfConfig.tf >= 1440) {
+                  return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+              }
+              return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          },
           minTickGap: 30
       };
   }
@@ -367,7 +377,13 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
                 Reset Zoom
               </button>
             )}
-            {config.timeframe && <span className="text-xs text-fg-muted bg-surface-2 px-2 py-1 rounded">{config.timeframe} {lockTimeframe && '(Locked)'}</span>}
+            <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
+              isLocked 
+                ? 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20' 
+                : 'text-fg-muted bg-surface-2 border border-line-strong'
+            }`}>
+              {effectiveTimeframe} {isLocked && '(Locked)'}
+            </span>
           </div>
         </div>
       )}
