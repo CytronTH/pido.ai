@@ -642,7 +642,7 @@ class DatabaseManager:
                             snap_count += 1
                             snap_size += f.stat().st_size
             else:
-                snapshot_dir = Path("/home/pi/pido-ai/snapshots")
+                snapshot_dir = Path(__file__).resolve().parent.parent.parent / "snapshots"
                 if snapshot_dir.exists() and snapshot_dir.is_dir():
                     for f in snapshot_dir.iterdir():
                         if f.is_file():

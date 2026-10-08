@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/projects/backup", tags=["Project Backup & Migrat
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODELS_DIR = BASE_DIR / "models"
 VIDEOS_DIR = BASE_DIR / "videos"
-SNAPSHOT_DIR = Path("/home/pi/pido-ai-backups/projects")
+SNAPSHOT_DIR = Path.home() / "pido-ai-backups" / "projects"
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 

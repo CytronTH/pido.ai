@@ -11,9 +11,11 @@ echo "Cleaning up stale processes..."
 pkill -f "uvicorn web_server.main" 2>/dev/null || true
 pkill -f "mediamtx" 2>/dev/null || true
 pkill -f "ffmpeg.*loop_" 2>/dev/null || true
-# Free port 8000 if still bound (by any process)
+# Free ports if still bound (8000 Web, 8554 RTSP, 8889 WebRTC)
 fuser -k 8000/tcp 2>/dev/null || true
 fuser -k 8000/udp 2>/dev/null || true
+fuser -k 8554/tcp 2>/dev/null || true
+fuser -k 8889/tcp 2>/dev/null || true
 sleep 1
 echo "Cleanup done."
 echo ""
@@ -21,7 +23,7 @@ echo ""
 # ── Start all services ────────────────────────────────────────────────────────
 # We use npx concurrently to run processes in parallel.
 # It automatically prefixes logs, color-codes them, and kills all when you press Ctrl+C.
-npx concurrently \
+npx -y concurrently \
   -k \
   --kill-others-on-fail \
   -n "BACKEND,FRONTEND,MEDIAMTX" \

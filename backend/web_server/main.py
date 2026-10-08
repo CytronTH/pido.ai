@@ -173,12 +173,13 @@ app.add_middleware(
 
 from fastapi.staticfiles import StaticFiles
 import os
-snapshots_dir = "/home/pi/pido-ai/snapshots"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+snapshots_dir = str(PROJECT_ROOT / "snapshots")
 os.makedirs(snapshots_dir, exist_ok=True)
 app.mount("/api/snapshots", StaticFiles(directory=snapshots_dir), name="snapshots")
 
 # Frontend production build static assets
-frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+frontend_dist = PROJECT_ROOT / "frontend" / "dist"
 if frontend_dist.is_dir():
     assets_dir = frontend_dist / "assets"
     if assets_dir.is_dir():
