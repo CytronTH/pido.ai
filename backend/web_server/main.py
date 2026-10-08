@@ -68,6 +68,10 @@ def on_metadata_received(project_id, metadata):
             asyncio.get_event_loop().call_later(0.1, lambda: threading.Thread(target=_trigger_restart, daemon=True).start())
             return
             
+        # Optimization: Skip scheduling thread-safe tasks if no clients are connected to this project's room
+        if not manager.has_clients(project_id):
+            return
+
         if main_loop and main_loop.is_running():
             asyncio.run_coroutine_threadsafe(manager.broadcast_json(metadata, project_id), main_loop)
     except Exception as e:
@@ -1986,11 +1990,23 @@ async def get_update_status():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/nodes/{node_id}/history")
-async def get_node_history(node_id: str, limit: int = 300, timeframe_min: int = None, aggregate_min: int = None):
+async def get_node_history(
+    node_id: str, 
+    limit: int = 300, 
+    timeframe_min: Optional[int] = None, 
+    aggregate_min: Optional[int] = None,
+    agg_func: str = "avg"
+):
     """Fetch time-series history for a specific node from telemetry_db"""
     try:
         from db.database import db
-        history = db.get_metric_history(node_id, limit=limit, timeframe_min=timeframe_min, aggregate_min=aggregate_min)
+        history = db.get_metric_history(
+            node_id, 
+            limit=limit, 
+            timeframe_min=timeframe_min, 
+            aggregate_min=aggregate_min,
+            agg_func=agg_func
+        )
         return {"status": "success", "data": history}
     except Exception as e:
         logger.error(f"Error fetching history for {node_id}: {e}")
