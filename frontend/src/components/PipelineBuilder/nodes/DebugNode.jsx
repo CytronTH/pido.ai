@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Handle, Position, useHandleConnections, useNodesData, useReactFlow } from '@xyflow/react';
-import { Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, AlertOctagon, RefreshCw, Film } from 'lucide-react';
+import { Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, AlertOctagon, RefreshCw, Film, RotateCcw } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 import NodeHeader from './NodeHeader';
 
@@ -995,6 +995,190 @@ export default memo(({ data, isConnectable, id }) => {
         </div>
       );
     }
+  } else if (sourceNode.type === 'unitThroughputNode') {
+    const debugState = sourceDebugData;
+    const isRunning = debugState?.is_running ?? sourceNode.data?.is_running ?? false;
+    const currentUnits = debugState?.current_unit ?? debugState?.total_units ?? sourceNode.data?.current_unit ?? 0;
+    const primaryUnit = debugState?.rate_unit || sourceNode.data?.rateUnit || 'minute';
+    const activeUnits = (Array.isArray(debugState?.rate_units) && debugState.rate_units.length > 0)
+      ? debugState.rate_units
+      : (Array.isArray(sourceNode.data?.rateUnits) && sourceNode.data.rateUnits.length > 0)
+      ? sourceNode.data.rateUnits
+      : [primaryUnit];
+
+    const getUnitRates = (u) => {
+      if (u === 'second') {
+        return {
+          label: '/sec',
+          name: 'Per Second',
+          rate: debugState?.current_rate_per_sec ?? (primaryUnit === 'second' ? (debugState?.throughput ?? sourceNode.data?.throughput) : undefined),
+          avg: debugState?.average_rate_per_sec ?? (primaryUnit === 'second' ? debugState?.average_rate : undefined)
+        };
+      }
+      if (u === 'hour') {
+        return {
+          label: '/hr',
+          name: 'Per Hour',
+          rate: debugState?.current_rate_per_hour ?? (primaryUnit === 'hour' ? (debugState?.throughput ?? sourceNode.data?.throughput) : undefined),
+          avg: debugState?.average_rate_per_hour ?? (primaryUnit === 'hour' ? debugState?.average_rate : undefined)
+        };
+      }
+      return {
+        label: '/min',
+        name: 'Per Minute',
+        rate: debugState?.current_rate_per_min ?? debugState?.current_rate_per_minute ?? (primaryUnit === 'minute' ? (debugState?.throughput ?? sourceNode.data?.throughput) : undefined),
+        avg: debugState?.average_rate_per_min ?? debugState?.average_rate_per_minute ?? (primaryUnit === 'minute' ? debugState?.average_rate : undefined)
+      };
+    };
+
+    content = (
+      <div className="flex flex-col p-3 gap-2 bg-surface/80 min-w-[210px]">
+        {/* Header / Status Bar */}
+        <div className="flex items-center justify-between border-b border-line pb-1.5">
+          <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold text-xs">
+            <span>⏱️</span> Throughput Rate
+          </span>
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
+              isRunning
+                ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                : 'bg-surface-3 text-fg-muted border border-line'
+            }`}
+          >
+            {isRunning ? '● RUNNING' : '○ PAUSED'}
+          </span>
+        </div>
+
+        {/* Total Units Counter */}
+        <div className="flex items-center justify-between bg-canvas/80 px-2.5 py-1.5 rounded border border-line">
+          <span className="text-xs text-fg-muted">Total Units:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold font-mono text-blue-600 dark:text-blue-400">
+              {currentUnits}
+            </span>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const pid = usePipelineStore.getState().projectId || 'default';
+                try {
+                  await fetch('/api/analytics/throughput/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ project_id: pid, node_id: sourceNodeId })
+                  });
+                  const setDebugData = usePipelineStore.getState().setDebugData;
+                  if (setDebugData && sourceNodeId) {
+                    setDebugData(sourceNodeId, {
+                      ...debugState,
+                      current_unit: 0,
+                      total_units: 0,
+                      throughput: 0,
+                      current_rate: 0,
+                      average_rate: 0,
+                      current_rate_per_sec: 0,
+                      average_rate_per_sec: 0,
+                      current_rate_per_min: 0,
+                      average_rate_per_min: 0,
+                      current_rate_per_hour: 0,
+                      average_rate_per_hour: 0
+                    });
+                  }
+                  usePipelineStore.getState().updateNodeData(sourceNodeId, {
+                    current_unit: 0,
+                    total_units: 0,
+                    throughput: 0
+                  });
+                } catch (err) {
+                  console.error("Failed to reset throughput counter:", err);
+                }
+              }}
+              className="text-[10px] px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-500 border border-red-500/30 rounded font-sans font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+              title="Reset Counter to 0"
+            >
+              <RotateCcw size={10} />
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Multi-rate Units */}
+        <div className="flex flex-col gap-1.5">
+          {activeUnits.map((u) => {
+            const info = getUnitRates(u);
+            const isPrimary = u === primaryUnit;
+            const rateVal = info.rate !== undefined ? Number(info.rate).toFixed(1) : '-';
+            const avgVal = info.avg !== undefined ? Number(info.avg).toFixed(1) : null;
+
+            return (
+              <div
+                key={u}
+                className={`p-2 rounded border flex flex-col gap-1 transition-all ${
+                  isPrimary
+                    ? 'bg-indigo-500/10 border-indigo-500/40 shadow-sm'
+                    : 'bg-canvas/90 border-line'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-fg-secondary uppercase tracking-wider font-mono flex items-center gap-1">
+                    <span>{info.name}</span>
+                    {isPrimary && (
+                      <span className="text-[9px] text-indigo-400 bg-indigo-500/20 px-1 rounded font-normal lowercase">
+                        primary
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[10px] text-fg-subtle font-mono">{info.label}</span>
+                </div>
+
+                <div className="flex items-baseline justify-between font-mono">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-base font-bold text-emerald-500">{rateVal}</span>
+                    <span className="text-[10px] text-fg-faint">{info.label}</span>
+                  </div>
+                  {avgVal !== null && (
+                    <span className="text-[10px] text-cyan-600 dark:text-cyan-400" title="Average Rate">
+                      Avg: {avgVal}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  } else if (sourceNode.type === 'targetTrackerNode') {
+    const debugState = sourceDebugData;
+    const actual = debugState?.actual ?? 0;
+    const target = debugState?.target ?? sourceNode.data?.target ?? 0;
+    const progress = debugState?.progress_percent ?? (target > 0 ? (actual / target) * 100 : 0);
+    const isComplete = debugState?.is_complete ?? (target > 0 && actual >= target);
+
+    content = (
+      <div className="flex flex-col p-3 gap-2 bg-surface/80 min-w-[200px]">
+        <div className="flex items-center justify-between border-b border-line pb-1.5 text-xs">
+          <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+            🎯 Target Tracker
+          </span>
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+              isComplete
+                ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                : 'bg-amber-950 text-amber-300 border border-amber-700'
+            }`}
+          >
+            {isComplete ? '✓ COMPLETE' : `${Number(progress).toFixed(1)}%`}
+          </span>
+        </div>
+        <div className="flex items-center justify-between bg-canvas/80 px-2.5 py-1.5 rounded border border-line">
+          <span className="text-xs text-fg-muted">Actual / Target:</span>
+          <span className="text-sm font-bold font-mono text-amber-500">
+            {actual} <span className="text-fg-faint">/ {target}</span>
+          </span>
+        </div>
+      </div>
+    );
   } else {
     content = <div className="text-fg-muted text-xs text-center px-2 py-3">Unsupported Node</div>;
   }

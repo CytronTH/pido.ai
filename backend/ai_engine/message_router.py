@@ -2,6 +2,9 @@ import logging
 import time
 import queue
 import threading
+import json
+import datetime
+from pathlib import Path
 from collections import deque
 from typing import Dict, Any, List
 
@@ -500,6 +503,16 @@ class UnitThroughputNode(PipelineNode):
         self.pause_trigger = data.get("pauseTrigger", "timeout")
         self.pause_timeout_seconds = float(data.get("pauseTimeoutSeconds", 60.0))
         self.rate_unit = data.get("rateUnit", "minute")
+        rate_units = data.get("rateUnits")
+        if isinstance(rate_units, list) and len(rate_units) > 0:
+            self.rate_units = [u for u in rate_units if u in ["second", "minute", "hour"]]
+            if not self.rate_units:
+                self.rate_units = [self.rate_unit]
+        else:
+            self.rate_units = [self.rate_unit]
+        if self.rate_unit not in self.rate_units:
+            self.rate_units.append(self.rate_unit)
+
         self.decimal_places = int(data.get("decimalPlaces", 2))
 
         # Window configuration (time-based or count-based)
@@ -511,6 +524,8 @@ class UnitThroughputNode(PipelineNode):
         self.start_time_config = str(data.get("startTimeConfig", "08:00")).strip()
         self.pause_time_config = str(data.get("pauseTimeConfig", "17:00")).strip()
         self.auto_reset_daily = bool(data.get("autoResetDaily", False))
+        self.retain_count_on_restart = bool(data.get("retainCountOnRestart", True))
+        self._last_state_save_ts = 0.0
         self._last_schedule_date = None
         
         self.is_running = False
@@ -522,6 +537,14 @@ class UnitThroughputNode(PipelineNode):
         self.throughput = 0.0
         self.current_rate = 0.0
         self.average_rate = 0.0
+
+        # Dedicated rates for each standard unit
+        self.current_rate_per_sec = 0.0
+        self.average_rate_per_sec = 0.0
+        self.current_rate_per_min = 0.0
+        self.average_rate_per_min = 0.0
+        self.current_rate_per_hour = 0.0
+        self.average_rate_per_hour = 0.0
         
         # Sliding window history of (timestamp, count_increment)
         self._history = deque(maxlen=500)
@@ -529,6 +552,73 @@ class UnitThroughputNode(PipelineNode):
         
         # Used for manual API toggling
         self.manual_state = False
+
+        # Load persisted count across restarts if enabled
+        if self.retain_count_on_restart:
+            self._load_persisted_state()
+
+    _STATE_FILE = Path(__file__).resolve().parent.parent / "db" / "node_states.json"
+
+    def _get_state_key(self) -> str:
+        project_id = getattr(self.router, "project_id", "default") or "default"
+        return f"{project_id}_{self.node_id}"
+
+    def _load_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            if not self._STATE_FILE.exists():
+                return
+            with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                all_states = json.load(f)
+            key = self._get_state_key()
+            if key in all_states:
+                state = all_states[key]
+                today_str = datetime.date.today().isoformat()
+                saved_date = state.get("date")
+                
+                # Check auto-reset daily
+                if self.auto_reset_daily and saved_date and saved_date != today_str:
+                    logger.info(f"UnitThroughputNode [{self.node_id}] persistent count expired ({saved_date} != {today_str}), resetting count to 0")
+                    self.current_count = 0
+                    self.accumulated_run_time = 0.0
+                    self._save_persisted_state()
+                else:
+                    self.current_count = int(state.get("current_count", 0))
+                    self.accumulated_run_time = float(state.get("accumulated_run_time", 0.0))
+                    logger.info(f"UnitThroughputNode [{self.node_id}] restored count {self.current_count} from persistent state")
+        except Exception as e:
+            logger.warning(f"UnitThroughputNode [{self.node_id}] failed to load persisted state: {e}")
+
+    def _save_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            self._STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            all_states = {}
+            if self._STATE_FILE.exists():
+                try:
+                    with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                        all_states = json.load(f)
+                except Exception:
+                    all_states = {}
+            key = self._get_state_key()
+            all_states[key] = {
+                "current_count": self.current_count,
+                "accumulated_run_time": self.accumulated_run_time,
+                "date": datetime.date.today().isoformat(),
+                "updated_at": time.time()
+            }
+            temp_file = self._STATE_FILE.with_suffix(".tmp")
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(all_states, f, indent=2)
+            temp_file.replace(self._STATE_FILE)
+        except Exception as e:
+            logger.warning(f"UnitThroughputNode [{self.node_id}] failed to save persisted state: {e}")
+
+    def cleanup(self) -> None:
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
 
     @staticmethod
     def _parse_time(time_str: str):
@@ -568,6 +658,12 @@ class UnitThroughputNode(PipelineNode):
         self.throughput = 0.0
         self.current_rate = 0.0
         self.average_rate = 0.0
+        self.current_rate_per_sec = 0.0
+        self.average_rate_per_sec = 0.0
+        self.current_rate_per_min = 0.0
+        self.average_rate_per_min = 0.0
+        self.current_rate_per_hour = 0.0
+        self.average_rate_per_hour = 0.0
         self._history.clear()
         self._last_rate_calc_ts = None
         self._last_numeric_payload = None
@@ -575,6 +671,9 @@ class UnitThroughputNode(PipelineNode):
         self.manual_state = False
         self._last_schedule_date = None
         
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
+
         self._emit_telemetry()
 
     def _trigger_pause(self, now: float, reason: str = "timeout") -> None:
@@ -583,6 +682,9 @@ class UnitThroughputNode(PipelineNode):
         self.is_running = False
         self.current_rate = 0.0
         self.throughput = 0.0
+        self.current_rate_per_sec = 0.0
+        self.current_rate_per_min = 0.0
+        self.current_rate_per_hour = 0.0
         self._history.clear()
         
         # Accumulate active duration of this session
@@ -594,6 +696,9 @@ class UnitThroughputNode(PipelineNode):
             active_duration = max(session_end - self.session_start_time, 0.0)
             self.accumulated_run_time += active_duration
             self.session_start_time = None
+
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
 
     def set_manual_state(self, state: bool) -> None:
         import time
@@ -717,6 +822,9 @@ class UnitThroughputNode(PipelineNode):
         if self.is_running and newly_counted > 0:
             self.current_count += newly_counted
             self._history.append((now, newly_counted))
+            if self.retain_count_on_restart and (now - getattr(self, "_last_state_save_ts", 0.0) >= 1.0):
+                self._save_persisted_state()
+                self._last_state_save_ts = now
 
         # Prune old history based on window_mode
         if self.window_mode == "count":
@@ -770,15 +878,26 @@ class UnitThroughputNode(PipelineNode):
                         avg_rate_per_sec = self.current_count / total_active_elapsed
 
                 # Multiplier for Rate Unit
-                if self.rate_unit == "minute":
-                    mult = 60.0
-                elif self.rate_unit == "hour":
-                    mult = 3600.0
-                else:
-                    mult = 1.0
+                self.current_rate_per_sec = round(current_rate_per_sec, self.decimal_places)
+                self.average_rate_per_sec = round(avg_rate_per_sec, self.decimal_places)
 
-                self.current_rate = round(current_rate_per_sec * mult, self.decimal_places)
-                self.average_rate = round(avg_rate_per_sec * mult, self.decimal_places)
+                self.current_rate_per_min = round(current_rate_per_sec * 60.0, self.decimal_places)
+                self.average_rate_per_min = round(avg_rate_per_sec * 60.0, self.decimal_places)
+
+                self.current_rate_per_hour = round(current_rate_per_sec * 3600.0, self.decimal_places)
+                self.average_rate_per_hour = round(avg_rate_per_sec * 3600.0, self.decimal_places)
+
+                # Primary rate follows self.rate_unit
+                if self.rate_unit == "second":
+                    self.current_rate = self.current_rate_per_sec
+                    self.average_rate = self.average_rate_per_sec
+                elif self.rate_unit == "hour":
+                    self.current_rate = self.current_rate_per_hour
+                    self.average_rate = self.average_rate_per_hour
+                else:
+                    self.current_rate = self.current_rate_per_min
+                    self.average_rate = self.average_rate_per_min
+
                 self.throughput = self.current_rate
                 self._last_rate_calc_ts = now
             
@@ -795,26 +914,28 @@ class UnitThroughputNode(PipelineNode):
             self._last_broadcast_time = now
             self._last_is_running = self.is_running
             self._emit_telemetry(msg)
-        
-        curr_rate_per_min = self.current_rate
-        avg_rate_per_min = self.average_rate
-        if self.rate_unit == "second":
-            curr_rate_per_min = round(self.current_rate * 60.0, self.decimal_places)
-            avg_rate_per_min = round(self.average_rate * 60.0, self.decimal_places)
-        elif self.rate_unit == "hour":
-            curr_rate_per_min = round(self.current_rate / 60.0, self.decimal_places)
-            avg_rate_per_min = round(self.average_rate / 60.0, self.decimal_places)
 
         msg["payload"] = {
             "current_unit": self.current_count,
             "total_units": self.current_count,
             "throughput": self.throughput,
             "current_rate": self.current_rate,
-            "current_rate_per_minute": curr_rate_per_min,
             "average_rate": self.average_rate,
-            "average_rate_per_minute": avg_rate_per_min,
+            
+            # Dedicated rate keys for multi-unit selection & widgets
+            "current_rate_per_sec": self.current_rate_per_sec,
+            "average_rate_per_sec": self.average_rate_per_sec,
+            "current_rate_per_min": self.current_rate_per_min,
+            "average_rate_per_min": self.average_rate_per_min,
+            "current_rate_per_minute": self.current_rate_per_min,
+            "average_rate_per_minute": self.average_rate_per_min,
+            "current_rate_per_hour": self.current_rate_per_hour,
+            "average_rate_per_hour": self.average_rate_per_hour,
+
             "is_running": self.is_running,
             "rate_unit": self.rate_unit,
+            "rate_units": self.rate_units,
+            "retain_count_on_restart": self.retain_count_on_restart,
             "window_mode": self.window_mode,
             "window_seconds": self.window_seconds,
             "window_samples": self.window_samples,
@@ -830,15 +951,6 @@ class UnitThroughputNode(PipelineNode):
             if not camera_id and msg:
                 camera_id = msg.get("metadata", {}).get("camera_id", "default")
                 
-            curr_rate_per_min = self.current_rate
-            avg_rate_per_min = self.average_rate
-            if self.rate_unit == "second":
-                curr_rate_per_min = round(self.current_rate * 60.0, self.decimal_places)
-                avg_rate_per_min = round(self.average_rate * 60.0, self.decimal_places)
-            elif self.rate_unit == "hour":
-                curr_rate_per_min = round(self.current_rate / 60.0, self.decimal_places)
-                avg_rate_per_min = round(self.average_rate / 60.0, self.decimal_places)
-
             self.router.metadata_callback({
                 "type": "unit_throughput_update",
                 "node_id": self.node_id,
@@ -846,11 +958,19 @@ class UnitThroughputNode(PipelineNode):
                 "total_units": self.current_count,
                 "throughput": self.throughput,
                 "current_rate": self.current_rate,
-                "current_rate_per_minute": curr_rate_per_min,
                 "average_rate": self.average_rate,
-                "average_rate_per_minute": avg_rate_per_min,
+                "current_rate_per_sec": self.current_rate_per_sec,
+                "average_rate_per_sec": self.average_rate_per_sec,
+                "current_rate_per_min": self.current_rate_per_min,
+                "average_rate_per_min": self.average_rate_per_min,
+                "current_rate_per_minute": self.current_rate_per_min,
+                "average_rate_per_minute": self.average_rate_per_min,
+                "current_rate_per_hour": self.current_rate_per_hour,
+                "average_rate_per_hour": self.average_rate_per_hour,
                 "is_running": self.is_running,
                 "rate_unit": self.rate_unit,
+                "rate_units": self.rate_units,
+                "retain_count_on_restart": self.retain_count_on_restart,
                 "window_mode": self.window_mode,
                 "window_seconds": self.window_seconds,
                 "window_samples": self.window_samples,

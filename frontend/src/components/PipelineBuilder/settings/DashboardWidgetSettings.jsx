@@ -77,10 +77,17 @@ export default function DashboardWidgetSettings({ nodeId, data, onChange, isSide
 
     if (upstreamNode.type === 'unitThroughputNode') {
       return [
-        { value: 'msg.payload.throughput', label: 'msg.payload.throughput (Current Rate / Throughput)' },
-        { value: 'msg.payload.current_rate_per_minute', label: 'msg.payload.current_rate_per_minute (Current Rate/min)' },
-        { value: 'msg.payload.average_rate', label: 'msg.payload.average_rate (Average Rate)' },
-        { value: 'msg.payload.average_rate_per_minute', label: 'msg.payload.average_rate_per_minute (Avg Rate/min)' },
+        { value: 'msg.payload.current_rate', label: 'msg.payload.current_rate (Current Rate - Primary Unit)' },
+        { value: 'msg.payload.current_rate_per_min', label: 'msg.payload.current_rate_per_min (Current Rate / min)' },
+        { value: 'msg.payload.current_rate_per_hour', label: 'msg.payload.current_rate_per_hour (Current Rate / hr)' },
+        { value: 'msg.payload.current_rate_per_sec', label: 'msg.payload.current_rate_per_sec (Current Rate / sec)' },
+        { value: 'msg.payload.average_rate', label: 'msg.payload.average_rate (Average Rate - Primary Unit)' },
+        { value: 'msg.payload.average_rate_per_min', label: 'msg.payload.average_rate_per_min (Average Rate / min)' },
+        { value: 'msg.payload.average_rate_per_hour', label: 'msg.payload.average_rate_per_hour (Average Rate / hr)' },
+        { value: 'msg.payload.average_rate_per_sec', label: 'msg.payload.average_rate_per_sec (Average Rate / sec)' },
+        { value: 'msg.payload.current_rate_per_minute', label: 'msg.payload.current_rate_per_minute (Current Rate/min - Legacy)' },
+        { value: 'msg.payload.average_rate_per_minute', label: 'msg.payload.average_rate_per_minute (Avg Rate/min - Legacy)' },
+        { value: 'msg.payload.throughput', label: 'msg.payload.throughput (Current Rate - Legacy)' },
         { value: 'msg.payload.current_unit', label: 'msg.payload.current_unit (Current Units)' },
         { value: 'msg.payload.total_units', label: 'msg.payload.total_units (Total Units)' },
         { value: 'msg.payload.is_running', label: 'msg.payload.is_running (Running Status)' }
