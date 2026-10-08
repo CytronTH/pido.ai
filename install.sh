@@ -124,6 +124,8 @@ PACKAGES=(
     gstreamer1.0-plugins-bad
     gstreamer1.0-plugins-ugly
     gstreamer1.0-libav
+    gstreamer1.0-rtsp
+    gstreamer1.0-libcamera
     ffmpeg
     v4l-utils
     psmisc
