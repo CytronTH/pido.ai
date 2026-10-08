@@ -399,6 +399,10 @@ class HailoPipelineWorker:
                 logger.error("GStreamer element 'x264enc' is missing! Please install: sudo apt-get install -y gstreamer1.0-plugins-ugly")
                 raise RuntimeError("GStreamer element 'x264enc' is missing. Please run: sudo apt-get install -y gstreamer1.0-plugins-ugly")
 
+            if "rtspclientsink" in pipeline_str and not Gst.ElementFactory.find("rtspclientsink"):
+                logger.error("GStreamer element 'rtspclientsink' is missing! Please install: sudo apt-get install -y gstreamer1.0-rtsp")
+                raise RuntimeError("GStreamer element 'rtspclientsink' is missing. Please run: sudo apt-get install -y gstreamer1.0-rtsp")
+
             try:
                 pipeline = Gst.parse_launch(pipeline_str)
                 # Store loop count for non-looping files so _on_eos can replay them
