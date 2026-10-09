@@ -93,13 +93,8 @@ PiDo.AI bridges the gap between raw video streams, deep-learning models (YOLO, c
       <p><small><strong>AI Model Registry:</strong> Collision-free storage, SHA-256 fingerprinting, versioning pills, and task post-process matching</small></p>
     </td>
     <td width="50%" align="center">
-      <!-- 📷 IMAGE PLACEHOLDER: 05 - PLATFORM UPDATER & CHANNELS -->
-      <!-- Suggested Path: docs/images/platform-updater.png / .jpg -->
-      <div style="border: 2px dashed #4b5563; padding: 20px; border-radius: 8px; text-align: center;">
-        <p>📷 <strong>Platform Updater (OTA & Air-Gapped)</strong></p>
-        <p><em>(Replace with: <code>docs/images/platform-updater.jpg</code>)</em></p>
-        <p><small>Release Channel Selector (Stable main / Dev dev), 1-click update, and offline .tar.gz upload</small></p>
-      </div>
+      <img src="docs/images/platform-updater.jpg" alt="Platform Updater (OTA & Air-Gapped)" width="100%" />
+      <p><small><strong>Platform Updater:</strong> Release Channel Selector (Stable main / Dev dev), 1-click update, and offline .tar.gz upload</small></p>
     </td>
   </tr>
 </table>
