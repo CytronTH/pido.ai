@@ -446,9 +446,11 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         setActiveSidebarNodeId(null);
       } else {
         setActiveSidebarNodeId(node.id);
+        setIsDebugPanelOpen(false);
       }
     } else if (node.type === 'debugNode') {
       setIsDebugPanelOpen(true);
+      setActiveSidebarNodeId(null);
     }
 
     // Ensure the double-clicked node is exclusively selected
@@ -928,7 +930,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             <MiniMap 
               nodeColor="#3b82f6" 
               maskColor="color-mix(in srgb, var(--canvas) 70%, transparent)"
-              className="hidden sm:block bg-surface-2 border-line-strong" 
+              className={`hidden sm:block bg-surface-2 border-line-strong transition-all duration-250 ease-out ${isDebugPanelOpen ? '!mr-[340px]' : ''}`} 
             />
           </ReactFlow>
           
@@ -946,7 +948,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
           {/* Conflict Nodes Floating Warning Banner (Bottom-Right of Canvas) */}
           {conflictConnections.length > 0 && (
-            <div className="absolute bottom-4 right-4 sm:bottom-32 sm:right-4 z-40 max-w-xs sm:max-w-sm bg-rose-950/90 text-rose-100 border border-rose-500/80 rounded-xl p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto">
+            <div className={`absolute bottom-4 sm:bottom-32 z-40 max-w-xs sm:max-w-sm bg-rose-950/90 text-rose-100 border border-rose-500/80 rounded-xl p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto transition-all duration-250 ease-out ${isDebugPanelOpen ? 'right-[356px]' : 'right-4'}`}>
               <div className="flex items-start gap-2.5">
                 <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 shrink-0 mt-0.5 animate-pulse">
                   <AlertTriangle size={18} />
@@ -993,8 +995,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
           {/* Desktop Debug Panel Toggle Button */}
           <button
-            onClick={() => setIsDebugPanelOpen(!isDebugPanelOpen)}
-            className="hidden md:flex absolute top-4 right-4 z-20 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-colors text-fg"
+            onClick={() => {
+              setIsDebugPanelOpen((prev) => {
+                const next = !prev;
+                if (next) setActiveSidebarNodeId(null);
+                return next;
+              });
+            }}
+            className={`hidden md:flex absolute top-4 z-30 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-all duration-250 ease-out text-fg ${
+              isDebugPanelOpen ? 'right-[356px]' : 'right-4'
+            }`}
             title="Toggle Debug Panel"
           >
             {isDebugPanelOpen ? <ChevronRight size={20} /> : <Terminal size={20} className={nodes.some(n => n.type === 'debugNode' && n.data?.outputType === 'text') ? 'text-purple-600 dark:text-purple-400' : ''} />}
