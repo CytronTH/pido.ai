@@ -1,14 +1,33 @@
-# PiDo.AI 🚀
-### Industrial Edge AI Vision & Automation Platform for Raspberry Pi & Hailo-8/8L
+<!-- ========================================================================= -->
+<!-- 📷 COVER PHOTO: TOP BANNER                                               -->
+<!-- Recommended Size : 1920x600 or 1280x450 (Wide Banner ~16:5 or 16:9)       -->
+<!-- Suggested Path   : docs/images/cover.jpg                                 -->
+<!-- ========================================================================= -->
+<div align="center">
+  <img src="docs/images/cover.jpg" alt="PiDo.AI Cover Banner" width="100%" />
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React: 19](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
-[![Tailwind CSS: v4](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
-[![HailoRT: 4.x](https://img.shields.io/badge/HailoRT-NPU_Acceleration-00E5FF.svg)](https://hailo.ai)
-[![Hardware: Raspberry Pi 5](https://img.shields.io/badge/Hardware-Raspberry_Pi_5-C51A4A.svg?logo=raspberry-pi&logoColor=white)](https://www.raspberrypi.com)
-[![Release Channels](https://img.shields.io/badge/Release_Channels-Stable_main_%7C_Dev_dev-22C55E.svg)]()
+  <br/><br/>
+
+  <!-- 🏷️ REPOSITORY ICON / LOGO -->
+  <!-- Suggested Path: docs/images/icon.png (Square / Icon 256x256 or 512x512) -->
+  <a href="https://github.com/CytronTH/pido.ai">
+    <img src="docs/images/icon.png" alt="PiDo.AI Icon" width="140" />
+  </a>
+
+  <h1>PiDo.AI 🚀</h1>
+  <h3>Industrial Edge AI Vision & Automation Platform for Raspberry Pi & Hailo-8/8L</h3>
+
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
+    <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white" alt="Python: 3.11+" /></a>
+    <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.100+-009688.svg?logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+    <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black" alt="React: 19" /></a>
+    <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC.svg?logo=tailwind-css&logoColor=white" alt="Tailwind CSS: v4" /></a>
+    <a href="https://hailo.ai"><img src="https://img.shields.io/badge/HailoRT-NPU_Acceleration-00E5FF.svg" alt="HailoRT: 4.x" /></a>
+    <a href="https://www.raspberrypi.com"><img src="https://img.shields.io/badge/Hardware-Raspberry_Pi_5-C51A4A.svg?logo=raspberry-pi&logoColor=white" alt="Raspberry Pi 5" /></a>
+    <img src="https://img.shields.io/badge/Release_Channels-Stable_main_%7C_Dev_dev-22C55E.svg" alt="Release Channels" />
+  </p>
+</div>
 
 **PiDo.AI** is an edge-first, no-code/low-code AI vision and industrial automation platform built specifically for edge computing devices (optimized for **Raspberry Pi 5** equipped with **Hailo-8 / Hailo-8L NPU accelerators**).
 
