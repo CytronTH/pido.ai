@@ -35,7 +35,14 @@ const LoginForm = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Invalid username or password');
+        let errorMsg = 'Invalid username or password';
+        try {
+          const errData = await response.json();
+          if (errData && errData.detail) {
+            errorMsg = errData.detail;
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
