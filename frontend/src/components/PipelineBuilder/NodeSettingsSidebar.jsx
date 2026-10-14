@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import usePipelineStore from '../../store/usePipelineStore';
-import { X, Save, Undo } from 'lucide-react';
+import { X, Save, Undo, Lock } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { DEFAULT_NODE_NAMES } from './nodeTypes';
+import usePermissions from '../../utils/usePermissions';
 
 // Map node types to their settings components
 import InputNodeSettings from './settings/InputNodeSettings';
@@ -44,6 +45,7 @@ const settingsComponents = {
 };
 
 export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose }) {
+  const { canEdit } = usePermissions();
   const { nodes, updateNodeData } = usePipelineStore(useShallow((state) => ({
     nodes: state.nodes,
     updateNodeData: state.updateNodeData
@@ -174,20 +176,29 @@ export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose })
 
       {/* Footer / Actions */}
       <div className="p-4 border-t border-line bg-canvas flex gap-2">
-        <button 
-          onClick={handleUndo}
-          disabled={!isDirty}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-surface-2 text-fg-faint hover:bg-surface-3' : 'bg-surface text-fg-faint cursor-not-allowed'}`}
-        >
-          <Undo size={16} /> Undo
-        </button>
-        <button 
-          onClick={handleSave}
-          disabled={!isDirty}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600/50 dark:text-blue-400/50 cursor-not-allowed'}`}
-        >
-          <Save size={16} /> Save
-        </button>
+        {!canEdit ? (
+          <div className="w-full py-2.5 px-3 text-center text-xs font-semibold text-fg-muted bg-surface-2 rounded-lg border border-line flex items-center justify-center gap-1.5">
+            <Lock size={14} />
+            <span>Read-Only: Parameter changes are disabled</span>
+          </div>
+        ) : (
+          <>
+            <button 
+              onClick={handleUndo}
+              disabled={!isDirty}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-surface-2 text-fg-faint hover:bg-surface-3' : 'bg-surface text-fg-faint cursor-not-allowed'}`}
+            >
+              <Undo size={16} /> Undo
+            </button>
+            <button 
+              onClick={handleSave}
+              disabled={!isDirty}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-sm transition-colors ${isDirty ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600/50 dark:text-blue-400/50 cursor-not-allowed'}`}
+            >
+              <Save size={16} /> Save
+            </button>
+          </>
+        )}
       </div>
     </div>
     </>

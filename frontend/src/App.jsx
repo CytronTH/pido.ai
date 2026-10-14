@@ -16,6 +16,7 @@ import UserManagement from './components/users/UserManagement';
 import useAuthStore from './store/useAuthStore';
 import useThemeStore from './store/useThemeStore';
 import usePipelineStore from './store/usePipelineStore';
+import usePermissions from './utils/usePermissions';
 import logoImg from './assets/logo-menu.svg';
 import logoDarkImg from './assets/logo-menu-dark.svg';
 import SystemClock from './components/SystemClock';
@@ -23,6 +24,7 @@ import SystemClock from './components/SystemClock';
 function AppContent() {
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
+  const { isAdmin, canStartStop } = usePermissions();
   const [activeProject, setActiveProject] = useState(null);
   const [projectStatus, setProjectStatus] = useState(null);
   const [metadata, setMetadata] = useState(null);
@@ -536,7 +538,7 @@ function AppContent() {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-             {activeProject && projectStatus && (
+             {activeProject && projectStatus && canStartStop && (
                <div className="mr-1 sm:mr-2">
                   {projectStatus.status === 'running' ? (
                      <button 
@@ -570,20 +572,38 @@ function AppContent() {
                 {themeMode === 'dark' && <Moon size={16} className="sm:w-[18px] sm:h-[18px]" />}
                 {themeMode === 'system' && <Monitor size={16} className="sm:w-[18px] sm:h-[18px]" />}
               </button>
-              <button
-                onClick={() => handleSystemAction('restart')}
-                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
-                title="Restart System"
-              >
-                <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-              <button
-                onClick={() => handleSystemAction('shutdown')}
-                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-red-600 dark:hover:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
-                title="Shutdown System"
-              >
-                <Power size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => handleSystemAction('restart')}
+                    className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
+                    title="Restart System"
+                  >
+                    <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                  <button
+                    onClick={() => handleSystemAction('shutdown')}
+                    className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-red-600 dark:hover:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
+                    title="Shutdown System"
+                  >
+                    <Power size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                </>
+              )}
+              {user && (
+                <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 border border-line-strong text-xs">
+                  <span className="font-semibold text-fg">{user.username}</span>
+                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                    user.role === 'admin' 
+                      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' 
+                      : user.role === 'editor' 
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                  }`}>
+                    {user.role}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => {
                   logout();

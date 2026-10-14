@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { ReactFlow, Controls, Background, MiniMap, ReactFlowProvider } from '@xyflow/react';
-import { MousePointer2, Hand, Play, ChevronRight, ChevronLeft, Plus, Activity, ChevronDown, Zap, RefreshCw, Check, AlertTriangle, Loader2, Download, Trash2, Terminal, Network, History, Wand2 } from 'lucide-react';
+import { MousePointer2, Hand, Play, ChevronRight, ChevronLeft, Plus, Activity, ChevronDown, Zap, RefreshCw, Check, AlertTriangle, Loader2, Download, Trash2, Terminal, Network, History, Wand2, Eye, Lock } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
 import DebugPanel from './DebugPanel';
@@ -15,6 +15,7 @@ import SnapshotPreviewFloatingWindow from './SnapshotPreviewFloatingWindow';
 
 import { nodeTypes, edgeTypes, DEFAULT_NODE_NAMES } from './nodeTypes';
 import { useResolvedTheme } from '../../utils/theme';
+import usePermissions from '../../utils/usePermissions';
 
 let id = 0;
 const getId = () => `dndnode_${Date.now()}_${id++}`;
@@ -22,6 +23,7 @@ const getId = () => `dndnode_${Date.now()}_${id++}`;
 export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
   const reactFlowWrapper = useRef(null);
   const resolvedTheme = useResolvedTheme();
+  const { canDeploy, canEdit, isViewer } = usePermissions();
   const [reactFlowInstance, setReactFlowInstance] = React.useState(null);
   const [isSelectMode, setIsSelectMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -704,14 +706,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             </button>
 
             {/* Auto-Layout (Beautify) */}
-            <button
-              onClick={beautifyPipeline}
-              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
-              title="Auto-Layout Nodes (Beautify)"
-            >
-              <Wand2 size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
-              <span className="hidden md:inline">Beautify</span>
-            </button>
+            {canEdit && (
+              <button
+                onClick={beautifyPipeline}
+                className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
+                title="Auto-Layout Nodes (Beautify)"
+              >
+                <Wand2 size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
+                <span className="hidden md:inline">Beautify</span>
+              </button>
+            )}
 
             {/* Export Project Quick Action */}
             <button
@@ -735,7 +739,21 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
             <div className="w-px h-6 sm:h-8 bg-surface-3"></div>
 
+            {/* Read-Only Badge for Viewers */}
+            {isViewer && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-xs font-semibold">
+                <Eye size={14} />
+                <span className="hidden sm:inline">View-Only</span>
+              </div>
+            )}
+
             {/* Split Deploy Button (Node-RED Style) */}
+            {!canDeploy ? (
+              <div className="flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-surface-2/60 text-fg-subtle border border-line-strong/60 cursor-not-allowed opacity-60" title="Deploying changes is restricted to Admin and Editors">
+                <Lock size={14} />
+                <span>Deploy Disabled</span>
+              </div>
+            ) : (
             <div className="relative flex items-stretch" ref={deployMenuRef}>
               <button 
                 onClick={() => handleDeploy()}
@@ -862,6 +880,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Floating multi-node selection pill with quick delete */}
@@ -869,18 +888,22 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-surface/95 border border-blue-500/70 text-blue-800 dark:text-blue-200 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
               <span><strong>{selectedNodesCount}</strong> nodes selected</span>
-              <span className="text-fg-faint">•</span>
-              <button
-                onClick={() => {
-                  const selectedIds = nodes.filter(n => n.selected && !n.data?.isTutorialMock).map(n => n.id);
-                  deleteNodes(selectedIds);
-                }}
-                className="flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-semibold cursor-pointer transition-colors hover:underline"
-                title="Delete selected nodes (Delete / Backspace)"
-              >
-                <Trash2 size={13} />
-                <span>Delete</span>
-              </button>
+              {canEdit && (
+                <>
+                  <span className="text-fg-faint">•</span>
+                  <button
+                    onClick={() => {
+                      const selectedIds = nodes.filter(n => n.selected && !n.data?.isTutorialMock).map(n => n.id);
+                      deleteNodes(selectedIds);
+                    }}
+                    className="flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-semibold cursor-pointer transition-colors hover:underline"
+                    title="Delete selected nodes (Delete / Backspace)"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -888,13 +911,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             colorMode={resolvedTheme}
             nodes={styledNodes}
             edges={mainEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            nodesDraggable={!isViewer}
+            nodesConnectable={!isViewer}
+            elementsSelectable={true}
+            onNodesChange={isViewer ? undefined : onNodesChange}
+            onEdgesChange={isViewer ? undefined : onEdgesChange}
             onNodeDragStop={() => syncCurrentPositions()}
             onSelectionDragStop={() => syncCurrentPositions()}
             isValidConnection={isValidConnection}
-            onConnect={handleConnect}
-            onConnectEnd={handleConnectEnd}
+            onConnect={isViewer ? undefined : handleConnect}
+            onConnectEnd={isViewer ? undefined : handleConnectEnd}
             onPaneClick={() => {
               setSuggestionMenu(null);
               setActiveSidebarNodeId(null);
@@ -902,13 +928,13 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             onNodeClick={handleNodeClick}
             onNodeDoubleClick={handleNodeDoubleClick}
             zoomOnDoubleClick={false}
-            onNodesDelete={(deleted) => {
+            onNodesDelete={isViewer ? undefined : (deleted) => {
               deleteNodes(deleted.map(n => n.id));
             }}
-            onEdgesDelete={(deleted) => {
+            onEdgesDelete={isViewer ? undefined : (deleted) => {
               deleted.forEach(e => deleteEdge(e.id));
             }}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={isViewer ? null : ['Backspace', 'Delete']}
             selectionKeyCode={['Shift']}
             multiSelectionKeyCode={['Control', 'Meta', 'Shift']}
             panOnDrag={isSelectMode ? [1, 2] : true}
@@ -916,8 +942,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             selectionOnDrag={isSelectMode}
             selectionMode="partial"
             onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
+            onDrop={isViewer ? undefined : onDrop}
+            onDragOver={isViewer ? undefined : onDragOver}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onlyRenderVisibleElements={false}

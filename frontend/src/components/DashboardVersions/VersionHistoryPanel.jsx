@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, History, RotateCcw, Loader2, AlertTriangle, LayoutGrid, CheckCircle2, RefreshCw } from 'lucide-react';
 import { listDashboardVersions, restoreDashboardVersion, formatRelativeTime, formatDateTime } from './dashboardVersionsApi';
+import usePermissions from '../../utils/usePermissions';
 
 /**
  * Slide-over listing saved dashboard versions (newest first) with non-destructive restore.
  * `onRestored(versionDetail)` receives the newly created version (including its layout).
  */
 export default function VersionHistoryPanel({ isOpen, onClose, projectId, currentVersion, isDirty, onRestored, refreshKey }) {
+  const { canEdit } = usePermissions();
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -112,7 +114,7 @@ export default function VersionHistoryPanel({ isOpen, onClose, projectId, curren
                         <LayoutGrid size={10} /> {v.widget_count} widgets
                         {v.restored_from_version && <span className="ml-1">· กู้คืนจาก v{v.restored_from_version}</span>}
                       </span>
-                      {!isCurrent && !confirming && (
+                      {canEdit && !isCurrent && !confirming && (
                         <button
                           onClick={() => setConfirmId(v.id)}
                           className="text-[11px] flex items-center gap-1 text-blue-500 hover:text-blue-600 hover:underline"
@@ -121,7 +123,7 @@ export default function VersionHistoryPanel({ isOpen, onClose, projectId, curren
                         </button>
                       )}
                     </div>
-                    {confirming && (
+                    {canEdit && confirming && (
                       <div className="mt-2 pt-2 border-t border-line flex items-center justify-between gap-2">
                         <span className="text-[11px] text-fg-muted">กู้คืนเป็นเวอร์ชันใหม่?</span>
                         <div className="flex gap-1.5">

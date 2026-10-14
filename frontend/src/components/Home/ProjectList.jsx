@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Folder, Plus, Play, Square, Trash2, ArrowRight, Edit2, Check, Video, Activity, Download, Upload } from 'lucide-react';
 import ExportProjectModal from './ExportProjectModal';
 import ImportProjectModal from './ImportProjectModal';
+import usePermissions from '../../utils/usePermissions';
 
 export default function ProjectList({ onOpenProject }) {
+  const { canManageProjects, canStartStop } = usePermissions();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -146,22 +148,24 @@ export default function ProjectList({ onOpenProject }) {
             Create and manage multiple AI vision pipelines. Each project runs isolated on its own GStreamer thread and RTSP output, allowing you to run multiple cameras simultaneously.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
-          <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-surface-2 hover:bg-surface-3 text-fg hover:text-fg border border-line-strong hover:border-line-stronger px-4 sm:px-5 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 whitespace-nowrap text-sm sm:text-base"
-          >
-            <Upload size={18} className="text-blue-600 dark:text-blue-400" />
-            Import Project
-          </button>
-          <button 
-            onClick={createProject}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-5 sm:px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/50 hover:scale-105 active:scale-95 whitespace-nowrap text-sm sm:text-base"
-          >
-            <Plus size={20} />
-            Create New Project
-          </button>
-        </div>
+        {canManageProjects && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="bg-surface-2 hover:bg-surface-3 text-fg hover:text-fg border border-line-strong hover:border-line-stronger px-4 sm:px-5 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 whitespace-nowrap text-sm sm:text-base"
+            >
+              <Upload size={18} className="text-blue-600 dark:text-blue-400" />
+              Import Project
+            </button>
+            <button 
+              onClick={createProject}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-5 sm:px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/50 hover:scale-105 active:scale-95 whitespace-nowrap text-sm sm:text-base"
+            >
+              <Plus size={20} />
+              Create New Project
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
@@ -205,7 +209,7 @@ export default function ProjectList({ onOpenProject }) {
                 >
                   <Download size={16} />
                 </button>
-                {editingId !== project.id && (
+                {canManageProjects && editingId !== project.id && (
                   <button 
                     onClick={() => startEditing(project)}
                     className="text-fg-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-2 bg-surface-2 rounded-lg active:scale-95"
@@ -214,13 +218,15 @@ export default function ProjectList({ onOpenProject }) {
                     <Edit2 size={16} />
                   </button>
                 )}
-                <button 
-                  onClick={() => deleteProject(project.id)}
-                  className="text-fg-muted hover:text-red-500 transition-colors p-2 bg-surface-2 rounded-lg active:scale-95"
-                  title="Delete Project"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {canManageProjects && (
+                  <button 
+                    onClick={() => deleteProject(project.id)}
+                    className="text-fg-muted hover:text-red-500 transition-colors p-2 bg-surface-2 rounded-lg active:scale-95"
+                    title="Delete Project"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
             
@@ -262,22 +268,24 @@ export default function ProjectList({ onOpenProject }) {
             
             <div className="flex items-center justify-between pt-4 sm:pt-5 border-t border-line/50 mt-auto relative z-10 gap-2">
               <div className="flex items-center gap-2">
-                {projectStatuses[project.id]?.status === 'running' ? (
-                  <button 
-                    onClick={() => toggleProject(project.id, true)}
-                    className="p-2 sm:p-2.5 rounded-lg bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-colors border border-red-800/50 active:scale-95"
-                    title="Stop Project"
-                  >
-                    <Square size={16} fill="currentColor" />
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => toggleProject(project.id, false)}
-                    className="p-2 sm:p-2.5 rounded-lg bg-green-900/40 text-green-400 hover:bg-green-600 hover:text-white transition-colors border border-green-800/50 active:scale-95"
-                    title="Start Project"
-                  >
-                    <Play size={16} fill="currentColor" />
-                  </button>
+                {canStartStop && (
+                  projectStatuses[project.id]?.status === 'running' ? (
+                    <button 
+                      onClick={() => toggleProject(project.id, true)}
+                      className="p-2 sm:p-2.5 rounded-lg bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-colors border border-red-800/50 active:scale-95"
+                      title="Stop Project"
+                    >
+                      <Square size={16} fill="currentColor" />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => toggleProject(project.id, false)}
+                      className="p-2 sm:p-2.5 rounded-lg bg-green-900/40 text-green-400 hover:bg-green-600 hover:text-white transition-colors border border-green-800/50 active:scale-95"
+                      title="Start Project"
+                    >
+                      <Play size={16} fill="currentColor" />
+                    </button>
+                  )
                 )}
                 
                 <span className="text-[11px] sm:text-xs text-fg-subtle font-medium">
@@ -303,13 +311,15 @@ export default function ProjectList({ onOpenProject }) {
             <p className="text-fg-subtle mb-8 max-w-md mx-auto">
               Create your first project to start building AI vision pipelines and analyzing video streams.
             </p>
-            <button 
-              onClick={createProject}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20 hover:scale-105 active:scale-95"
-            >
-              <Plus size={20} />
-              Create Your First Project
-            </button>
+            {canManageProjects && (
+              <button 
+                onClick={createProject}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20 hover:scale-105 active:scale-95"
+              >
+                <Plus size={20} />
+                Create Your First Project
+              </button>
+            )}
           </div>
         )}
       </div>
