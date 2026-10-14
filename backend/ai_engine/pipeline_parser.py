@@ -341,16 +341,22 @@ class PipelineParser:
                     stream_config.roi = ai_data.get("roi", {"x": 0, "y": 0, "w": 1, "h": 1})
                     stream_config.roi_enabled = ai_data.get("roiEnabled", False)
                     stream_config.show_roi = ai_data.get("showRoi", False)
-                    stream_config.confidence_threshold = float(ai_data.get("confidenceThreshold", 0.5))
+                    conf_enabled = ai_data.get("confidenceThresholdEnabled", True)
+                    stream_config.confidence_threshold = float(ai_data.get("confidenceThreshold", 0.5)) if conf_enabled else 0.0
                     stream_config.class_confidences = ai_data.get("classConfidences", {})
                     
-                    stream_config.bbox_draw_mode = ai_data.get("bboxDrawMode", "frontend")
+                    bbox_enabled = ai_data.get("bboxEnabled", True)
+                    if not bbox_enabled or ai_data.get("bboxDrawMode") == "none":
+                        stream_config.bbox_draw_mode = "none"
+                    else:
+                        stream_config.bbox_draw_mode = ai_data.get("bboxDrawMode", "frontend")
                     stream_config.bbox_line_thickness = int(ai_data.get("bboxLineThickness", 2))
                     stream_config.bbox_font_thickness = int(ai_data.get("bboxFontThickness", 1))
                     stream_config.backend_resolution = ai_data.get("backendResolution", "auto")
                     
+                    class_filter_enabled = ai_data.get("classFilterEnabled", True)
                     raw_filter = ai_data.get("classFilter", None)
-                    stream_config.class_filter = raw_filter if raw_filter and isinstance(raw_filter, list) else None
+                    stream_config.class_filter = (raw_filter if raw_filter and isinstance(raw_filter, list) else None) if class_filter_enabled else None
                     
                     if model:
                         stream_config.ai_task = model.get("task", "detection")

@@ -1043,6 +1043,15 @@ class HailoPipelineWorker:
                         stream_cfg.class_filter = list(v) if v else None
                     elif k == "bboxDrawMode":
                         stream_cfg.bbox_draw_mode = str(v)
+                    elif k == "bboxEnabled":
+                        if not bool(v):
+                            stream_cfg.bbox_draw_mode = "none"
+                    elif k == "confidenceThresholdEnabled":
+                        if not bool(v):
+                            stream_cfg.confidence_threshold = 0.0
+                    elif k == "classFilterEnabled":
+                        if not bool(v):
+                            stream_cfg.class_filter = None
                     elif k == "bboxLineThickness":
                         stream_cfg.bbox_line_thickness = int(v)
                     elif k == "bboxFontThickness":
