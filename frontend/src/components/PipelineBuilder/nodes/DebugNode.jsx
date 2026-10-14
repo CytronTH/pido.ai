@@ -523,7 +523,7 @@ export default memo(({ data, isConnectable, id }) => {
         const taskType = payload?.type || "detection";
         const drawMode = payload?.bbox_draw_mode || sourceNode?.data?.bboxDrawMode || "frontend";
 
-        if (taskType === "detection") {
+        if (taskType === "detection" && drawMode !== "none") {
           items.forEach(det => {
             const [xmin, ymin, xmax, ymax] = det.bbox;
             const x = xmin * W, y = ymin * H;

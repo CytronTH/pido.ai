@@ -283,7 +283,7 @@ export default function VideoWidget({ metadata, projectId, config, dataSources =
       const fontThickness = currentMetadata.bbox_font_thickness || 1;
 
       if (taskType === 'detection') {
-        if (drawMode !== 'backend') {
+        if (drawMode !== 'backend' && drawMode !== 'none') {
           items.forEach(det => {
             const [xmin, ymin, xmax, ymax] = det.bbox;
             const x = xmin * W, y = ymin * H;

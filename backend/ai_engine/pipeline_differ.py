@@ -34,11 +34,17 @@ STREAM_NODE_TYPES = {
 
 AI_DYNAMIC_PARAMS = {
     "confidenceThreshold",
+    "confidenceThresholdEnabled",
     "classConfidences",
     "roi",
     "roiEnabled",
     "showRoi",
     "classFilter",
+    "classFilterEnabled",
+    "bboxEnabled",
+    "bboxDrawMode",
+    "bboxLineThickness",
+    "bboxFontThickness",
     "backendResolution",
 }
 
