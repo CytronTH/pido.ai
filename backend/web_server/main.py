@@ -2036,7 +2036,13 @@ async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()) -> Di
                 target_ver = "dev"
 
         subprocess.Popen(
-            ["/bin/bash", str(updater_script), "--mode=online", f"--target-version={target_ver}"],
+            [
+                "/bin/bash",
+                str(updater_script),
+                "--mode=online",
+                f"--target-version={target_ver}",
+                f"--project-root={str(project_root)}"
+            ],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
@@ -2066,6 +2072,7 @@ async def upload_offline_update(package: UploadFile = File(...)) -> Dict[str, An
         if not updater_script.exists():
             return {"status": "error", "message": "Updater script not found"}
 
+        project_root = Path(__file__).resolve().parent.parent.parent
         status_file = Path("/tmp/pido_update_status.json")
         init_status = {
             "status": "running",
@@ -2078,7 +2085,13 @@ async def upload_offline_update(package: UploadFile = File(...)) -> Dict[str, An
         status_file.write_text(json.dumps(init_status))
 
         subprocess.Popen(
-            ["/bin/bash", str(updater_script), "--mode=offline", f"--package-path={str(upload_path)}"],
+            [
+                "/bin/bash",
+                str(updater_script),
+                "--mode=offline",
+                f"--package-path={str(upload_path)}",
+                f"--project-root={str(project_root)}"
+            ],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL

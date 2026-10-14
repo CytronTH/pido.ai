@@ -9,8 +9,13 @@ set -euo pipefail
 export GIT_TERMINAL_PROMPT=0
 
 # ── Paths & Constants ─────────────────────────────────────────────────────────
-PROJECT_ROOT="/home/pi/pido-ai"
-BACKUP_BASE_DIR="/home/pi/pido-ai-backups"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+DEFAULT_PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd)"
+PROJECT_ROOT="${PIDO_PROJECT_ROOT:-$DEFAULT_PROJECT_ROOT}"
+
+CURRENT_USER=$(id -un 2>/dev/null || echo "pi")
+USER_HOME="${HOME:-$(eval echo "~$CURRENT_USER")}"
+BACKUP_BASE_DIR="${USER_HOME}/pido-ai-backups"
 STATUS_FILE="/tmp/pido_update_status.json"
 LOG_FILE="/tmp/pido_update.log"
 LOCK_FILE="/tmp/pido_update.lock"
@@ -30,6 +35,12 @@ for arg in "$@"; do
             ;;
         --package-path=*)
             PACKAGE_PATH="${arg#*=}"
+            ;;
+        --project-root=*)
+            PROJECT_ROOT="${arg#*=}"
+            ;;
+        --backup-dir=*)
+            BACKUP_BASE_DIR="${arg#*=}"
             ;;
         *)
             ;;
@@ -156,7 +167,7 @@ if [ "$MODE" = "online" ]; then
         else
             git checkout -f "$TARGET_VERSION" >> "$LOG_FILE" 2>&1
         fi
-        git pull origin "$TARGET_VERSION" >> "$LOG_FILE" 2>&1
+        git pull origin "$TARGET_VERSION" >> "$LOG_FILE" 2>&1 || git reset --hard "origin/$TARGET_VERSION" >> "$LOG_FILE" 2>&1
     else
         update_status "running" "pull" 55 "Checking out release tag/commit: $TARGET_VERSION..."
         git checkout -f "$TARGET_VERSION" >> "$LOG_FILE" 2>&1

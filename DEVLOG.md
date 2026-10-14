@@ -25,6 +25,32 @@
 - 
 -->
 
+## [2026-10-14] - แก้ไขปัญหา Platform Updater Line 136 ล้มเหลวจาก Hardcoded Path
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ไขบั๊ก Platform Updater ล้มเหลวที่ Line 136 (`cd "$PROJECT_ROOT"`) บนเครื่องที่ติดตั้งผ่าน `install.sh` (`~/pido.ai`) หรือโฟลเดอร์อื่นที่ไม่ใช่ `/home/pi/pido-ai`
+- [x] ปรับให้สคริปต์ `updater.sh` ทำ Dynamic Path Resolution อัตโนมัติและรองรับอาร์กิวเมนต์ `--project-root` และ `--backup-dir`
+- [x] ส่งพารามิเตอร์ `--project-root` จาก Backend FastAPI (`main.py`) ไปยัง `updater.sh` ทั้งโหมด Online และ Offline
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **`backend/scripts/updater.sh`**:
+  - เปลี่ยนการกำหนด `PROJECT_ROOT` จากค่าคงที่ `/home/pi/pido-ai` เป็น Dynamic Path Resolution โดยอ้างอิงตำแหน่งของตัวสคริปต์เอง (`SCRIPT_DIR/../..`) และตัวแปร `PIDO_PROJECT_ROOT`
+  - ปรับ `USER_HOME` และ `BACKUP_BASE_DIR` ให้อ้างอิง `$HOME` ของผู้ใช้จริง
+  - เพิ่มการรองรับอาร์กิวเมนต์ `--project-root=*` และ `--backup-dir=*` ในการ Parse Arguments
+  - เพิ่ม Fallback `git reset --hard "origin/$TARGET_VERSION"` กรณีคำสั่ง `git pull` เกิดปัญหาบนอุปกรณ์ Edge
+- **`backend/web_server/main.py`**:
+  - ส่งพารามิเตอร์ `--project-root={str(project_root)}` ใน Endpoint `POST /api/system/update/start` (Online Mode)
+  - ส่งพารามิเตอร์ `--project-root={str(project_root)}` ใน Endpoint `POST /api/system/update/upload` (Offline Mode)
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ใช้ Dynamic Path Resolution (`cd "$(dirname "${BASH_SOURCE[0]}")/../.."`) ร่วมกับการส่ง Flag จาก Backend
+- **เหตุผล:** ระบบต้องสามารถทำงานได้ไม่ว่าผู้ใช้จะติดตั้งโปรเจกต์ไว้ที่ชื่อโฟลเดอร์ใด (`~/pido.ai`, `~/pido-ai`, หรือ Custom Path อื่น) โดยไม่ต้องพึ่งพา Symbolic Link
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- บอร์ดทดสอบเดิมที่ยังใช้โค้ดเวอร์ชันเก่าก่อนหน้านี้ จะต้องสร้าง Symlink `ln -s /home/pi/pido.ai /home/pi/pido-ai` เพียงครั้งเดียวสำหรับการอัปเดตครั้งแรก เมื่ออัปเดตผ่านแล้วครั้งถัดไปจะรองรับ Dynamic Path อัตโนมัติ
+
+---
+
 ## [2026-10-09] - ปรับปรุงและแก้ไขระบบ Platform Updater (OTA & Offline) ให้พร้อมใช้งานจริง 100%
 
 ### 🎯 เป้าหมาย (Goals)
