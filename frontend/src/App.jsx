@@ -620,9 +620,11 @@ function AppContent() {
                </div>
             } />
             <Route path="/users" element={
-               <div className="flex-1 overflow-y-auto">
-                 <UserManagement />
-               </div>
+               <ProtectedRoute allowedRoles={['admin']}>
+                 <div className="flex-1 overflow-y-auto">
+                   <UserManagement />
+                 </div>
+               </ProtectedRoute>
             } />
             <Route path="/project/:projectId/dashboard" element={
                activeProject ? (
