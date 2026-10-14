@@ -1718,7 +1718,7 @@ class MaintenancePayload(BaseModel):
     delete_files: Optional[bool] = True
 
 @app.post("/api/database/maintenance/cleanup")
-async def cleanup_database(payload: MaintenancePayload = MaintenancePayload()):
+async def cleanup_database(payload: MaintenancePayload = MaintenancePayload()) -> Dict[str, Any]:
     try:
         from db.database import db
         result = db.purge_old_logs(
@@ -1728,6 +1728,37 @@ async def cleanup_database(payload: MaintenancePayload = MaintenancePayload()):
         )
         return {"status": "success", "result": result}
     except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class DatabaseQueryPayload(BaseModel):
+    query: str
+    db_name: Optional[str] = "telemetry"
+
+@app.post("/api/database/query")
+async def run_database_query(payload: DatabaseQueryPayload) -> Dict[str, Any]:
+    try:
+        from db.database import db
+        return db.execute_raw_query(payload.query, db_name=payload.db_name or "telemetry")
+    except Exception as e:
+        logger.error(f"Error in database query API: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/database/maintenance/vacuum")
+async def vacuum_database() -> Dict[str, Any]:
+    try:
+        from db.database import db
+        return db.vacuum_database()
+    except Exception as e:
+        logger.error(f"Error in database vacuum API: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/database/maintenance/rollup")
+async def rollup_database() -> Dict[str, Any]:
+    try:
+        from db.database import db
+        return db.rollup_metrics()
+    except Exception as e:
+        logger.error(f"Error in database rollup API: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/system/shutdown")
