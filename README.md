@@ -70,17 +70,17 @@ PiDo.AI bridges the gap between raw video streams, deep-learning models (YOLO, c
 <br/>
 
 <!-- ========================================================================= -->
-<!-- 📷 IMAGE PLACEHOLDER: 03 - DATABASE LOGS & SNAPSHOT INSPECTOR             -->
+<!-- 📷 IMAGE PLACEHOLDER: 03 - PROJECT DATABASE & SNAPSHOT INSPECTOR             -->
 <!-- Recommended Size : 1920x1080 (16:9)                                       -->
 <!-- Suggested Path   : docs/images/database-logs-snapshots.jpg                -->
-<!-- Description      : Database Event Logs view showing Gallery & Table views,-->
+<!-- Description      : Project Database view showing Gallery & Table views,   -->
 <!--                    inspection modal with snapshot image, tag filters,      -->
 <!--                    and payload metadata inspection.                       -->
 <!-- ========================================================================= -->
-### 🗄️ Database Event Logs & Snapshot Visual Inspector
+### 🗄️ Project Database & Snapshot Visual Inspector
 <div align="center">
-  <img width="100%" alt="Database Event Logs & Snapshots" src="docs/images/database-logs-snapshots.jpg" />
-  <p><em>Database Logs & Snapshot Inspector: Dual Gallery/Table views, event tag filtering (OK/NG/Defect), and full-resolution snapshot inspection with JSON payload trace.</em></p>
+  <img width="100%" alt="Project Database & Snapshots" src="docs/images/database-logs-snapshots.jpg" />
+  <p><em>Project Database & Snapshot Inspector: Dual Gallery/Table views, event tag filtering (OK/NG/Defect), and full-resolution snapshot inspection with JSON payload trace.</em></p>
 </div>
 
 <br/>
@@ -186,7 +186,7 @@ PiDo.AI bridges the gap between raw video streams, deep-learning models (YOLO, c
 ### 🎨 7. Modern Design System & Mobile Readiness
 - **Semantic Design Tokens:** Built on Tailwind CSS v4 with custom variables (`canvas`, `surface-*`, `line-*`, `fg-*`, `primary`, `status`, `chart-*`).
 - **True Dark / Light / System Mode:** Smooth theme switching with zero flash-of-unstyled-content and cross-tab synchronization.
-- **Mobile Bottom Navigation:** Tailored for quick access to Projects, Dashboard, Pipelines, Logs, and Settings on smartphones and tablets.
+- **Mobile Bottom Navigation:** Tailored for quick access to Projects, Dashboard, Pipelines, Database, and Settings on smartphones and tablets.
 
 ---
 

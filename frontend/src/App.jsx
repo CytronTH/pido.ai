@@ -439,18 +439,18 @@ function AppContent() {
               </button>
               <button
                 onClick={() => {
-                  navigate(`/project/${activeProject.id}/logs`);
+                  navigate(`/project/${activeProject.id}/database`);
                   setIsMobileDrawerOpen(false);
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
-                  activeTab === 'logs' 
+                  (activeTab === 'database' || activeTab === 'logs')
                     ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                     : 'text-fg-muted hover:text-fg hover:bg-surface-2'
                 }`}
-                title={!isSidebarOpen ? "Database Logs" : ""}
+                title={!isSidebarOpen ? "Project Database" : ""}
               >
-                <Server size={18} className="shrink-0" />
-                {(isSidebarOpen || isMobileDrawerOpen) && <span>Database Logs</span>}
+                <Database size={18} className="shrink-0" />
+                {(isSidebarOpen || isMobileDrawerOpen) && <span>Project Database</span>}
               </button>
               <button
                 onClick={() => {
@@ -508,7 +508,7 @@ function AppContent() {
                  <span className="font-medium truncate max-w-[100px] sm:max-w-[200px] text-fg-secondary" title={activeProject.name}>{activeProject.name}</span>
                  <span className="text-fg-faint">/</span>
                  <span className="text-blue-600 dark:text-blue-400 font-medium truncate">
-                   {activeTab === 'dashboard' ? 'Live Dashboard' : activeTab === 'pipeline' ? 'Pipeline Builder' : activeTab === 'wiki' ? 'Node Wiki' : 'Database Logs'}
+                   {activeTab === 'dashboard' ? 'Live Dashboard' : activeTab === 'pipeline' ? 'Pipeline Builder' : activeTab === 'wiki' ? 'Node Wiki' : 'Project Database'}
                  </span>
                </>
              )}
@@ -640,6 +640,13 @@ function AppContent() {
                  </div>
                ) : null
             } />
+            <Route path="/project/:projectId/database" element={
+               activeProject ? (
+                 <div className="h-full bg-canvas">
+                   <ProjectDatabase projectId={activeProject.id} />
+                 </div>
+               ) : null
+            } />
             <Route path="/project/:projectId/logs" element={
                activeProject ? (
                  <div className="h-full bg-canvas">
@@ -678,11 +685,11 @@ function AppContent() {
                 <span className="text-[10px]">Pipeline</span>
               </button>
               <button 
-                onClick={() => navigate(`/project/${activeProject.id}/logs`)}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'logs' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+                onClick={() => navigate(`/project/${activeProject.id}/database`)}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'database' || activeTab === 'logs' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
               >
-                <Server size={18} />
-                <span className="text-[10px]">Logs</span>
+                <Database size={18} />
+                <span className="text-[10px]">Database</span>
               </button>
               <button 
                 onClick={() => { setWikiNode(null); navigate(`/project/${activeProject.id}/wiki`); }}
