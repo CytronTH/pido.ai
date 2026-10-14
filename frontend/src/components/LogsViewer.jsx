@@ -5,6 +5,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronLeft, 
   ChevronRight, Copy, Check, Sparkles, Maximize2
 } from 'lucide-react';
+import { parseDbTime, formatDbTime, formatDbTimeOnly, formatDbDateOnly } from '../utils/dbFormat';
 
 export default function LogsViewer({ projectId, embedded = false }) {
   const TitleTag = embedded ? 'h2' : 'h1';
@@ -365,10 +366,10 @@ export default function LogsViewer({ projectId, embedded = false }) {
             <div>
               <p className="text-[11px] font-semibold text-fg-muted uppercase tracking-wider">Snapshots Stored</p>
               <h3 className="text-2xl font-extrabold text-fg mt-1 font-mono tracking-tight">
-                {dbStats?.snapshot_count ? dbStats.snapshot_count.toLocaleString() : '-'}
+                {dbStats?.snapshot_count !== undefined ? dbStats.snapshot_count.toLocaleString() : '-'}
               </h3>
               <p className="text-[11px] text-fg-subtle mt-0.5">
-                {dbStats?.snapshot_size_mb ? `${(dbStats.snapshot_size_mb / 1024).toFixed(2)} GB on disk` : 'Calculating...'}
+                {dbStats?.snapshot_size_mb !== undefined ? `${(dbStats.snapshot_size_mb / 1024).toFixed(2)} GB on disk` : 'Calculating...'}
               </p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
@@ -519,8 +520,8 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 const BadgeIcon = badge.icon;
                 const snapUrl = log.snapshot_path ? `/api/snapshots/${log.snapshot_path.split('/').pop()}` : null;
                 const camName = cameraMap[log.camera_id] || log.camera_id || 'Camera';
-                const timeStr = new Date(log.timestamp + 'Z').toLocaleTimeString();
-                const dateStr = new Date(log.timestamp + 'Z').toLocaleDateString();
+                const timeStr = formatDbTimeOnly(log.timestamp);
+                const dateStr = formatDbDateOnly(log.timestamp);
                 const logTags = Array.isArray(log.payload?.tags) ? log.payload.tags : [];
 
                 return (
@@ -697,7 +698,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
 
                           {/* Timestamp */}
                           <td className="px-5 py-3 whitespace-nowrap font-mono text-[11px] text-fg-secondary">
-                            {new Date(log.timestamp + 'Z').toLocaleString()}
+                            {formatDbTime(log.timestamp)}
                           </td>
 
                           {/* Event / Result */}
@@ -843,7 +844,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                     </span>
                   </h3>
                   <p className="text-[11px] text-fg-muted">
-                    {cameraMap[selectedLog.camera_id] || selectedLog.camera_id || 'Camera'} • {new Date(selectedLog.timestamp + 'Z').toLocaleString()}
+                    {cameraMap[selectedLog.camera_id] || selectedLog.camera_id || 'Camera'} • {formatDbTime(selectedLog.timestamp)}
                   </p>
                 </div>
               </div>

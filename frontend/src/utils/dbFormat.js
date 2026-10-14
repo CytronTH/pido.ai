@@ -3,14 +3,31 @@
 /** Parse a backend timestamp. Naive strings (no offset) are treated as UTC. */
 export function parseDbTime(ts) {
   if (!ts) return null;
-  if (typeof ts === 'number') return new Date(ts);
-  const hasTz = /([zZ]|[+-]\d{2}:?\d{2})$/.test(ts);
-  return new Date(hasTz ? ts : `${ts.replace(' ', 'T')}Z`);
+  if (ts instanceof Date) return isNaN(ts.getTime()) ? null : ts;
+  if (typeof ts === 'number') return new Date(ts < 1e11 ? ts * 1000 : ts);
+  if (typeof ts !== 'string') return null;
+  let s = ts.trim();
+  if (!s) return null;
+  // Strip trailing Z if an offset was already present (e.g. +00:00Z)
+  s = s.replace(/([+-]\d{2}:?\d{2})Z$/i, '$1');
+  const hasTz = /([zZ]|[+-]\d{2}:?\d{2})$/.test(s);
+  const d = new Date(hasTz ? s : `${s.replace(' ', 'T')}Z`);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 export function formatDbTime(ts, opts) {
   const d = parseDbTime(ts);
-  return d && !isNaN(d) ? d.toLocaleString(undefined, opts) : '-';
+  return d && !isNaN(d.getTime()) ? d.toLocaleString(undefined, opts) : '-';
+}
+
+export function formatDbTimeOnly(ts, opts) {
+  const d = parseDbTime(ts);
+  return d && !isNaN(d.getTime()) ? d.toLocaleTimeString(undefined, opts) : '-';
+}
+
+export function formatDbDateOnly(ts, opts) {
+  const d = parseDbTime(ts);
+  return d && !isNaN(d.getTime()) ? d.toLocaleDateString(undefined, opts) : '-';
 }
 
 /** "3s ago", "5m ago", "2h ago", "4d ago" */
