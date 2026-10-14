@@ -30,8 +30,9 @@ import {
   Video, Gauge, CircleDot, Target, Hash, 
   Type, ListOrdered, LineChart, BarChart2, 
   Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move, History, Undo2, Check,
-  AlertTriangle, Clock 
+  AlertTriangle, Clock, Eye 
 } from 'lucide-react';
+import usePermissions from '../utils/usePermissions';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -369,6 +370,7 @@ const diffSnapshots = (saved, current) => {
 };
 
 export default function LiveDashboard({ metadata, connected, projectId }) {
+  const { canEdit, isViewer } = usePermissions();
   const [layouts, setLayouts] = useState({ lg: [] }); // start empty instead of defaultLayout to prevent flashing
   const [compactMode, setCompactMode] = useState('free'); // 'vertical' = Auto-arrange, 'free' = Free placement (default)
   const [isEditMode, setIsEditMode] = useState(false);
@@ -671,39 +673,46 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
           <History size={15} />
           <span className="hidden sm:inline">{currentVersion ? `v${currentVersion}` : 'History'}</span>
         </button>
-        {isEditMode ? (
-          <>
-            <button
-              onClick={handleDiscard}
-              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-sm active:scale-95"
-              title={isDirty ? 'ยกเลิกการแก้ไขที่ยังไม่ได้บันทึก' : 'ออกจากโหมดแก้ไข'}
+        {canEdit ? (
+          isEditMode ? (
+            <>
+              <button
+                onClick={handleDiscard}
+                className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-sm active:scale-95"
+                title={isDirty ? 'ยกเลิกการแก้ไขที่ยังไม่ได้บันทึก' : 'ออกจากโหมดแก้ไข'}
+              >
+                <Undo2 size={15} /> <span className="hidden sm:inline">{isDirty ? 'Discard' : 'Cancel'}</span>
+              </button>
+              {isDirty || currentVersion === null ? (
+                <button 
+                  onClick={openSaveModal}
+                  className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
+                >
+                  <Save size={15} /> <span>Save Version</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setIsEditMode(false)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
+                  title="ไม่มีการเปลี่ยนแปลง"
+                >
+                  <Check size={15} /> <span>Done</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <button 
+              onClick={() => setIsEditMode(true)}
+              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors border border-line-strong shadow-sm active:scale-95"
             >
-              <Undo2 size={15} /> <span className="hidden sm:inline">{isDirty ? 'Discard' : 'Cancel'}</span>
+              <Unlock size={15} /> <span>Edit Layout</span>
             </button>
-            {isDirty || currentVersion === null ? (
-              <button 
-                onClick={openSaveModal}
-                className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
-              >
-                <Save size={15} /> <span>Save Version</span>
-              </button>
-            ) : (
-              <button 
-                onClick={() => setIsEditMode(false)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
-                title="ไม่มีการเปลี่ยนแปลง"
-              >
-                <Check size={15} /> <span>Done</span>
-              </button>
-            )}
-          </>
+          )
         ) : (
-          <button 
-            onClick={() => setIsEditMode(true)}
-            className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors border border-line-strong shadow-sm active:scale-95"
-          >
-            <Unlock size={15} /> <span>Edit Layout</span>
-          </button>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-xs font-semibold">
+            <Eye size={14} />
+            <span>Live Monitor</span>
+          </div>
         )}
         </div>
       </div>
@@ -733,8 +742,8 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
             cols={GRID_COLS}
             rowHeight={GRID_ROW_HEIGHT}
             onLayoutChange={onLayoutChange}
-            isDraggable={isEditMode}
-            isResizable={isEditMode}
+            isDraggable={canEdit && isEditMode}
+            isResizable={canEdit && isEditMode}
             margin={[GRID_MARGIN, GRID_MARGIN]}
             compactType={compactMode === 'free' ? null : 'vertical'}
             preventCollision={false}
