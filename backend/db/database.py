@@ -543,7 +543,13 @@ class DatabaseManager:
                     except:
                         pass
                 if d.get('timestamp'):
-                    d['timestamp'] = d['timestamp'].isoformat()
+                    if hasattr(d['timestamp'], 'isoformat'):
+                        ts = d['timestamp']
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                        d['timestamp'] = ts.isoformat()
+                    elif isinstance(d['timestamp'], str):
+                        d['timestamp'] = d['timestamp']
                 out.append(d)
             return {"data": out, "total": total, "page": page, "limit": limit}
 
@@ -697,14 +703,14 @@ class DatabaseManager:
             with Session(self.engine_telemetry) as session:
                 if project_id:
                     stats["total_event_logs"] = session.exec(select(func.count(EventLog.id)).where(EventLog.project_id == project_id)).one()
-                    stats["total_metrics"] = session.exec(select(func.count(SystemMetric.id)).where(SystemMetric.project_id == project_id)).one()
-                    stats["total_class_counts"] = session.exec(select(func.count(ClassCountSummary.id)).where(ClassCountSummary.project_id == project_id)).one()
-                    stats["total_hourly_rollups"] = session.exec(select(func.count(ClassCountHourly.id)).where(ClassCountHourly.project_id == project_id)).one()
+                    stats["total_metrics"] = session.exec(select(func.count(SystemMetric.id))).one()
+                    stats["total_class_counts"] = session.exec(select(func.count(CustomMetricLog.id)).where(CustomMetricLog.project_id == project_id)).one()
+                    stats["total_hourly_rollups"] = session.exec(select(func.count(CustomMetricHourly.id)).where(CustomMetricHourly.project_id == project_id)).one()
                 else:
                     stats["total_event_logs"] = session.exec(select(func.count(EventLog.id))).one()
                     stats["total_metrics"] = session.exec(select(func.count(SystemMetric.id))).one()
-                    stats["total_class_counts"] = session.exec(select(func.count(ClassCountSummary.id))).one()
-                    stats["total_hourly_rollups"] = session.exec(select(func.count(ClassCountHourly.id))).one()
+                    stats["total_class_counts"] = session.exec(select(func.count(CustomMetricLog.id))).one()
+                    stats["total_hourly_rollups"] = session.exec(select(func.count(CustomMetricHourly.id))).one()
                     
             with Session(self.engine) as session:
                 if not project_id:

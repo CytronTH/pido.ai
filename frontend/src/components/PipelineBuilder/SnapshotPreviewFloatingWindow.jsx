@@ -15,6 +15,7 @@ import {
   Image as ImageIcon 
 } from 'lucide-react';
 import usePipelineStore from '../../store/usePipelineStore';
+import { formatDbTimeOnly } from '../../utils/dbFormat';
 
 /**
  * Floating Realtime Photo Preview Window on Pipeline Builder Canvas.
@@ -197,7 +198,7 @@ export default function SnapshotPreviewFloatingWindow({
     : 'Snapshot';
 
   const formattedTime = snapshot?.timestamp
-    ? new Date(typeof snapshot.timestamp === 'number' ? snapshot.timestamp * 1000 : snapshot.timestamp).toLocaleTimeString()
+    ? formatDbTimeOnly(snapshot.timestamp)
     : null;
 
   const currentTags = snapshot?.tags || nodeData?.tags || [];
