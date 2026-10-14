@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Camera, BrainCircuit, Filter, Timer, Code, Hash, ArrowRightLeft, Target, 
   Activity, Database, BookOpen, Image, Video, Type, LineChart, List, Bell, 
-  ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, Terminal, 
+  ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, 
   Info, X 
 } from 'lucide-react';
 
@@ -65,7 +65,6 @@ export const NODE_CATEGORIES = [
     badgeColor: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
     items: [
       { type: 'debugNode', label: 'Debug node', desc: 'Probe payload packets', icon: Bug, color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' },
-      { type: 'debugOutputNode', label: 'Debug Output', desc: 'Live JSON terminal window', icon: Terminal, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
     ]
   }
 ];

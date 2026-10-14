@@ -1,7 +1,13 @@
 import React, { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Handle, Position, useHandleConnections, useNodesData, useReactFlow } from '@xyflow/react';
-import { Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, AlertOctagon, RefreshCw, Film, RotateCcw } from 'lucide-react';
+import { 
+  Bug, Pause, Play, Code, MonitorPlay, ShieldAlert, AlertTriangle, 
+  AlertOctagon, RefreshCw, Film, RotateCcw, Maximize2, Minimize2, 
+  X, Camera, ExternalLink, Image as ImageIcon 
+} from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
+import { formatDbTimeOnly } from '../../../utils/dbFormat';
 import NodeHeader from './NodeHeader';
 
 function useWhepStream(whepUrl, videoRef, { disableAutoReconnect = false } = {}) {
@@ -123,6 +129,9 @@ export default memo(({ data, isConnectable, id }) => {
     : isDefaultVideo;
 
   const hasVideoPreview = Boolean(isVideoMode && sourceNode && (sourceNode.type === 'aiNode' || sourceNode.type === 'inputNode' || isForkliftNode));
+  const isSnapshotNode = sourceNode?.type === 'snapshotNode';
+  const hasImagePreview = Boolean(isSnapshotNode);
+  const hasPreview = hasVideoPreview || hasImagePreview;
 
   // Trace all upstream nodes connected to this node along the pipeline chain
   const upstreamNodeIds = useMemo(() => {
@@ -264,9 +273,158 @@ export default memo(({ data, isConnectable, id }) => {
   const activeWhepUrl = (!isStreamActive || isWaitingForDeploy) ? null : whepUrl;
   const canvasRef = useRef(null);
   const videoRef = useRef(null);
-
-  const [isEos, setIsEos] = useState(false);
+  const modalCanvasRef = useRef(null);
+  const modalVideoRef = useRef(null);
+  const modalContainerRef = useRef(null);
   const hasConnectedOnceRef = useRef(false);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isModalFullscreen, setIsModalFullscreen] = useState(false);
+  const [snapshot, setSnapshot] = useState(null);
+  const [isSnapshotLoading, setIsSnapshotLoading] = useState(false);
+  const [isEos, setIsEos] = useState(false);
+  const [resolution, setResolution] = useState(null);
+
+  const { status, reconnect } = useWhepStream(activeWhepUrl, videoRef, { disableAutoReconnect: isNonLoop });
+
+  // Snapshot photo data state
+  // Fetch initial latest snapshot from database on mount or when connected to a snapshotNode
+  const fetchLatestSnapshot = useCallback(async (targetNodeId) => {
+    if (!targetNodeId) return;
+    setIsSnapshotLoading(true);
+    try {
+      const q = new URLSearchParams({
+        node_id: targetNodeId,
+        event_type: 'SNAPSHOT',
+        limit: '1',
+      });
+      if (activeProjectId && activeProjectId !== 'wiki_sandbox') {
+        q.append('project_id', activeProjectId);
+      }
+      const res = await fetch(`/api/logs?${q.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.logs && json.logs.length > 0) {
+          const lastLog = json.logs[0];
+          const path = lastLog.snapshot_path 
+            ? `/api/snapshots/${lastLog.snapshot_path.split('/').pop()}` 
+            : null;
+          if (path) {
+            setSnapshot({
+              snapshot_path: path,
+              filename: path.split('/').pop(),
+              timestamp: lastLog.timestamp,
+              tags: lastLog.payload?.tags || sourceNode?.data?.tags || [],
+              label: lastLog.payload?.label || sourceNode?.data?.label || 'Snapshot',
+              trigger_payload: lastLog.payload?.trigger,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch snapshot for debug node:', err);
+    } finally {
+      setIsSnapshotLoading(false);
+    }
+  }, [activeProjectId, sourceNode]);
+
+  useEffect(() => {
+    if (isSnapshotNode && sourceNodeId) {
+      fetchLatestSnapshot(sourceNodeId);
+    } else {
+      setSnapshot(null);
+    }
+  }, [isSnapshotNode, sourceNodeId, fetchLatestSnapshot]);
+
+  // Realtime snapshot WebSocket listener
+  useEffect(() => {
+    if (!isSnapshotNode) return;
+    const handleWs = (e) => {
+      const msg = e.detail;
+      if (msg?.type === 'snapshot_capture' && (!sourceNodeId || msg.node_id === sourceNodeId)) {
+        const path = msg.snapshot_path 
+          ? (msg.snapshot_path.startsWith('/') ? msg.snapshot_path : `/api/snapshots/${msg.snapshot_path.split('/').pop()}`)
+          : null;
+        setSnapshot({
+          snapshot_path: path,
+          filename: path ? path.split('/').pop() : msg.filename,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          tags: msg.tags || sourceNode?.data?.tags || [],
+          label: msg.label || sourceNode?.data?.label || 'Snapshot',
+          trigger_payload: msg.trigger_payload || msg.payload,
+        });
+      }
+    };
+    window.addEventListener('pido_ws_message', handleWs);
+    return () => window.removeEventListener('pido_ws_message', handleWs);
+  }, [isSnapshotNode, sourceNodeId, sourceNode]);
+
+  // Check store debugData for snapshot updates
+  useEffect(() => {
+    if (!isSnapshotNode || !sourceDebugData) return;
+    if (sourceDebugData.type === 'snapshot_capture' || sourceDebugData.snapshot_path) {
+      const path = sourceDebugData.snapshot_path 
+        ? (sourceDebugData.snapshot_path.startsWith('/') ? sourceDebugData.snapshot_path : `/api/snapshots/${sourceDebugData.snapshot_path.split('/').pop()}`)
+        : null;
+      if (path) {
+        setSnapshot(prev => ({
+          snapshot_path: path,
+          filename: path.split('/').pop(),
+          timestamp: sourceDebugData.timestamp || prev?.timestamp || new Date().toISOString(),
+          tags: sourceDebugData.tags || prev?.tags || [],
+          label: sourceDebugData.label || prev?.label || 'Snapshot',
+          trigger_payload: sourceDebugData.trigger_payload || prev?.trigger_payload,
+        }));
+      }
+    }
+  }, [isSnapshotNode, sourceDebugData]);
+
+  // Sync video stream to modal video element when expanded
+  useEffect(() => {
+    if (isExpanded && modalVideoRef.current && videoRef.current) {
+      if (videoRef.current.srcObject) {
+        modalVideoRef.current.srcObject = videoRef.current.srcObject;
+        modalVideoRef.current.play().catch(() => {});
+      }
+    }
+  }, [isExpanded, status]);
+
+  // Escape key handler to close expanded preview modal
+  useEffect(() => {
+    if (!isExpanded) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        } else {
+          setIsExpanded(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExpanded]);
+
+  const toggleModalFullscreen = useCallback(() => {
+    if (!modalContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      modalContainerRef.current.requestFullscreen().catch(err => {
+        console.warn("Fullscreen request failed:", err);
+      });
+      setIsModalFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsModalFullscreen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsModalFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   // Listen to WebSocket EOS events broadcasted by backend
   useEffect(() => {
@@ -302,9 +460,6 @@ export default memo(({ data, isConnectable, id }) => {
       setIsEos(true);
     }
   }, [isStreamEosInStore]);
-
-  const { status, reconnect } = useWhepStream(activeWhepUrl, videoRef, { disableAutoReconnect: isNonLoop });
-  const [resolution, setResolution] = useState(null);
 
   useEffect(() => {
     if (status === 'connected') {
@@ -414,18 +569,19 @@ export default memo(({ data, isConnectable, id }) => {
   }, [isStreamActive, isPaused, isWaitingForDeploy, isVideoEnd, activeWhepUrl]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
     let animationFrameId;
-    
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const drawToCanvas = (targetCanvas) => {
+      if (!targetCanvas) return;
+      const ctx = targetCanvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
       if (isWaitingForDeploy || isVideoEnd) return;
       const payload = latestDataRef.current;
       
       if (shouldDrawBoxes && (currentStreamId || isForkliftNode)) {
-        const W = canvas.width, H = canvas.height;
+        const W = targetCanvas.width, H = targetCanvas.height;
+        const scale = Math.max(1, W / 640);
 
         // 1. Draw Polygon Danger Zones for Forklift Safety Monitor
         if (isForkliftNode) {
@@ -465,9 +621,9 @@ export default memo(({ data, isConnectable, id }) => {
 
             // Border stroke
             ctx.strokeStyle = color;
-            ctx.lineWidth = isAlert ? 3 : 1.5;
+            ctx.lineWidth = (isAlert ? 3 : 1.5) * scale;
             if (zone.type === 'caution') {
-              ctx.setLineDash([6, 4]);
+              ctx.setLineDash([6 * scale, 4 * scale]);
             } else {
               ctx.setLineDash([]);
             }
@@ -477,18 +633,19 @@ export default memo(({ data, isConnectable, id }) => {
             const cx = (poly.reduce((a, p) => a + p.x, 0) / poly.length) * W;
             const cy = (poly.reduce((a, p) => a + p.y, 0) / poly.length) * H;
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.font = 'bold 9px sans-serif';
+            ctx.font = `bold ${Math.round(9 * scale)}px sans-serif`;
             ctx.textAlign = 'center';
             const countTag = zone.forklift_count !== undefined ? ` (${zone.forklift_count})` : '';
             const tag = `${zone.name || 'Zone'}${countTag} [${isAlert ? 'ALERT' : 'CLEAR'}]`;
-            const tw = ctx.measureText(tag).width + 8;
-            ctx.fillRect(cx - tw / 2, cy - 8, tw, 16);
+            const tw = ctx.measureText(tag).width + 8 * scale;
+            const th = 16 * scale;
+            ctx.fillRect(cx - tw / 2, cy - th / 2, tw, th);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(cx - tw / 2, cy - 8, tw, 16);
+            ctx.lineWidth = 1 * scale;
+            ctx.strokeRect(cx - tw / 2, cy - th / 2, tw, th);
 
             ctx.fillStyle = isAlert ? '#fca5a5' : '#ffffff';
-            ctx.fillText(tag, cx, cy + 4);
+            ctx.fillText(tag, cx, cy + 4 * scale);
             ctx.restore();
           });
         }
@@ -501,8 +658,8 @@ export default memo(({ data, isConnectable, id }) => {
         if (activeRoi) {
           const { x, y, w, h } = activeRoi;
           ctx.strokeStyle = 'rgba(255, 165, 0, 0.9)';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([8, 6]);
+          ctx.lineWidth = 2 * scale;
+          ctx.setLineDash([8 * scale, 6 * scale]);
           ctx.strokeRect(x * W, y * H, w * W, h * H);
           ctx.setLineDash([]);
         }
@@ -536,26 +693,28 @@ export default memo(({ data, isConnectable, id }) => {
 
             if (drawMode !== 'backend') {
               ctx.strokeStyle = boxColor;
-              ctx.lineWidth = 2;
+              ctx.lineWidth = 2 * scale;
               ctx.strokeRect(x, y, width, height);
 
-              const lbl = `${det.label} ${(det.confidence ? Math.round(det.confidence * 100) + '%' : '')}`;
+              const displayLabel = `${det.label} ${(det.confidence ? Math.round(det.confidence * 100) + '%' : '')}`;
               ctx.fillStyle = boxColor;
-              ctx.fillRect(x, y - 14, ctx.measureText(lbl).width + 8, 14);
+              ctx.font = `bold ${Math.round(10 * scale)}px sans-serif`;
+              const tagHeight = 14 * scale;
+              const tagWidth = ctx.measureText(displayLabel).width + 8 * scale;
+              ctx.fillRect(x, y - tagHeight, tagWidth, tagHeight);
               ctx.fillStyle = '#000';
-              ctx.font = 'bold 10px sans-serif';
-              ctx.fillText(lbl, x + 4, y - 3);
+              ctx.fillText(displayLabel, x + 4 * scale, y - 3 * scale);
 
               // Draw Ground-Contact Anchor Point on floor for Forklift Safety Monitor
               if (isForkliftNode) {
                 const anchorX = ((xmin + xmax) / 2) * W;
                 const anchorY = ymax * H;
                 ctx.beginPath();
-                ctx.arc(anchorX, anchorY, 4.5, 0, 2 * Math.PI);
+                ctx.arc(anchorX, anchorY, 4.5 * scale, 0, 2 * Math.PI);
                 ctx.fillStyle = '#10b981';
                 ctx.fill();
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 1.5 * scale;
                 ctx.stroke();
               }
             }
@@ -566,14 +725,14 @@ export default memo(({ data, isConnectable, id }) => {
           items.forEach(pose => {
             if (pose.type !== "skeleton" || !pose.points) return;
             const pts = pose.points.map(pt => ({ x: pt.x * W, y: pt.y * H, c: pt.confidence || 0 }));
-            ctx.strokeStyle = '#00FFFF'; ctx.lineWidth = 2;
+            ctx.strokeStyle = '#00FFFF'; ctx.lineWidth = 2 * scale;
             SKEL.forEach(([i, j]) => {
               if (pts[i] && pts[j] && pts[i].c > 0.1 && pts[j].c > 0.1) {
                 ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
               }
             });
             ctx.fillStyle = '#FF00FF';
-            pts.forEach((pt) => { if (pt.c > 0.1) { ctx.beginPath(); ctx.arc(pt.x, pt.y, 3, 0, 2*Math.PI); ctx.fill(); } });
+            pts.forEach((pt) => { if (pt.c > 0.1) { ctx.beginPath(); ctx.arc(pt.x, pt.y, 3 * scale, 0, 2*Math.PI); ctx.fill(); } });
           });
         }
 
@@ -594,16 +753,17 @@ export default memo(({ data, isConnectable, id }) => {
             bannerText = `⚠️ CAUTION | Forklifts: ${forkliftDebug?.forklift_count || 0}  Persons: ${forkliftDebug?.person_count || 0}`;
           }
 
+          const bannerH = 22 * scale;
           ctx.fillStyle = bannerBg;
-          ctx.fillRect(0, 0, W, 22);
+          ctx.fillRect(0, 0, W, bannerH);
           ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 10px monospace';
+          ctx.font = `bold ${Math.round(10 * scale)}px monospace`;
           ctx.textAlign = 'left';
-          ctx.fillText(bannerText, 8, 15);
+          ctx.fillText(bannerText, 8 * scale, 15 * scale);
 
           if (forkliftDebug?.near_miss_count > 0) {
             ctx.textAlign = 'right';
-            ctx.fillText(`Near-Miss: ${forkliftDebug.near_miss_count}`, W - 8, 15);
+            ctx.fillText(`Near-Miss: ${forkliftDebug.near_miss_count}`, W - 8 * scale, 15 * scale);
           }
           ctx.restore();
         }
@@ -620,27 +780,37 @@ export default memo(({ data, isConnectable, id }) => {
       const displayFps = (now - lastFpsTimeRef.current < 2000) ? lastFpsRef.current : null;
 
       if (shouldDrawBoxes && displayFps !== null && displayFps !== undefined) {
+        const W = targetCanvas.width;
+        const scale = Math.max(1, W / 640);
         const fpsStr = `AI FPS: ${displayFps}`;
         let fpsColor = '#22c55e'; // green
         if (displayFps < 10) fpsColor = '#ef4444'; // red
         else if (displayFps < 20) fpsColor = '#eab308'; // yellow
         
-        ctx.font = 'bold 10px monospace';
-        const tw = ctx.measureText(fpsStr).width + 8;
-        const cw = canvas.width;
+        ctx.font = `bold ${Math.round(10 * scale)}px monospace`;
+        const tw = ctx.measureText(fpsStr).width + 8 * scale;
+        const cw = targetCanvas.width;
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(cw - tw - 6, 4, tw, 16);
+        ctx.fillRect(cw - tw - 6 * scale, 4 * scale, tw, 16 * scale);
         ctx.fillStyle = fpsColor;
-        ctx.fillText(fpsStr, cw - tw - 2, 16);
+        ctx.fillText(fpsStr, cw - tw - 2 * scale, 16 * scale);
       }
+    };
 
+    const render = () => {
+      if (canvasRef.current) {
+        drawToCanvas(canvasRef.current);
+      }
+      if (isExpanded && modalCanvasRef.current) {
+        drawToCanvas(modalCanvasRef.current);
+      }
       animationFrameId = requestAnimationFrame(render);
     };
 
     render();
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [shouldDrawBoxes, currentStreamId]);
+  }, [shouldDrawBoxes, currentStreamId, isWaitingForDeploy, isVideoEnd, isForkliftNode, isExpanded, sourceNode, sourceDebugData]);
 
   let content = null;
   
@@ -766,7 +936,66 @@ export default memo(({ data, isConnectable, id }) => {
               <span>{sourceNode.type === 'forkliftZoneNode' ? `Forklift Video (${sourceHandle || 'debug'})` : 'Live Preview'}</span>
               {resolution && <span className="text-fg-secondary font-mono">{resolution}</span>}
             </div>
+            {isStreamActive && !isWaitingForDeploy && !isVideoEnd && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                className="absolute top-1.5 right-1.5 p-1 rounded bg-black/60 hover:bg-black/90 text-white/80 hover:text-white transition-all shadow backdrop-blur-xs z-10 border border-white/20 hover:scale-105 active:scale-95"
+                title="ขยาย Preview (Expand Preview)"
+              >
+                <Maximize2 size={12} />
+              </button>
+            )}
           </>
+        )}
+      </div>
+    );
+  } else if (isSnapshotNode) {
+    content = (
+      <div className="relative w-64 aspect-video bg-black flex flex-col items-center justify-center overflow-hidden group select-none">
+        {snapshot?.snapshot_path ? (
+          <>
+            <img 
+              src={snapshot.snapshot_path} 
+              alt="Snapshot Debug Preview" 
+              className="w-full h-full object-contain"
+            />
+            {/* Overlay Banner Top */}
+            <div className="absolute top-1.5 left-1.5 right-8 flex items-center justify-between pointer-events-none">
+              <span className="bg-black/70 backdrop-blur-xs text-pink-400 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border border-pink-500/30 flex items-center gap-1 truncate max-w-[130px]">
+                <Camera size={10} className="shrink-0" />
+                <span className="truncate">{snapshot.label || 'Snapshot'}</span>
+              </span>
+            </div>
+
+            {/* Expand Button Top-Right */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+              className="absolute top-1.5 right-1.5 p-1 rounded bg-black/70 hover:bg-black/90 text-white/80 hover:text-white transition-all shadow backdrop-blur-xs z-10 border border-white/20 hover:scale-105 active:scale-95"
+              title="ขยาย Preview (Expand Preview)"
+            >
+              <Maximize2 size={12} />
+            </button>
+
+            {/* Overlay Banner Bottom */}
+            <div className="absolute bottom-1 left-1.5 right-1.5 flex items-center justify-between text-[9px] text-fg-subtle bg-black/60 backdrop-blur-xs px-1.5 py-0.5 rounded pointer-events-none">
+              <span className="font-mono">{formatDbTimeOnly(snapshot.timestamp)}</span>
+              <span className="truncate max-w-[120px] font-mono text-fg-faint">{snapshot.filename}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-3 text-center gap-1.5">
+            <div className="w-8 h-8 rounded-full bg-surface-2 border border-line-strong flex items-center justify-center text-pink-500">
+              <Camera size={16} />
+            </div>
+            <span className="text-[11px] font-bold text-fg-secondary">
+              {isSnapshotLoading ? 'Loading latest snapshot...' : 'No Snapshot Captured'}
+            </span>
+            <span className="text-[9px] text-fg-subtle max-w-[190px] leading-tight">
+              Waiting for capture trigger from pipeline
+            </span>
+          </div>
         )}
       </div>
     );
@@ -1233,6 +1462,16 @@ export default memo(({ data, isConnectable, id }) => {
             Video End
           </span>
         )}
+        {hasPreview && (
+          <button 
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+            className="bg-surface/80 hover:bg-surface-3 p-1 rounded text-fg-secondary hover:text-fg shadow-md transition-colors" 
+            title="ขยาย Preview (Expand Preview)"
+          >
+            <Maximize2 size={12} />
+          </button>
+        )}
         {hasVideoPreview && (
           <button 
             onClick={togglePause} 
@@ -1251,8 +1490,8 @@ export default memo(({ data, isConnectable, id }) => {
           {content}
         </div>
         
-        {/* BIG PAUSE BUTTON (Only for non-video modes) */}
-        {!hasVideoPreview && (
+        {/* BIG PAUSE BUTTON (Only for non-preview modes) */}
+        {!hasPreview && (
           <div className="p-2 border-t border-line/50 bg-surface/50">
             <button 
               onClick={togglePause} 
@@ -1268,6 +1507,238 @@ export default memo(({ data, isConnectable, id }) => {
           </div>
         )}
       </div>
+
+      {/* Expanded Preview Modal */}
+      {isExpanded && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-200 select-none nodrag"
+          onClick={() => setIsExpanded(false)}
+        >
+          <div 
+            ref={modalContainerRef}
+            className="relative w-full max-w-5xl bg-surface border border-line-strong rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Top Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-line bg-surface-2/90">
+              <div className="flex items-center gap-2.5 truncate min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
+                  <Bug size={16} />
+                </div>
+                <div className="flex flex-col truncate min-w-0">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="font-bold text-sm text-fg truncate">
+                      {data?.label || 'Debug node'}
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-3 text-fg-secondary border border-line shrink-0">
+                      {sourceNode?.data?.label || sourceNode?.type || 'Live Source'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-fg-subtle truncate">
+                    {hasVideoPreview ? 'Expanded Video Stream & Realtime AI Overlay' : 'Captured Snapshot Preview'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal Status Badges & Controls */}
+              <div className="flex items-center gap-2 shrink-0">
+                {hasVideoPreview && (
+                  <>
+                    {resolution && (
+                      <span className="hidden sm:inline-flex text-[10px] font-mono text-fg-secondary bg-surface px-2 py-1 rounded border border-line">
+                        {resolution}
+                      </span>
+                    )}
+                    {isStreamActive && !isWaitingForDeploy && !isVideoEnd && (
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-950 text-emerald-300 border border-emerald-700/80">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        LIVE
+                      </span>
+                    )}
+                    {isWaitingForDeploy && (
+                      <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700">
+                        WAITING DEPLOY
+                      </span>
+                    )}
+                    {isVideoEnd && (
+                      <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-700">
+                        VIDEO END
+                      </span>
+                    )}
+                    <button 
+                      onClick={togglePause} 
+                      disabled={!isStreamActive || isWaitingForDeploy || isVideoEnd}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-line-strong bg-surface hover:bg-surface-3 text-fg-secondary hover:text-fg transition-all active:scale-95 ${
+                        (!isStreamActive || isWaitingForDeploy || isVideoEnd) ? 'opacity-40 cursor-not-allowed' : ''
+                      }`}
+                      title={isPaused ? "Resume Preview" : "Pause Preview"}
+                    >
+                      {isPaused ? <Play size={12} className="text-green-500 fill-current" /> : <Pause size={12} className="text-amber-500 fill-current" />}
+                      <span className="hidden sm:inline">{isPaused ? 'Resume' : 'Pause'}</span>
+                    </button>
+                  </>
+                )}
+
+                {isSnapshotNode && snapshot?.snapshot_path && (
+                  <a
+                    href={snapshot.snapshot_path}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-line-strong bg-surface hover:bg-surface-3 text-fg-secondary hover:text-fg transition-all active:scale-95"
+                    title="Open full image in new tab"
+                  >
+                    <ExternalLink size={12} />
+                    <span className="hidden sm:inline">Open Image</span>
+                  </a>
+                )}
+
+                {/* Fullscreen Button */}
+                <button
+                  onClick={toggleModalFullscreen}
+                  className="p-1.5 rounded-lg border border-line-strong bg-surface hover:bg-surface-3 text-fg-secondary hover:text-fg transition-all active:scale-95"
+                  title={isModalFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                >
+                  {isModalFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </button>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-red-500/20 hover:border-red-500/40 border border-transparent transition-all active:scale-95"
+                  title="Close (Esc)"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Main Content Area */}
+            <div className="relative bg-black flex items-center justify-center overflow-hidden min-h-[300px] max-h-[80vh]">
+              {hasVideoPreview && (
+                <div className="relative w-full aspect-video flex items-center justify-center max-h-[80vh]">
+                  <video 
+                    ref={modalVideoRef} 
+                    className={`w-full h-full object-contain ${(!activeWhepUrl || status === 'error' || status === 'ended' || isWaitingForDeploy || isVideoEnd || !isStreamActive) ? 'hidden' : ''}`} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    onEnded={() => setIsEos(true)}
+                  />
+
+                  <canvas 
+                    ref={modalCanvasRef} 
+                    width={1280} 
+                    height={720} 
+                    className="absolute inset-0 w-full h-full pointer-events-none" 
+                  />
+
+                  {!isStreamActive ? (
+                    <div className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-6 text-center select-none z-10">
+                      <div className="w-12 h-12 rounded-full bg-surface-3 border border-line-strong flex items-center justify-center text-fg-muted mb-2 shadow-lg">
+                        <Play size={22} className="translate-x-0.5 text-fg-muted" />
+                      </div>
+                      <span className="text-sm font-bold uppercase tracking-wider text-fg-secondary font-mono">
+                        Project is stopped
+                      </span>
+                      <span className="text-xs text-fg-subtle max-w-sm mt-1">
+                        Start project from header or deploy pipeline to view video stream.
+                      </span>
+                    </div>
+                  ) : isWaitingForDeploy ? (
+                    <div className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-6 text-center select-none z-10">
+                      <div className="relative w-12 h-12 rounded-full bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-500 mb-2">
+                        <RefreshCw size={20} className="animate-spin" style={{ animationDuration: '3s' }} />
+                      </div>
+                      <span className="text-sm font-bold uppercase tracking-wider text-amber-500 font-mono">
+                        Waiting for deploy
+                      </span>
+                      <span className="text-xs text-fg-subtle max-w-sm mt-1">
+                        Upstream nodes were modified. Deploy the pipeline to resume stream.
+                      </span>
+                    </div>
+                  ) : isVideoEnd ? (
+                    <div className="absolute inset-0 bg-surface-2/95 dark:bg-canvas/95 flex flex-col items-center justify-center p-6 text-center select-none z-10">
+                      <div className="w-12 h-12 rounded-full bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 mb-2">
+                        <Film size={22} />
+                      </div>
+                      <span className="text-sm font-bold uppercase tracking-wider text-blue-500 font-mono">
+                        Video Playback Finished
+                      </span>
+                      <span className="text-xs text-fg-subtle max-w-sm mt-1">
+                        Non-looping video file reached the end of stream.
+                      </span>
+                      <button 
+                        onClick={() => {
+                          setIsEos(false);
+                          hasConnectedOnceRef.current = false;
+                          reconnect();
+                        }} 
+                        className="mt-3 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition-all shadow-md active:scale-95"
+                      >
+                        <RefreshCw size={12} />
+                        <span>Replay Video</span>
+                      </button>
+                    </div>
+                  ) : status === 'error' ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center p-6">
+                      <span className="text-red-500 font-medium text-sm">WebRTC Video Stream Error</span>
+                      <button 
+                        onClick={reconnect} 
+                        className="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow"
+                      >
+                        <RefreshCw size={12} /> Retry Stream
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {isSnapshotNode && (
+                <div className="relative w-full flex flex-col items-center justify-center p-4">
+                  {snapshot?.snapshot_path ? (
+                    <img 
+                      src={snapshot.snapshot_path} 
+                      alt="Expanded Snapshot Preview" 
+                      className="max-w-full max-h-[72vh] object-contain rounded-lg shadow-2xl"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                      <Camera size={36} className="text-pink-500/60" />
+                      <span className="text-sm font-bold text-fg-secondary">No Snapshot Available Yet</span>
+                      <span className="text-xs text-fg-subtle max-w-xs">
+                        Trigger a snapshot in the pipeline or wait for incoming capture events.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Info Bar */}
+            <div className="px-4 py-2 bg-surface-2/80 border-t border-line flex items-center justify-between text-xs text-fg-subtle">
+              <div className="flex items-center gap-3">
+                <span className="font-mono">
+                  Source: <strong className="text-fg">{sourceNode?.data?.label || sourceNode?.id || 'Connected Node'}</strong>
+                </span>
+                {hasVideoPreview && currentStreamId && (
+                  <span className="font-mono hidden sm:inline">
+                    Stream: <span className="text-fg-secondary">{currentStreamId}</span>
+                  </span>
+                )}
+                {isSnapshotNode && snapshot?.timestamp && (
+                  <span className="font-mono">
+                    Captured: <span className="text-fg-secondary">{formatDbTimeOnly(snapshot.timestamp)}</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-canvas border border-line-strong rounded text-fg-muted">ESC to close</kbd>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 });
