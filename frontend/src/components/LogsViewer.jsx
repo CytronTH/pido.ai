@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronLeft, 
   ChevronRight, Copy, Check, Sparkles, Maximize2
 } from 'lucide-react';
-import { parseDbTime, formatDbTime, formatDbTimeOnly, formatDbDateOnly } from '../utils/dbFormat';
+import { formatDbTime, formatDbTimeOnly, formatDbDateOnly } from '../utils/dbFormat';
 
 export default function LogsViewer({ projectId, embedded = false }) {
   const TitleTag = embedded ? 'h2' : 'h1';
@@ -184,7 +184,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
     }
     const lowerType = (log.event_type || '').toLowerCase();
     if (lowerType.includes('snapshot')) {
-      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/30', icon: ImageIcon };
+      return { text: log.payload?.label || 'SNAPSHOT', bg: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30', icon: ImageIcon };
     }
     if (lowerType.includes('alert') || lowerType.includes('error')) {
       return { text: log.event_type, bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', icon: AlertTriangle };
@@ -247,14 +247,14 @@ export default function LogsViewer({ projectId, embedded = false }) {
   }, [selectedLogIndex, filteredLogs.length]);
 
   return (
-    <div className={`${embedded ? '' : 'h-full overflow-y-auto'} flex flex-col p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 bg-canvas text-fg font-sans`}>
+    <div className={`${embedded ? 'flex flex-col space-y-4 sm:space-y-5' : 'h-full overflow-y-auto flex flex-col p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5 bg-canvas text-fg font-sans'}`}>
       
       {/* ── Top Header & Stats Cards ─────────────────────────────────────── */}
       <div className="flex flex-col gap-4">
         {!embedded ? (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-pink-500/20 to-blue-600/20 border border-pink-500/30 flex items-center justify-center text-pink-500 shadow-lg shadow-pink-500/10 shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-500/30 flex items-center justify-center text-blue-500 shadow-lg shadow-blue-500/10 shrink-0">
                 <Database size={22} className="sm:w-6 sm:h-6" />
               </div>
               <div>
@@ -282,8 +282,8 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 onClick={() => setAutoRefresh(!autoRefresh)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
                   autoRefresh 
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
-                    : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-sm' 
+                    : 'bg-surface hover:bg-surface-2 text-fg-muted border-line'
                 }`}
               >
                 {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
@@ -293,7 +293,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
               <button 
                 onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-pink-500/20 active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-md shadow-blue-500/20 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
                 <span>Refresh</span>
@@ -301,32 +301,36 @@ export default function LogsViewer({ projectId, embedded = false }) {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
+          <div className="bg-surface/90 border border-line rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-semibold text-fg-muted uppercase tracking-wider">
+                Event Records & Snapshots
+              </span>
               {autoRefresh && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   LIVE
                 </span>
               )}
             </div>
 
-            {/* Quick Global Actions */}
-            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap ml-auto">
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
               <button 
                 onClick={exportCSV}
-                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line hover:border-line-strong transition-all shadow-sm active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-surface hover:bg-surface-2 text-fg-secondary border border-line transition-all active:scale-95 shadow-sm"
+                title="Export logs as CSV"
               >
                 <Download size={14} />
-                <span>Export</span>
+                <span>Export CSV</span>
               </button>
               
               <button 
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border active:scale-95 ${
                   autoRefresh 
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-md shadow-emerald-500/10' 
-                    : 'bg-surface hover:bg-surface-2 text-fg-muted border-line hover:border-line-strong'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-sm' 
+                    : 'bg-surface hover:bg-surface-2 text-fg-muted border-line'
                 }`}
               >
                 {autoRefresh ? <Pause size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Play size={14} />}
@@ -336,7 +340,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
               <button 
                 onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shadow-pink-500/20 active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-md shadow-blue-500/20 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={loading && !autoRefresh ? "animate-spin" : ""} />
                 <span>Refresh</span>
@@ -372,7 +376,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 {dbStats?.snapshot_size_mb !== undefined ? `${(dbStats.snapshot_size_mb / 1024).toFixed(2)} GB on disk` : 'Calculating...'}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <ImageIcon size={20} />
             </div>
           </div>
@@ -388,7 +392,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 {selectedTag ? `Filtered by #${selectedTag}` : 'All tags visible'}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-500">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
               <Tag size={20} />
             </div>
           </div>
@@ -406,7 +410,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 onClick={() => setViewMode('gallery')}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === 'gallery'
-                    ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                     : 'bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg'
                 }`}
               >
@@ -416,7 +420,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 onClick={() => setViewMode('table')}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   viewMode === 'table'
-                    ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                     : 'bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg'
                 }`}
               >
@@ -429,10 +433,10 @@ export default function LogsViewer({ projectId, embedded = false }) {
 
       {/* ── Exclusive Tags Filter Bar (Shown only if tags exist) ─────────────────────────── */}
       {availableTags.length > 0 && (
-        <div className="bg-surface/90 border border-line/90 rounded-2xl p-3 sm:p-4 shadow-lg flex items-center justify-between gap-3 flex-wrap animate-in fade-in">
+        <div className="bg-surface/90 border border-line/90 rounded-2xl p-3 sm:p-4 shadow-sm flex items-center justify-between gap-3 flex-wrap animate-in fade-in">
           <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 max-w-full scrollbar-none flex-1">
             <span className="text-xs font-semibold text-fg-secondary mr-1 flex items-center gap-1.5 shrink-0">
-              <Tag size={14} className="text-pink-500" />
+              <Tag size={14} className="text-blue-500" />
               Tags:
             </span>
 
@@ -444,7 +448,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 active:scale-95 ${
                 !selectedTag
-                  ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                   : 'bg-canvas/80 hover:bg-surface-2 text-fg-muted border border-line'
               }`}
             >
@@ -460,8 +464,8 @@ export default function LogsViewer({ projectId, embedded = false }) {
                   onClick={() => handleSelectTag(tag)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 active:scale-95 flex items-center gap-1.5 ${
                     isSelected
-                      ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30 ring-2 ring-pink-400/50'
-                      : 'bg-canvas/80 hover:bg-surface-2 text-fg-secondary border border-line hover:border-pink-500/40'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-400/50'
+                      : 'bg-canvas/80 hover:bg-surface-2 text-fg-secondary border border-line hover:border-blue-500/40'
                   }`}
                 >
                   <span>#{tag}</span>
@@ -488,10 +492,10 @@ export default function LogsViewer({ projectId, embedded = false }) {
       {/* ── Main Content Area (Gallery or Table) ────────────────────────── */}
       {viewMode === 'gallery' ? (
         /* ── Visual Gallery View ───────────────────────────────────────── */
-        <div className="flex-1 bg-surface/60 border border-line/80 rounded-2xl p-5 shadow-xl flex flex-col">
+        <div className="flex-1 bg-surface/60 border border-line/80 rounded-2xl p-5 shadow-sm flex flex-col">
           {loading && logs.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20 text-fg-subtle gap-3">
-              <RefreshCw size={28} className="animate-spin text-pink-500" />
+              <RefreshCw size={28} className="animate-spin text-blue-500" />
               <p className="text-sm">Loading snapshots from database...</p>
             </div>
           ) : filteredLogs.length === 0 ? (
@@ -504,7 +508,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                 {selectedTag ? (
                   <button 
                     onClick={() => { setSelectedTag(''); setPage(1); }} 
-                    className="text-pink-600 dark:text-pink-400 hover:underline font-medium"
+                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
                   >
                     Clear tag filter to view all snapshots
                   </button>
@@ -528,7 +532,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                   <div 
                     key={log.id}
                     onClick={() => setSelectedLogIndex(index)}
-                    className="group relative bg-canvas/80 border border-line/80 hover:border-pink-500/50 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-pink-500/5 transition-all duration-300 cursor-pointer flex flex-col"
+                    className="group relative bg-canvas/80 border border-line/80 hover:border-blue-500/50 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 cursor-pointer flex flex-col"
                   >
                     {/* Image Preview Container */}
                     <div className="relative aspect-video bg-surface overflow-hidden flex items-center justify-center">
@@ -564,7 +568,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                       </div>
 
                       {/* Zoom Indicator on Hover */}
-                      <div className="absolute inset-0 bg-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <div className="w-8 h-8 rounded-full bg-surface/80 backdrop-blur-sm flex items-center justify-center text-fg shadow-lg">
                           <Maximize2 size={14} />
                         </div>
@@ -592,7 +596,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                                 e.stopPropagation();
                                 handleSelectTag(t);
                               }}
-                              className="text-[10px] bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 px-1.5 py-0.5 rounded font-mono hover:bg-pink-500/25 transition-colors"
+                              className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-mono hover:bg-blue-500/25 transition-colors"
                             >
                               #{t}
                             </span>
@@ -632,7 +636,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                   <tr>
                     <td colSpan="8" className="px-6 py-16 text-center text-fg-subtle">
                       <div className="flex flex-col items-center gap-2">
-                        <RefreshCw size={24} className="animate-spin text-pink-500" />
+                        <RefreshCw size={24} className="animate-spin text-blue-500" />
                         <p className="text-sm">Loading event logs...</p>
                       </div>
                     </td>
@@ -680,7 +684,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                             {snapUrl ? (
                               <div 
                                 onClick={() => setSelectedLogIndex(index)}
-                                className="w-14 h-9 rounded-lg overflow-hidden bg-canvas border border-line cursor-pointer relative group/thumb hover:border-pink-500 transition-colors"
+                                className="w-14 h-9 rounded-lg overflow-hidden bg-canvas border border-line cursor-pointer relative group/thumb hover:border-blue-500 transition-colors"
                               >
                                 <img 
                                   src={snapUrl} 
@@ -717,7 +721,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                                   <span
                                     key={idx}
                                     onClick={() => handleSelectTag(t)}
-                                    className="text-[10px] bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 px-1.5 py-0.5 rounded font-mono cursor-pointer hover:bg-pink-500/25 transition-colors"
+                                    className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-mono cursor-pointer hover:bg-blue-500/25 transition-colors"
                                   >
                                     #{t}
                                   </span>
@@ -747,7 +751,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
                         {/* Expanded Payload Code Block */}
                         {isExpanded && log.payload && (
                           <tr className="bg-canvas/70">
-                            <td colSpan="8" className="px-6 py-4 border-l-2 border-l-pink-500">
+                            <td colSpan="8" className="px-6 py-4 border-l-2 border-l-blue-500">
                               <div className="bg-canvas p-4 rounded-xl border border-line/80 shadow-inner">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-[11px] text-fg-muted font-bold uppercase tracking-wider">
@@ -794,7 +798,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
             <select 
               value={perPage} 
               onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-              className="bg-canvas border border-line rounded-lg px-2.5 py-1 text-fg focus:outline-none focus:border-pink-500 cursor-pointer"
+              className="bg-canvas border border-line rounded-lg px-2.5 py-1 text-fg focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="20">20</option>
               <option value="30">30</option>
@@ -833,7 +837,7 @@ export default function LogsViewer({ projectId, embedded = false }) {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-line bg-surface/90 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-pink-500">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500">
                   <ImageIcon size={18} />
                 </div>
                 <div>
@@ -943,13 +947,13 @@ export default function LogsViewer({ projectId, embedded = false }) {
                   {Array.isArray(selectedLog.payload?.tags) && selectedLog.payload.tags.length > 0 && (
                     <div>
                       <h4 className="text-[11px] font-bold uppercase tracking-wider text-fg-muted mb-1.5 flex items-center gap-1.5">
-                        <Tag size={12} className="text-pink-500" /> Snapshot Tags
+                        <Tag size={12} className="text-blue-500" /> Snapshot Tags
                       </h4>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedLog.payload.tags.map((t, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/30 font-mono"
+                            className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-mono"
                           >
                             #{t}
                           </span>
@@ -969,13 +973,13 @@ export default function LogsViewer({ projectId, embedded = false }) {
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
-                          className="text-[10px] text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 flex items-center gap-1"
+                          className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
                         >
                           {copied ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                           {copied ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-pink-800 dark:text-pink-200 font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                      <pre className="bg-canvas p-3 rounded-xl border border-line text-[11px] text-fg font-mono whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
                         {JSON.stringify(selectedLog.payload, null, 2)}
                       </pre>
                     </div>

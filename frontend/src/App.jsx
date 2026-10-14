@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Activity, Server, LayoutDashboard, GitMerge, Settings as SettingsIcon, ChevronLeft, Home, Sun, Moon, Monitor, Power, RefreshCw, BookOpen, Menu, X, Database, Users, LogOut, Play, Square } from 'lucide-react';
+import { Server, LayoutDashboard, GitMerge, Settings as SettingsIcon, ChevronLeft, Home, Sun, Moon, Monitor, Power, RefreshCw, BookOpen, Menu, X, Database, DatabaseZap, Users, LogOut, Play, Square } from 'lucide-react';
 import LiveDashboard from './components/LiveDashboard';
 import PipelineBuilder from './components/PipelineBuilder/PipelineBuilder';
 import Settings from './components/Settings/Settings';
@@ -361,10 +361,10 @@ function AppContent() {
                 ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                 : 'text-fg-muted hover:text-fg hover:bg-surface-2'
             }`}
-            title={!isSidebarOpen ? "Database" : ""}
+            title={!isSidebarOpen ? "Database System" : ""}
           >
-            <Database size={18} className="shrink-0" />
-            {(isSidebarOpen || isMobileDrawerOpen) && <span>Database</span>}
+            <DatabaseZap size={18} className="shrink-0" />
+            {(isSidebarOpen || isMobileDrawerOpen) && <span>Database System</span>}
           </button>
           
           {user?.role === 'admin' && (
@@ -518,6 +518,18 @@ function AppContent() {
                   <span className="text-blue-600 dark:text-blue-400 font-medium">Global Settings</span>
                 </>
              )}
+             {!activeProject && activeTab === 'database' && (
+                <>
+                  <span className="hidden sm:inline text-fg-faint">/</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">Database System</span>
+                </>
+             )}
+             {!activeProject && activeTab === 'users' && (
+                <>
+                  <span className="hidden sm:inline text-fg-faint">/</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">User Management</span>
+                </>
+             )}
              {!activeProject && activeTab === 'home' && (
                <span className="text-blue-600 dark:text-blue-400 font-medium sm:hidden">Projects</span>
              )}
@@ -603,7 +615,7 @@ function AppContent() {
                </div>
             } />
             <Route path="/database" element={
-               <div className="flex-1 overflow-y-auto">
+               <div className="flex-1 overflow-y-auto bg-canvas">
                  <DatabaseMonitoring />
                </div>
             } />

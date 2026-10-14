@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import timezone
 import json
 import logging
@@ -807,6 +808,79 @@ class DatabaseManager:
                     logger.error(f"Failed to delete snapshot file {spath}: {e}")
                     
         return {"status": "success", "deleted_rows": deleted_rows, "deleted_files": deleted_files}
+
+    def execute_raw_query(self, query: str, db_name: str = "telemetry", max_rows: int = 200) -> Dict[str, Any]:
+        """Safely execute a read-only SQL query against the selected SQLite database using read-only URI mode."""
+        cleaned = query.strip()
+        if not cleaned:
+            return {"status": "error", "message": "Query cannot be empty"}
+        
+        # Verify statement is read-only (SELECT, PRAGMA, EXPLAIN, WITH)
+        first_token = cleaned.split()[0].upper().rstrip(";")
+        if first_token not in ("SELECT", "PRAGMA", "EXPLAIN", "WITH"):
+            return {
+                "status": "error",
+                "message": "Only read-only queries (SELECT, PRAGMA, EXPLAIN, WITH) are permitted in SQL Explorer."
+            }
+        
+        target_file = self.db_path_telemetry if db_name == "telemetry" else self.db_path
+        target_path = Path(target_file).resolve().as_posix()
+        uri = f"file:{target_path}?mode=ro"
+        
+        try:
+            conn = sqlite3.connect(uri, uri=True, timeout=5.0)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(cleaned)
+            
+            if cursor.description:
+                columns = [col[0] for col in cursor.description]
+                fetched_rows = cursor.fetchmany(max_rows)
+                rows = [dict(row) for row in fetched_rows]
+                cursor.close()
+                conn.close()
+                return {
+                    "status": "success",
+                    "columns": columns,
+                    "rows": rows,
+                    "count": len(rows),
+                    "truncated": len(rows) >= max_rows
+                }
+            else:
+                cursor.close()
+                conn.close()
+                return {
+                    "status": "success",
+                    "columns": [],
+                    "rows": [],
+                    "count": 0,
+                    "message": "Query executed successfully."
+                }
+        except Exception as e:
+            logger.warning(f"SQL query error: {e} | Query: {cleaned}")
+            return {"status": "error", "message": str(e)}
+
+    def vacuum_database(self) -> Dict[str, Any]:
+        """Runs VACUUM on both config and telemetry databases to reclaim disk space."""
+        try:
+            with self.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                conn.execute(text("VACUUM;"))
+            with self.engine_telemetry.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                conn.execute(text("VACUUM;"))
+            logger.info("Databases successfully compacted via VACUUM.")
+            return {"status": "success", "message": "Databases vacuumed and compacted successfully"}
+        except Exception as e:
+            logger.error(f"Failed to vacuum database: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def rollup_metrics(self) -> Dict[str, Any]:
+        """Triggers manual hourly metric rollup."""
+        try:
+            self.run_hourly_rollup()
+            return {"status": "success", "message": "Hourly rollup completed successfully"}
+        except Exception as e:
+            logger.error(f"Failed to run rollup metrics: {e}")
+            return {"status": "error", "message": str(e)}
 
     def stop(self):
         self.running = False

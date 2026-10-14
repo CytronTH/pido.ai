@@ -56,8 +56,9 @@ export default function ProjectDatabase({ projectId }) {
 
   return (
     <div className="h-full overflow-y-auto bg-canvas text-fg">
-      <div className="p-3 sm:p-4 md:p-6 pb-0 sm:pb-0 md:pb-0 flex flex-col gap-4">
-        {/* Header */}
+      {/* Sticky Header with subtle backdrop */}
+      <div className="p-3 sm:p-4 md:p-6 pb-3 sm:pb-3 md:pb-4 border-b border-line/60 bg-canvas/90 backdrop-blur-md sticky top-0 z-20 flex flex-col gap-4">
+        {/* Header & Tabs */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-emerald-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-500 shadow-lg shadow-indigo-500/10 shrink-0">
@@ -70,7 +71,7 @@ export default function ProjectDatabase({ projectId }) {
           </div>
 
           {/* Tabs */}
-          <nav className="flex items-center gap-1.5 bg-surface/80 border border-line rounded-2xl p-1.5 overflow-x-auto" role="tablist">
+          <nav className="flex items-center gap-1.5 bg-surface/80 border border-line rounded-2xl p-1.5 overflow-x-auto shadow-sm" role="tablist">
             {TABS.map(({ key, label, icon: Icon, accent }) => {
               const active = key === tab;
               return (
@@ -93,26 +94,28 @@ export default function ProjectDatabase({ projectId }) {
       </div>
 
       {/* Tab content */}
-      {tab === 'variables' && (
-        <div className="p-3 sm:p-4 md:p-6 animate-in fade-in duration-300">
-          <ProjectVariableMonitor
-            projectId={projectId}
-            nodeMap={pipelineInfo.nodeMap}
-            pipeline={pipelineInfo}
-            onRefreshPipeline={pipelineInfo.refreshPipeline}
-          />
-        </div>
-      )}
-      {tab === 'collections' && (
-        <div className="p-3 sm:p-4 md:p-6 animate-in fade-in duration-300">
-          <ProjectCollectionsPanel projectId={projectId} />
-        </div>
-      )}
-      {tab === 'events' && (
-        <div className="animate-in fade-in duration-300">
-          <LogsViewer projectId={projectId} embedded />
-        </div>
-      )}
+      <div className="p-3 sm:p-4 md:p-6">
+        {tab === 'variables' && (
+          <div className="animate-in fade-in duration-300">
+            <ProjectVariableMonitor
+              projectId={projectId}
+              nodeMap={pipelineInfo.nodeMap}
+              pipeline={pipelineInfo}
+              onRefreshPipeline={pipelineInfo.refreshPipeline}
+            />
+          </div>
+        )}
+        {tab === 'collections' && (
+          <div className="animate-in fade-in duration-300">
+            <ProjectCollectionsPanel projectId={projectId} />
+          </div>
+        )}
+        {tab === 'events' && (
+          <div className="animate-in fade-in duration-300">
+            <LogsViewer projectId={projectId} embedded />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
