@@ -146,10 +146,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         position,
         data: { label: DEFAULT_NODE_NAMES[type] || `${type} node` },
       };
-      
-      if (type === 'debugOutputNode') {
-        newNode.style = { width: 320, height: 350 };
-      }
 
       addNode(newNode);
     },
@@ -198,10 +194,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
       data: { label: DEFAULT_NODE_NAMES[type] || `${type} node` },
     };
 
-    if (type === 'debugOutputNode') {
-      newNode.style = { width: 320, height: 350 };
-    }
-
     addNode(newNode);
 
     if (suggestionMenu.sourceNodeId) {
@@ -240,10 +232,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         position,
         data: { label: DEFAULT_NODE_NAMES[type] || `${type} node` },
       };
-
-      if (type === 'debugOutputNode') {
-        newNode.style = { width: 320, height: 350 };
-      }
 
       addNode(newNode);
       setIsMobilePaletteOpen(false);
