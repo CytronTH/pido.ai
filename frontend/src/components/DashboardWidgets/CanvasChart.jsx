@@ -552,6 +552,9 @@ export default function CanvasChart({
     setHoverInfo(null);
   };
 
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
+
   // Wheel Zoom Listener
   useEffect(() => {
     const el = containerRef.current;
@@ -565,7 +568,7 @@ export default function CanvasChart({
       const plotW = Math.max(10, rect.width - padLeft - padRight);
       const mouseX = e.clientX - rect.left;
 
-      const { xMin, xMax } = bounds;
+      const { xMin, xMax } = boundsRef.current;
       const range = xMax - xMin;
       let ratio = 0.5;
       if (mouseX >= padLeft && mouseX <= padLeft + plotW) {
@@ -573,17 +576,18 @@ export default function CanvasChart({
       }
 
       const mouseTs = xMin + ratio * range;
-      const zoomFactor = e.deltaY < 0 ? 0.75 : 1.25;
+      const direction = e.deltaY < 0 ? 'in' : 'out';
+      const zoomFactor = direction === 'in' ? 0.75 : 1.25;
       let newRange = range * zoomFactor;
       if (newRange < 10) newRange = 10;
       if (newRange > 86400 * 30) newRange = 86400 * 30;
 
-      onZoom([mouseTs - newRange * ratio, mouseTs + newRange * (1 - ratio)]);
+      onZoom([mouseTs - newRange * ratio, mouseTs + newRange * (1 - ratio)], direction);
     };
 
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [bounds, onZoom]);
+  }, [onZoom]);
 
   const activeRow = hoverInfo && data[hoverInfo.pointIndex] ? data[hoverInfo.pointIndex] : null;
   const timeInfo = activeRow ? formatHumanTime(activeRow.timestamp_unix) : null;
