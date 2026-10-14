@@ -1,11 +1,49 @@
-import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useId, useCallback } from 'react';
 import { 
   LineChart, Line, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend 
 } from 'recharts';
-import { BarChart2 } from 'lucide-react';
+import { BarChart2, ZoomIn, ZoomOut, RotateCcw, Clock, RefreshCw } from 'lucide-react';
 import { chartTheme } from '../../utils/theme';
 import CanvasChart from './CanvasChart';
+
+function formatTimeframeSpan(spanSeconds) {
+  if (!spanSeconds || spanSeconds <= 0) return '0s';
+  if (spanSeconds < 60) return `${Math.round(spanSeconds)}s`;
+  const minutes = spanSeconds / 60;
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  const hours = minutes / 60;
+  if (hours < 24) {
+    const val = Number(hours.toFixed(1));
+    return `${val % 1 === 0 ? val.toFixed(0) : val}h`;
+  }
+  const days = hours / 24;
+  const val = Number(days.toFixed(1));
+  return `${val % 1 === 0 ? val.toFixed(0) : val}d`;
+}
+
+function formatTimeframeSpanThai(spanSeconds) {
+  if (!spanSeconds || spanSeconds <= 0) return '0 วินาที';
+  if (spanSeconds < 60) return `${Math.round(spanSeconds)} วินาที`;
+  const minutes = spanSeconds / 60;
+  if (minutes < 60) return `${Math.round(minutes)} นาที`;
+  const hours = minutes / 60;
+  if (hours < 24) {
+    const val = Number(hours.toFixed(1));
+    return `${val % 1 === 0 ? val.toFixed(0) : val} ชม.`;
+  }
+  const days = hours / 24;
+  const val = Number(days.toFixed(1));
+  return `${val % 1 === 0 ? val.toFixed(0) : val} วัน`;
+}
+
+function getOptimalAggr(tfMin) {
+  if (tfMin <= 30) return null;
+  if (tfMin <= 120) return 1;
+  if (tfMin <= 1440) return tfMin <= 360 ? 2 : 10;
+  if (tfMin <= 10080) return 60;
+  return 120;
+}
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
 const SAMPLE_SERIES_ID = '__sample';
@@ -107,10 +145,21 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   const [historyData, setHistoryData] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [zoomDomain, setZoomDomain] = useState(null);
+  const [zoomNotification, setZoomNotification] = useState({
+    visible: false,
+    span: 0,
+    direction: null,
+    isFetching: false,
+  });
   
   const lastUpdateRef = useRef({});
   const chartWrapperRef = useRef(null);
   const boundsRef = useRef({ min: 0, max: 0 });
+  const zoomDomainRef = useRef(null);
+  const zoomNotifTimeoutRef = useRef(null);
+  const zoomFetchTimeoutRef = useRef(null);
+  const fetchedRangeRef = useRef({ tfMin: 15, aggr: null });
+  const fetchReqIdRef = useRef(0);
   const pendingBatchRef = useRef([]);
   const batchTimeoutRef = useRef(null);
   const gradientPrefix = `chartGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -118,6 +167,8 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
   useEffect(() => {
     return () => {
       if (batchTimeoutRef.current) clearTimeout(batchTimeoutRef.current);
+      if (zoomNotifTimeoutRef.current) clearTimeout(zoomNotifTimeoutRef.current);
+      if (zoomFetchTimeoutRef.current) clearTimeout(zoomFetchTimeoutRef.current);
     };
   }, []);
 
@@ -195,7 +246,10 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     return names;
   }, [paths, config.dataPathNames]);
 
-  const seriesIds = isPreview && nodeIds.length === 0 ? [SAMPLE_SERIES_ID] : nodeIds;
+  const seriesIds = useMemo(
+    () => (isPreview && nodeIds.length === 0 ? [SAMPLE_SERIES_ID] : nodeIds),
+    [isPreview, nodeIds]
+  );
   const seriesKey = seriesIds.join('|');
 
   const previewData = useMemo(
@@ -203,14 +257,15 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     [isPreview, seriesKey, tfConfig.tf, chartType]
   );
 
-  // Fetch history on mount and whenever nodeIds or timeframe changes (both live and preview)
-  useEffect(() => {
+  // Fetch default history when not zoomed
+  const fetchDefaultHistory = useCallback(() => {
     if (nodeIds.length === 0) {
       setIsLoaded(true);
       setHistoryData([]);
       return;
     }
 
+    const currentReqId = ++fetchReqIdRef.current;
     const fetchLimit = Math.max(maxPoints * 2, 1000);
     let urlParams = `?limit=${fetchLimit}&timeframe_min=${tfConfig.tf}`;
     if (tfConfig.aggr) urlParams += `&aggregate_min=${tfConfig.aggr}`;
@@ -219,6 +274,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         fetch(`/api/nodes/${id}/history${urlParams}`).then(r => r.json()).then(res => ({ id, data: res.data || [] }))
     ))
     .then(results => {
+        if (currentReqId !== fetchReqIdRef.current) return;
         let merged = [];
         results.forEach(({ id, data }) => {
             data.forEach(item => {
@@ -233,13 +289,136 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
         // Sort by time
         merged.sort((a, b) => a.timestamp_unix - b.timestamp_unix);
         setHistoryData(merged);
+        fetchedRangeRef.current = { tfMin: tfConfig.tf, aggr: tfConfig.aggr };
         setIsLoaded(true);
     })
     .catch(err => {
+        if (currentReqId !== fetchReqIdRef.current) return;
         console.error("Failed to fetch TSDB history", err);
         setIsLoaded(true);
     });
-  }, [nodeIdsKey, effectiveTimeframe, tfConfig.tf, tfConfig.aggr, maxPoints]);
+  }, [nodeIdsKey, tfConfig.tf, tfConfig.aggr, maxPoints]);
+
+  // Fetch zoomed history when zooming out beyond fetched window or needing finer aggregation
+  const fetchZoomHistory = useCallback((tfMin, aggr) => {
+    if (nodeIds.length === 0 || isPreview) return;
+    
+    const currentReqId = ++fetchReqIdRef.current;
+    setZoomNotification(prev => ({ ...prev, isFetching: true }));
+    
+    const fetchLimit = Math.max(maxPoints * 2, 1000);
+    let urlParams = `?limit=${fetchLimit}&timeframe_min=${tfMin}`;
+    if (aggr) urlParams += `&aggregate_min=${aggr}`;
+
+    Promise.all(nodeIds.map(id => 
+        fetch(`/api/nodes/${id}/history${urlParams}`).then(r => r.json()).then(res => ({ id, data: res.data || [] }))
+    ))
+    .then(results => {
+        if (currentReqId !== fetchReqIdRef.current) return;
+        let merged = [];
+        results.forEach(({ id, data }) => {
+            data.forEach(item => {
+                merged.push({
+                    timestamp_unix: item.timestamp_unix,
+                    time: item.time,
+                    [id]: item.value
+                });
+            });
+        });
+        
+        merged.sort((a, b) => a.timestamp_unix - b.timestamp_unix);
+        setHistoryData(merged);
+        fetchedRangeRef.current = { tfMin, aggr };
+    })
+    .catch(err => {
+        if (currentReqId !== fetchReqIdRef.current) return;
+        console.error("Failed to fetch zoomed TSDB history", err);
+    })
+    .finally(() => {
+        if (currentReqId === fetchReqIdRef.current) {
+          setZoomNotification(prev => ({ ...prev, isFetching: false }));
+        }
+    });
+  }, [nodeIds, isPreview, maxPoints]);
+
+  // Handle Zoom change from CanvasChart or SVG Wheel Zoom
+  const handleZoom = useCallback((domain, direction = 'in') => {
+    if (!domain || domain.length < 2) return;
+    
+    const span = domain[1] - domain[0];
+    if (span < 10 || span > 86400 * 30) return;
+
+    setZoomDomain(domain);
+    zoomDomainRef.current = domain;
+    
+    const spanSeconds = Math.max(1, span);
+    
+    // Set or refresh floating notification
+    setZoomNotification(prev => ({
+      visible: true,
+      span: spanSeconds,
+      direction: direction,
+      isFetching: prev.isFetching,
+    }));
+    
+    if (zoomNotifTimeoutRef.current) {
+      clearTimeout(zoomNotifTimeoutRef.current);
+    }
+    zoomNotifTimeoutRef.current = setTimeout(() => {
+      setZoomNotification(prev => ({ ...prev, visible: false }));
+    }, 2500);
+    
+    // Check if we need to fetch additional history from database
+    const nowWallClock = Math.floor(Date.now() / 1000);
+    const reachBackSec = Math.max(nowWallClock - domain[0], spanSeconds);
+    const neededTfMin = Math.ceil(reachBackSec / 60);
+    const optimalAggr = getOptimalAggr(neededTfMin);
+    
+    const currentlyFetched = fetchedRangeRef.current;
+    const needsFetch = 
+      neededTfMin > currentlyFetched.tfMin || 
+      (currentlyFetched.aggr !== null && optimalAggr === null) ||
+      (optimalAggr !== null && currentlyFetched.aggr !== optimalAggr);
+      
+    if (needsFetch) {
+      if (zoomFetchTimeoutRef.current) {
+        clearTimeout(zoomFetchTimeoutRef.current);
+      }
+      zoomFetchTimeoutRef.current = setTimeout(() => {
+        fetchZoomHistory(neededTfMin, optimalAggr);
+      }, 400);
+    }
+  }, [fetchZoomHistory]);
+
+  const handleResetZoom = useCallback(() => {
+    setZoomDomain(null);
+    zoomDomainRef.current = null;
+    
+    if (zoomNotifTimeoutRef.current) {
+      clearTimeout(zoomNotifTimeoutRef.current);
+    }
+    if (zoomFetchTimeoutRef.current) {
+      clearTimeout(zoomFetchTimeoutRef.current);
+    }
+    
+    setZoomNotification({
+      visible: false,
+      span: 0,
+      direction: null,
+      isFetching: false,
+    });
+    
+    if (fetchedRangeRef.current.tfMin !== tfConfig.tf || fetchedRangeRef.current.aggr !== tfConfig.aggr) {
+      fetchDefaultHistory();
+    }
+  }, [tfConfig.tf, tfConfig.aggr, fetchDefaultHistory]);
+
+  // Fetch history on mount and whenever nodeIds or timeframe changes (when not zoomed)
+  useEffect(() => {
+    if (!zoomDomain) {
+      fetchDefaultHistory();
+    }
+  }, [fetchDefaultHistory, zoomDomain]);
 
   // Listen to live updates from metadata
   useEffect(() => {
@@ -292,27 +471,46 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
 
   // Use real data if available; fallback to preview sample data only if no data points yet in preview mode
   const hasRealData = historyData && historyData.length > 0;
-  const chartData = hasRealData ? historyData : (isPreview ? (previewData || []) : []);
+  const chartData = useMemo(
+    () => (hasRealData ? historyData : (isPreview ? (previewData || []) : [])),
+    [hasRealData, historyData, isPreview, previewData]
+  );
 
   // Downsample or cap chartData if it exceeds maxPoints, ensuring even distribution across full timeframe
   const displayChartData = useMemo(() => {
-    if (!chartData || chartData.length <= maxPoints) return chartData;
+    if (!chartData || chartData.length === 0) return chartData;
+    
+    let dataset = chartData;
+    // When zoomed, focus on the visible window (+10% edge padding) to maximize data resolution
+    if (zoomDomain) {
+      const zMin = zoomDomain[0];
+      const zMax = zoomDomain[1];
+      const span = zMax - zMin;
+      const pad = span * 0.1;
+      const inWindow = chartData.filter(d => d.timestamp_unix >= (zMin - pad) && d.timestamp_unix <= (zMax + pad));
+      if (inWindow.length > 0) {
+        dataset = inWindow;
+      }
+    }
+
+    if (dataset.length <= maxPoints) return dataset;
     
     // Sample evenly across the dataset so full time window is preserved
-    const step = (chartData.length - 1) / (maxPoints - 1);
+    const step = (dataset.length - 1) / (maxPoints - 1);
     const sampled = [];
     for (let i = 0; i < maxPoints - 1; i++) {
-      sampled.push(chartData[Math.round(i * step)]);
+      sampled.push(dataset[Math.round(i * step)]);
     }
-    sampled.push(chartData[chartData.length - 1]);
+    sampled.push(dataset[dataset.length - 1]);
     return sampled;
-  }, [chartData, maxPoints]);
+  }, [chartData, maxPoints, zoomDomain]);
 
   // Compute Statistics (Min, Mean, Max, Current) for visible series based on true data in window
   const seriesStats = useMemo(() => {
     const stats = {};
+    const datasetForStats = zoomDomain && displayChartData.length > 0 ? displayChartData : chartData;
     seriesIds.forEach(id => {
-      const values = chartData
+      const values = datasetForStats
         .map(row => row[id])
         .filter(v => v !== null && v !== undefined && !isNaN(Number(v)))
         .map(Number);
@@ -329,7 +527,7 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
       }
     });
     return stats;
-  }, [chartData, seriesIds]);
+  }, [chartData, displayChartData, seriesIds, zoomDomain]);
 
   const primaryId = seriesIds[0];
   const primaryStats = seriesStats[primaryId];
@@ -400,38 +598,38 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     const handleWheel = (e) => {
       e.preventDefault();
       
-      setZoomDomain(prevZoom => {
-          let currentMin = prevZoom ? prevZoom[0] : boundsRef.current.min;
-          let currentMax = prevZoom ? prevZoom[1] : boundsRef.current.max;
-          
-          if (currentMin >= currentMax) return prevZoom;
-          
-          const range = currentMax - currentMin;
-          const rect = el.getBoundingClientRect();
-          const offsetX = e.clientX - rect.left;
-          const plotLeft = 60; // Approx YAxis width
-          const plotRight = rect.width - 20;
-          const plotWidth = plotRight - plotLeft;
-          
-          let ratio = 0.5;
-          if (offsetX >= plotLeft && offsetX <= plotRight) {
-              ratio = (offsetX - plotLeft) / plotWidth;
-          }
-          
-          const mouseTime = currentMin + ratio * range;
-          const zoomFactor = e.deltaY < 0 ? 0.75 : 1.25; // 25% zoom
-          let newRange = range * zoomFactor;
-          
-          if (newRange < 10) newRange = 10; // Max zoom limit (10 seconds)
-          if (newRange > 86400 * 30) newRange = 86400 * 30; // Min zoom limit (30 days)
-          
-          return [mouseTime - newRange * ratio, mouseTime + newRange * (1 - ratio)];
-      });
+      const currentMin = zoomDomainRef.current ? zoomDomainRef.current[0] : boundsRef.current.min;
+      const currentMax = zoomDomainRef.current ? zoomDomainRef.current[1] : boundsRef.current.max;
+      
+      if (currentMin >= currentMax) return;
+      
+      const range = currentMax - currentMin;
+      const rect = el.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const plotLeft = 60; // Approx YAxis width
+      const plotRight = rect.width - 20;
+      const plotWidth = Math.max(10, plotRight - plotLeft);
+      
+      let ratio = 0.5;
+      if (offsetX >= plotLeft && offsetX <= plotRight) {
+          ratio = (offsetX - plotLeft) / plotWidth;
+      }
+      
+      const mouseTime = currentMin + ratio * range;
+      const direction = e.deltaY < 0 ? 'in' : 'out';
+      const zoomFactor = direction === 'in' ? 0.75 : 1.25; // 25% zoom
+      let newRange = range * zoomFactor;
+      
+      if (newRange < 10) newRange = 10; // Max zoom limit (10 seconds)
+      if (newRange > 86400 * 30) newRange = 86400 * 30; // Min zoom limit (30 days)
+      
+      const newDomain = [mouseTime - newRange * ratio, mouseTime + newRange * (1 - ratio)];
+      handleZoom(newDomain, direction);
     };
     
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [renderEngine]);
+  }, [renderEngine, handleZoom]);
   
   const xDomain = zoomDomain || [minTs, anchorNow];
 
@@ -443,26 +641,16 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
     ticks.push(t);
   }
 
+  const zoomSpanSeconds = zoomDomain ? Math.max(1, zoomDomain[1] - zoomDomain[0]) : periodSeconds;
+
   const tickFormatter = (unixTime) => {
     const d = new Date(unixTime * 1000);
-    if (zoomDomain) {
-      const span = zoomDomain[1] - zoomDomain[0];
-      if (span <= 300) {
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      }
-      if (span >= 86400 * 2) {
-        return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-      }
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    if (tfConfig.tf >= 10080) { // 7d
-      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
-    if (tfConfig.tf >= 1440) { // 24h
-      return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    if (tfConfig.tf <= 5) { // 5m
+    const activeSpan = zoomDomain ? (zoomDomain[1] - zoomDomain[0]) : periodSeconds;
+    if (activeSpan <= 600) {
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    if (activeSpan >= 86400 * 2) {
+      return `${d.toLocaleDateString([], { month: 'numeric', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -491,10 +679,11 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
           <div className="flex items-center gap-2 shrink-0">
             {zoomDomain && (
               <button 
-                onClick={() => setZoomDomain(null)}
-                className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 px-2 py-1 rounded transition-colors"
+                onClick={handleResetZoom}
+                className="text-xs text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-950/40 hover:bg-sky-200 dark:hover:bg-sky-900/50 border border-sky-300 dark:border-sky-800/60 px-2 py-0.5 rounded transition-all flex items-center gap-1 font-medium shadow-sm active:scale-95"
+                title="คลิกเพื่อคืนค่า Timeframe เริ่มต้น (หรือดับเบิลคลิกบนกราฟ)"
               >
-                Reset Zoom
+                <RotateCcw size={11} /> Reset Zoom
               </button>
             )}
             {useLogScale && (
@@ -507,13 +696,23 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
                 Canvas
               </span>
             )}
-            <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
-              isLocked 
-                ? 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20' 
-                : 'text-fg-muted bg-surface-2 border border-line-strong'
-            }`}>
-              {effectiveTimeframe} {isLocked && '(Locked)'}
-            </span>
+            {zoomDomain ? (
+              <span 
+                className="text-[10px] px-2 py-0.5 rounded font-mono font-medium text-sky-700 dark:text-sky-300 bg-sky-500/10 border border-sky-500/30 flex items-center gap-1 shadow-sm"
+                title={`ซูม Timeframe: ${formatTimeframeSpanThai(zoomSpanSeconds)} (ดับเบิลคลิกเพื่อรีเซ็ต)`}
+              >
+                <Clock size={10} className="text-sky-500" />
+                ~{formatTimeframeSpan(zoomSpanSeconds)} (Zoomed)
+              </span>
+            ) : (
+              <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
+                isLocked 
+                  ? 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20' 
+                  : 'text-fg-muted bg-surface-2 border border-line-strong'
+              }`}>
+                {effectiveTimeframe} {isLocked && '(Locked)'}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -541,6 +740,11 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
               <span className="text-[10px] uppercase font-bold text-fg-subtle">Cur</span>
               <span className="font-semibold">{formatValue(primaryStats.current, unit)}</span>
             </div>
+            {zoomDomain && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 font-sans border border-sky-500/20">
+                ซูมเฉพาะช่วง
+              </span>
+            )}
           </div>
           {seriesIds.length > 1 && (
             <span className="text-[10px] text-fg-muted font-sans truncate shrink-0">
@@ -553,8 +757,44 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
       <div 
         className="flex-1 min-h-[150px] cursor-crosshair relative p-3"
         ref={chartWrapperRef}
-        onDoubleClick={() => setZoomDomain(null)}
+        onDoubleClick={handleResetZoom}
       >
+        {/* Floating Timeframe Zoom HUD Notification */}
+        {zoomNotification.visible && (
+          <div 
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none transition-all duration-300 ease-out"
+            style={{ animation: 'fadeIn 0.15s ease-out' }}
+          >
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface/95 backdrop-blur-md border border-sky-500/50 shadow-2xl text-xs text-fg">
+              <span className={`flex items-center justify-center w-5 h-5 rounded-full ${
+                zoomNotification.direction === 'in' 
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                  : 'bg-sky-500/20 text-sky-600 dark:text-sky-400'
+              }`}>
+                {zoomNotification.direction === 'in' ? <ZoomIn size={12} /> : <ZoomOut size={12} />}
+              </span>
+              <div className="flex items-center gap-1.5 font-mono">
+                <span className="text-[11px] text-fg-subtle uppercase font-semibold">Timeframe:</span>
+                <span className="font-bold text-sky-600 dark:text-sky-400 text-xs">
+                  {formatTimeframeSpan(zoomNotification.span)}
+                </span>
+                <span className="text-[10px] text-fg-muted font-sans font-normal">
+                  ({formatTimeframeSpanThai(zoomNotification.span)})
+                </span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-sans font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
+                {zoomNotification.direction === 'in' ? 'ซูมเข้า' : 'ซูมออก'}
+              </span>
+              {zoomNotification.isFetching && (
+                <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono animate-pulse">
+                  <RefreshCw size={10} className="animate-spin" />
+                  <span>โหลดข้อมูล...</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {chartData.length > 0 ? (
           renderEngine === 'canvas' ? (
             <CanvasChart
@@ -583,8 +823,8 @@ export default function ChartWidget({ title, config = {}, paths = [], metadata, 
               primaryStats={primaryStats}
               showMeanLine={config.showMeanLine}
               showMinMaxLines={config.showMinMaxLines}
-              onZoom={(domain) => setZoomDomain(domain)}
-              onResetZoom={() => setZoomDomain(null)}
+              onZoom={(domain, direction) => handleZoom(domain, direction)}
+              onResetZoom={handleResetZoom}
             />
           ) : (
           <ResponsiveContainer width="100%" height="100%">
