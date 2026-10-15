@@ -1380,7 +1380,7 @@ export default memo(({ data, isConnectable, id }) => {
   } else if (sourceNode.type === 'targetTrackerNode') {
     const debugState = sourceDebugData;
     const actual = debugState?.actual ?? 0;
-    const target = debugState?.target ?? sourceNode.data?.target ?? 0;
+    const target = debugState?.target ?? sourceNode.data?.targetCount ?? sourceNode.data?.target ?? 0;
     const progress = debugState?.progress_percent ?? (target > 0 ? (actual / target) * 100 : 0);
     const isComplete = debugState?.is_complete ?? (target > 0 && actual >= target);
 

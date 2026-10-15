@@ -220,6 +220,7 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
         dataPaths: widgetItem.config.dataPaths || (widgetItem.config.dataPath ? [widgetItem.config.dataPath] : []),
         nodeId: widgetItem.config.nodeId || '',
         unit: widgetItem.config.unit || '',
+        targetCount: widgetItem.config.targetCount || 100,
         renderEngine: widgetItem.config.renderEngine || 'canvas',
         chartType: widgetItem.config.chartType || 'stepAfter',
         color: widgetItem.config.color || '#10b981',
@@ -661,16 +662,32 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
               )}
 
               {['metric', 'gauge', 'capacityBar', 'radialDonut', 'text', 'targetTracker'].includes(widgetItem?.type) && (
-                <div className={['metric', 'gauge', 'capacityBar', 'radialDonut'].includes(widgetItem?.type) ? "grid grid-cols-2 gap-4" : "w-full"}>
+                <div className={['metric', 'gauge', 'capacityBar', 'radialDonut', 'targetTracker'].includes(widgetItem?.type) ? "grid grid-cols-2 gap-4" : "w-full"}>
+                  {widgetItem?.type === 'targetTracker' && (
+                    <div>
+                      <label className="block text-sm font-medium text-fg-secondary mb-1.5">Target Count</label>
+                      <input 
+                        type="number" 
+                        name="targetCount"
+                        value={formData.targetCount || 100}
+                        onChange={(e) => setFormData({ ...formData, targetCount: parseInt(e.target.value) || 1 })}
+                        className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-amber-500 outline-none shadow-inner"
+                        placeholder="e.g. 100, 500"
+                        min="1"
+                      />
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">Unit Suffix / Label</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">
+                      {widgetItem?.type === 'targetTracker' ? 'Unit / Item Name' : 'Unit Suffix / Label'}
+                    </label>
                     <input 
                       type="text" 
                       name="unit"
                       value={formData.unit}
                       onChange={handleChange}
                       className="w-full bg-canvas border border-line-strong rounded-lg px-4 py-2.5 text-fg text-sm focus:border-blue-500 outline-none shadow-inner"
-                      placeholder="e.g. %, kg, pcs"
+                      placeholder={widgetItem?.type === 'targetTracker' ? 'e.g. pcs, boxes, items' : 'e.g. %, kg, pcs'}
                     />
                   </div>
                   {widgetItem?.type === 'metric' && (

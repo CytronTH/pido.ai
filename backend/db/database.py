@@ -77,6 +77,8 @@ class DatabaseManager:
                 "CREATE INDEX IF NOT EXISTS idx_custom_metric_proj_time ON custom_metric_log(project_id, timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_custom_metric_full ON custom_metric_log(project_id, node_id, variable_name, timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_custom_metric_var ON custom_metric_log(variable_name, timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_target_tracker_proj_node ON target_tracker_records(project_id, node_id, started_at DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_target_tracker_status ON target_tracker_records(status);",
             ]
             with self.engine_telemetry.connect() as conn:
                 for idx_sql in indexes:
@@ -881,6 +883,119 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to run rollup metrics: {e}")
             return {"status": "error", "message": str(e)}
+
+    # --- Target Tracker Records CRUD ---
+    def create_target_tracker_record(
+        self,
+        project_id: str,
+        node_id: str,
+        target: int,
+        name: str = "",
+        unit: str = "items"
+    ) -> TargetTrackerRecord:
+        now = datetime.now(timezone.utc)
+        initial_history = json.dumps([{
+            "t_rel": 0.0,
+            "ts": now.isoformat(),
+            "actual": 0,
+            "target": target,
+            "rate": 0.0,
+            "progress": 0.0
+        }])
+        record = TargetTrackerRecord(
+            project_id=project_id,
+            node_id=node_id,
+            name=name or f"Run {now.strftime('%d/%m %H:%M')}",
+            target=target,
+            actual=0,
+            over_target=0,
+            progress_percent=0.0,
+            status="running",
+            started_at=now,
+            completed_at=None,
+            duration_seconds=0.0,
+            avg_rate_per_minute=0.0,
+            peak_rate_per_minute=0.0,
+            unit=unit,
+            history_json=initial_history
+        )
+        with Session(self.engine_telemetry) as session:
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
+
+    def update_target_tracker_record(
+        self,
+        record_id: int,
+        actual: int,
+        over_target: int,
+        progress_percent: float,
+        status: str,
+        duration_seconds: float,
+        avg_rate_per_minute: float,
+        peak_rate_per_minute: float,
+        history_point: Optional[Dict[str, Any]] = None,
+        completed_at: Optional[datetime] = None
+    ) -> Optional[TargetTrackerRecord]:
+        with Session(self.engine_telemetry) as session:
+            record = session.get(TargetTrackerRecord, record_id)
+            if not record:
+                return None
+            record.actual = actual
+            record.over_target = over_target
+            record.progress_percent = progress_percent
+            record.status = status
+            record.duration_seconds = duration_seconds
+            record.avg_rate_per_minute = avg_rate_per_minute
+            record.peak_rate_per_minute = max(record.peak_rate_per_minute, peak_rate_per_minute)
+            if completed_at:
+                record.completed_at = completed_at
+
+            if history_point:
+                try:
+                    history = json.loads(record.history_json or "[]")
+                    history.append(history_point)
+                    if len(history) > 400:
+                        step = max(2, len(history) // 300)
+                        history = [history[0]] + history[1:-1:step] + [history[-1]]
+                    record.history_json = json.dumps(history)
+                except Exception as e:
+                    logger.warning(f"Failed to append history_point: {e}")
+
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
+
+    def get_target_tracker_records(
+        self,
+        project_id: str,
+        node_id: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 50
+    ) -> List[TargetTrackerRecord]:
+        with Session(self.engine_telemetry) as session:
+            query = select(TargetTrackerRecord).where(TargetTrackerRecord.project_id == project_id)
+            if node_id:
+                query = query.where(TargetTrackerRecord.node_id == node_id)
+            if status:
+                query = query.where(TargetTrackerRecord.status == status)
+            query = query.order_by(TargetTrackerRecord.started_at.desc()).limit(limit)
+            return list(session.exec(query).all())
+
+    def get_target_tracker_record(self, record_id: int) -> Optional[TargetTrackerRecord]:
+        with Session(self.engine_telemetry) as session:
+            return session.get(TargetTrackerRecord, record_id)
+
+    def delete_target_tracker_record(self, record_id: int) -> bool:
+        with Session(self.engine_telemetry) as session:
+            record = session.get(TargetTrackerRecord, record_id)
+            if record:
+                session.delete(record)
+                session.commit()
+                return True
+            return False
 
     def stop(self):
         self.running = False
