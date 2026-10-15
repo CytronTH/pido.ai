@@ -13,7 +13,8 @@ export const mockNodeData = {
   dashboardTextNode: { label: 'Text Value', defaultText: 'Door is closed' },
   dashboardLogNode: { label: 'Log History (Dashboard)' },
   dashboardChartNode: { label: 'Chart (Dashboard)' },
-  debugNode: { label: 'Debug Node' }
+  debugNode: { label: 'Debug Node' },
+  commentNode: { label: 'Comment / Note', comment: 'บันทึกคำอธิบายการทำงานของ Pipeline' }
 };
 
 export const nodeTutorials = {
@@ -448,5 +449,24 @@ export const nodeTutorials = {
     },
     supportedInputs: ['logicNode', 'digitalInputNode', 'actionNode'],
     supportedOutputs: ['actionNode', 'dashboardLogNode']
+  },
+  commentNode: {
+    title: "Comment / Note",
+    description: "โหนดสำหรับเขียนบันทึกคำอธิบายและจัดหมวดหมู่บน Pipeline (เหมือนใน Node-RED)",
+    explanation: "Comment Node ใช้สำหรับการเขียนคำอธิบาย, สรุปขั้นตอนการทำงาน, บันทึกหมายเลขพิน GPIO หรือคู่มือสั้นๆ ให้แก่ทีมงาน โดยตัวโหนดไม่มีช่องเชื่อมต่อสายสัญญาณ (No Handles) และไม่ส่งผลกระทบต่อประสิทธิภาพการประมวลผลของ AI หรือวิดีโอ สามารถปรับเปลี่ยนธีมสี (Amber, Blue, Emerald, Purple, Rose, Neutral) และปรับเป็น Section Banner ได้ตามต้องการ",
+    input: {
+      desc: "ไม่มีช่องรับสัญญาณ (No Input Handles) เพื่อไม่ให้รบกวน Data Flow",
+      example: "N/A"
+    },
+    process: {
+      desc: "แสดงข้อความบันทึกช่วยจำบน Canvas สามารถดับเบิลคลิกเพื่อพิมพ์ข้อความได้ทันที หรือปรับขนาดได้อิสระ",
+      example: "เขียนโน้ต 'โซนตรวจจับรถบรรทุก - กล้อง RTSP หมายเลข 2'"
+    },
+    output: {
+      desc: "ไม่มีช่องส่งสัญญาณ (No Output Handles)",
+      example: "N/A"
+    },
+    supportedInputs: [],
+    supportedOutputs: []
   }
 };

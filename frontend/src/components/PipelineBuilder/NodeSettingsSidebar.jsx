@@ -27,6 +27,7 @@ import DigitalOutputNodeSettings from './settings/DigitalOutputNodeSettings';
 import LEDNodeSettings from './settings/LEDNodeSettings';
 import BuzzerNodeSettings from './settings/BuzzerNodeSettings';
 import RS485NodeSettings from './settings/RS485NodeSettings';
+import CommentNodeSettings from './settings/CommentNodeSettings';
 
 const settingsComponents = {
   inputNode: InputNodeSettings,
@@ -52,6 +53,7 @@ const settingsComponents = {
   ledNode: LEDNodeSettings,
   buzzerNode: BuzzerNodeSettings,
   rs485Node: RS485NodeSettings,
+  commentNode: CommentNodeSettings,
 };
 
 export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose }) {

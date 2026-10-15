@@ -39,5 +39,9 @@ export const nodeUseCases = {
   flowCounterNode: [{ title: 'นับคนหรือวัตถุข้ามเส้นเข้า-ออก', description: 'ติดตามการเคลื่อนที่ของวัตถุและลากเส้นหน้าประตูหรือบนสายพานเพื่อนับจำนวนแบบไม่นับซ้ำ', videoUrl: 'REQUEST_VIDEO_URL' }],
   shelfSlotMonitorNode: [{ title: 'ตรวจจับของขาดชั้นวาง', description: 'ตรวจสอบว่าช่องไหนบนชั้นวางว่างอยู่บ้าง เพื่อแจ้งพนักงานเติมของ', videoUrl: 'REQUEST_VIDEO_URL' }],
   forkliftZoneNode: [{ title: 'แจ้งเตือนโฟล์คลิฟท์ใกล้คน', description: 'เมื่อรถโฟล์คลิฟท์ขับเข้าใกล้พนักงานในรัศมี 3 เมตร จะสั่งให้รถหยุดหรือส่งเสียงเตือน', videoUrl: 'REQUEST_VIDEO_URL' }],
-  snapshotNode: [{ title: 'ถ่ายภาพทะเบียนรถ', description: 'บันทึกภาพนิ่งเมื่อมีรถขับผ่านเกตเวย์เพื่อเก็บเป็นหลักฐาน', videoUrl: 'REQUEST_VIDEO_URL' }]
+  snapshotNode: [{ title: 'ถ่ายภาพทะเบียนรถ', description: 'บันทึกภาพนิ่งเมื่อมีรถขับผ่านเกตเวย์เพื่อเก็บเป็นหลักฐาน', videoUrl: 'REQUEST_VIDEO_URL' }],
+  commentNode: [
+    { title: 'บันทึกคำอธิบายขั้นตอนการทำงาน', description: 'เขียนโน้ตสรุปการทำงานของ Pipeline เช่น ตำแหน่งติดตั้งกล้อง พินเชื่อมต่อ หรือขั้นตอนการตรวจจับ', videoUrl: 'REQUEST_VIDEO_URL' },
+    { title: 'ทำป้ายหัวข้อแบ่งหมวดหมู่ (Section Banner)', description: 'ใช้แบ่งพื้นที่บน Canvas ออกเป็นส่วนๆ เช่น ขั้นตอนดึงภาพ, ขั้นตอนกรอง AI, และขั้นตอนแจ้งเตือน', videoUrl: 'REQUEST_VIDEO_URL' }
+  ]
 };

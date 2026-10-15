@@ -14,6 +14,8 @@ snapshots/
 backups/
 *.tar.gz
 *.zip
+*.db
+*.sqlite*
 backend/db/*.sqlite*
 backend/db/node_states.json
 
