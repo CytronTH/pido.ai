@@ -109,7 +109,7 @@ export default function NodeWiki({ initialNode }) {
 
   const categories = {
     'Nodes': ['inputNode', 'aiNode', 'logicNode', 'counterNode', 'flowCounterNode', 'shelfSlotMonitorNode', 'forkliftZoneNode', 'actionNode', 'snapshotNode'],
-    'Hardware (CM5)': ['digitalInputNode', 'digitalOutputNode', 'ledNode', 'buzzerNode', 'rs485Node'],
+    'Hardware (RPi 5)': ['digitalInputNode', 'digitalOutputNode', 'ledNode', 'buzzerNode', 'rs485Node'],
     'Dashboard Outputs': ['dashboardVideoNode', 'dashboardMetricNode', 'dashboardTextNode', 'dashboardLogNode'],
     'Debugging': ['debugNode']
   };

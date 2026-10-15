@@ -25,6 +25,40 @@
 - 
 -->
 
+## [2026-10-15] - ปรับปรุง Hardware I/O Nodes ให้รองรับ Raspberry Pi 5 มาตรฐานแบบเต็มรูปแบบ (ยกเลิก IRIV EdgeAI Legacy)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ย้ายระบบควบคุม Hardware I/O ทั้งหมดจาก Cytron IRIV EdgeAI carrier board มาเป็น Raspberry Pi 5 รุ่นมาตรฐาน (40-Pin Header)
+- [x] นำ Pin Map และชื่อขั้วต่ออุตสาหกรรมเดิม (`DI0`, `DO0`, `L0`, `L1`, `BUZZER`, `USER_BTN`) ออกทั้งหมด 100%
+- [x] ออกแบบให้รองรับการเลือก BCM GPIO 0-27 บนชิป RP1 ของ Raspberry Pi 5 ได้อย่างอิสระ
+- [x] พัฒนาอินเทอร์เฟซผู้ใช้ (UI) สำหรับตั้งค่าฮาร์ดแวร์โดยเฉพาะ พร้อมแผนผัง 40-Pin Header แบบอินเทอร์แอคทีฟ
+- [x] เชื่อมต่อโหนดฮาร์ดแวร์ทั้งหมด (รวมถึง RS485 และ Buzzer Auto-Off Timer) เข้ากับ Pipeline Message Router และระบบ Hot-Reload
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Backend**:
+  - `backend/hardware/gpio_manager.py`: ปรับ `parse_pin` ให้รับเฉพาะ BCM GPIO 0-27, รองรับ `pull_resistor="up"|"down"|"none"`, รองรับ `active_high=False` (Active-low Relay), เพิ่มระบบ Auto-shutoff Timer สำหรับ Buzzer
+  - `backend/hardware/rs485_manager.py`: เปลี่ยนค่าเริ่มต้นเป็น `/dev/ttyUSB0` (USB Dongle ทั่วไปบน RPi 5) พร้อม Auto-fallback และ Dynamic Configuration
+  - `backend/ai_engine/pipeline_parser.py`: เพิ่มการ Parse โหนด `rs485Node` และส่งต่อพารามิเตอร์ของ `digitalOutputNode`, `digitalInputNode`
+  - `backend/ai_engine/message_router.py`: เพิ่มคลาส `RS485OutputNode` สำหรับส่งข้อมูล Text/Hex ทาง Serial และอัปเกรด `HardwareOutputNode`
+  - `backend/ai_engine/pipeline_differ.py`: เพิ่ม `rs485Node` ใน `ROUTER_NODE_TYPES` สำหรับการอัปเดตแบบไร้รอยต่อ (Hot-reload)
+- **Frontend**:
+  - `frontend/src/components/PipelineBuilder/settings/RPi5PinoutHeader.jsx`: สร้าง Component แผนผังพิน 1-40 ของ Raspberry Pi 5 แยกโค้ดสี 3.3V, 5V, GND, GPIO, Hardware PWM พร้อมระบบคลิกเลือกพินได้ทันที
+  - `frontend/src/components/PipelineBuilder/settings/*`: สร้างแผงตั้งค่าเฉพาะ `DigitalInputNodeSettings`, `DigitalOutputNodeSettings`, `LEDNodeSettings`, `BuzzerNodeSettings`, `RS485NodeSettings`
+  - `frontend/src/components/PipelineBuilder/NodeSettingsSidebar.jsx`: ลงทะเบียนแผงตั้งค่าฮาร์ดแวร์ทั้ง 5 โหนดเข้าสู่ Sidebar
+  - `frontend/src/components/PipelineBuilder/nodeTypes.js`: ลงทะเบียน Node Components ทั้งหมดใน React Flow
+  - `frontend/src/components/PipelineBuilder/Sidebar.jsx` & `NodeWiki.jsx`: ปรับแต่งคำอธิบายและหมวดหมู่เป็น `Hardware (RPi 5)`
+- **Testing & Verification**:
+  - สร้างชุดทดสอบ `backend/test_rpi5_hardware.py` ครอบคลุมการทำงานทั้ง 6 ฟังก์ชัน (Pass 100%)
+  - รัน Frontend Build (`vite build`) ผ่านสมบูรณ์ 100%
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** เปลี่ยนการควบคุม Output เป็นแบบ Duck Typing (`hasattr(device, 'on')`) แทน `isinstance` และรองรับ Active-Low สำหรับรีเลย์
+- **เหตุผล:** โมดูลรีเลย์ภายนอกที่ผู้ใช้ซื้อมาต่อกับ Raspberry Pi 5 ส่วนใหญ่ทำงานแบบ Active Low (ส่ง 0V เพื่อสั่งเปิด) หากไม่มีตัวเลือกนี้ ผู้ใช้จะต้องกลับ Logic เองใน LogicNode ซึ่งซับซ้อนและอาจเกิดปัญหาไฟกระพริบตอนบูต
+- **เรื่องที่ตัดสินใจ:** เพิ่มการแจ้งเตือนแรงดัน 3.3V LVTTL บน DigitalInputNode
+- **เหตุผล:** พินบน Raspberry Pi 5 ไม่ทนแรงดัน 5V หรือ 24V หากผู้ใช้นำเซนเซอร์อุตสาหกรรมมาต่อตรง ชิป RP1 จะเสียหายทันที จึงต้องมีคำเตือนชัดเจนใน UI
+
+---
+
 ## [2026-10-14] - แก้ไขปัญหา Platform Updater Line 136 ล้มเหลวจาก Hardcoded Path
 
 ### 🎯 เป้าหมาย (Goals)

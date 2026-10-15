@@ -39,14 +39,14 @@ export const NODE_CATEGORIES = [
     ]
   },
   {
-    title: 'Hardware & I/O',
+    title: 'Hardware & I/O (RPi 5)',
     badgeColor: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20',
     items: [
-      { type: 'digitalInputNode', label: 'Digital Input', desc: 'Isolated DI (Max 50V)', icon: ToggleLeft, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
-      { type: 'digitalOutputNode', label: 'Digital Output', desc: 'Isolated DO (Max 50V)', icon: ToggleRight, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-      { type: 'buzzerNode', label: 'Active Buzzer', desc: 'GPIO19 Onboard alert', icon: BellRing, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
-      { type: 'ledNode', label: 'LED Driver', desc: 'PWM Output (Max 2A)', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' },
-      { type: 'rs485Node', label: 'RS485 Modbus', desc: 'Serial industrial comms', icon: Settings2, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
+      { type: 'digitalInputNode', label: 'Digital Input', desc: 'Standard 3.3V GPIO Input', icon: ToggleLeft, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
+      { type: 'digitalOutputNode', label: 'Digital Output', desc: 'Standard 3.3V GPIO / Relay', icon: ToggleRight, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+      { type: 'buzzerNode', label: 'Active Buzzer', desc: 'External Buzzer output', icon: BellRing, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
+      { type: 'ledNode', label: 'LED / PWM Driver', desc: 'Hardware PWM (3.3V)', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' },
+      { type: 'rs485Node', label: 'RS485 Modbus', desc: 'USB/Serial RS485 Modbus', icon: Settings2, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
     ]
   },
   {
