@@ -199,10 +199,12 @@ from .routers.auth import router as auth_router
 from .routers.users import router as users_router
 from .routers.dashboard_versions import router as dashboard_versions_router
 from .routers.project_data import router as project_data_router
+from .routers.target_tracker import router as target_tracker_router
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(dashboard_versions_router)
 app.include_router(project_data_router)
+app.include_router(target_tracker_router)
 
 
 @app.get("/", response_model=None)
@@ -1670,11 +1672,13 @@ async def set_target_tracker(payload: TargetTrackerSetPayload):
     try:
         global active_workers
         worker = active_workers.get(payload.project_id)
+        found = False
         if worker and hasattr(worker, 'config') and getattr(worker.config, 'router', None):
             router = worker.config.router
             node = router.nodes.get(payload.node_id)
             if node and hasattr(node, 'target'):
                 node.target = payload.target
+                found = True
                 
                 # Immediately emit update so UI refreshes
                 if hasattr(node, 'actual') and hasattr(node, 'is_complete'):
@@ -1684,7 +1688,10 @@ async def set_target_tracker(payload: TargetTrackerSetPayload):
                         node.is_complete = False
                         
                     progress = (node.actual / node.target) * 100.0 if node.target > 0 else 100.0
-                    if progress > 100.0: progress = 100.0
+                    if not getattr(node, 'allow_over_target', True) and progress > 100.0:
+                        progress = 100.0
+                    progress = round(progress, 1)
+                    over_target = max(0, node.actual - node.target)
                     
                     if router.metadata_callback:
                         router.metadata_callback({
@@ -1695,9 +1702,59 @@ async def set_target_tracker(payload: TargetTrackerSetPayload):
                             "progress_percent": progress,
                             "current_rate_per_minute": getattr(node, 'current_rate_per_minute', 0.0),
                             "eta_seconds": getattr(node, 'eta_seconds', None),
-                            "is_complete": node.is_complete
+                            "is_complete": node.is_complete,
+                            "over_target": over_target,
+                            "just_completed": False,
+                            "is_idle": getattr(node, 'is_idle', False)
                         })
-                return {"status": "success", "message": f"Target updated to {payload.target}"}
+
+                if hasattr(node, '_save_persisted_state'):
+                    node._save_persisted_state()
+
+                if getattr(node, 'current_record_id', None) is not None:
+                    try:
+                        from db.database import db
+                        rec = db.get_target_tracker_record(node.current_record_id)
+                        if rec and rec.status == "running":
+                            rec.target = payload.target
+                            rec.progress_percent = progress
+                            rec.over_target = over_target
+                            from sqlmodel import Session
+                            with Session(db.engine_telemetry) as s:
+                                s.add(rec)
+                                s.commit()
+                    except Exception as re:
+                        logger.warning(f"Failed to update active record target in DB: {re}")
+
+        # Persist updated target into the project's pipeline_json in DB for two-way sync
+        try:
+            from db.database import db
+            from db.models import Project
+            from sqlmodel import Session, select
+            with Session(db.engine) as session:
+                project = session.exec(select(Project).where(Project.id == payload.project_id)).first()
+                if project and project.pipeline_json:
+                    pdata = json.loads(project.pipeline_json)
+                    nodes = pdata.get("nodes", [])
+                    modified = False
+                    for n in nodes:
+                        if n.get("id") == payload.node_id:
+                            if "data" not in n:
+                                n["data"] = {}
+                            n["data"]["targetCount"] = payload.target
+                            modified = True
+                            break
+                    if modified:
+                        project.pipeline_json = json.dumps(pdata)
+                        session.add(project)
+                        session.commit()
+                        logger.info(f"TargetTracker [{payload.node_id}] target synced to Project [{payload.project_id}] pipeline_json: {payload.target}")
+                        found = True
+        except Exception as dbe:
+            logger.warning(f"Failed to persist TargetTracker target to DB: {dbe}")
+
+        if found:
+            return {"status": "success", "message": f"Target updated to {payload.target}"}
         return {"status": "error", "message": "Node not found or unsupported"}
     except Exception as e:
         return {"status": "error", "message": str(e)}

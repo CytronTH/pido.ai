@@ -151,3 +151,22 @@ class CustomMetricHourly(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("time_bucket", "project_id", "node_id", "variable_name", name="uix_metric_hourly"),
     )
+
+class TargetTrackerRecord(SQLModel, table=True):
+    __tablename__ = "target_tracker_records"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: str = Field(default="default", index=True)
+    node_id: str = Field(default="unknown", index=True)
+    name: str = Field(default="")
+    target: int = Field(default=100)
+    actual: int = Field(default=0)
+    over_target: int = Field(default=0)
+    progress_percent: float = Field(default=0.0)
+    status: str = Field(default="running", index=True)  # "running", "completed", "stopped"
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+    completed_at: Optional[datetime] = Field(default=None)
+    duration_seconds: float = Field(default=0.0)
+    avg_rate_per_minute: float = Field(default=0.0)
+    peak_rate_per_minute: float = Field(default=0.0)
+    unit: str = Field(default="items")
+    history_json: str = Field(default="[]")

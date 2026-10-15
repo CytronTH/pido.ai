@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Activity, Clock, Timer, Settings2 } from 'lucide-react';
+import { RotateCcw, Activity, Clock, Timer, Settings2, HelpCircle, Info } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isSidebar }) {
@@ -63,7 +63,16 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
 
   return (
     <div className="flex flex-col gap-4">
-      
+      {/* Concept Info Card */}
+      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-2.5 text-xs text-fg-muted flex flex-col gap-1">
+        <span className="font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+          <Info size={13} /> Machine Throughput & OEE
+        </span>
+        <span className="leading-relaxed text-[11px]">
+          คำนวณกำลังการผลิตจริงของเครื่องจักร โดยมี <b>Current Rate</b> (พร้อมระบบ Idle Decay ค่อย ๆ ลดความเร็วเมื่อของมาช้า) และ <b>Avg Rate</b> (คิดจากเวลาเดินเครื่องจริงสะสม โดยหักช่วงหยุดพักเครื่องออกให้)
+        </span>
+      </div>
+
       {/* Settings section */}
       <div className="flex flex-col gap-3">
         {/* Start Trigger */}
@@ -323,9 +332,13 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div 
+            className="flex items-center gap-1.5 cursor-help group"
+            title="Current Rate: อัตราความเร็วช่วงสั้น (Window) พร้อมระบบ Idle Decay ค่อย ๆ ลดระดับความเร็วเมื่อชิ้นงานมาช้า"
+          >
             <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current Rate:</span>
+            <HelpCircle size={11} className="text-fg-subtle group-hover:text-emerald-500 transition-colors" />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
@@ -335,9 +348,13 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div 
+            className="flex items-center gap-1.5 cursor-help group"
+            title="Avg Rate: อัตราผลิตเฉลี่ยสะสมตลอดเวลาเดินเครื่องจริง (หักเวลาที่หยุดพักหรือ Pause ออกให้ทั้งหมด)"
+          >
             <Clock size={16} className="text-cyan-600 dark:text-cyan-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Avg Rate:</span>
+            <HelpCircle size={11} className="text-fg-subtle group-hover:text-cyan-500 transition-colors" />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">

@@ -6,7 +6,7 @@ import json
 import datetime
 from pathlib import Path
 from collections import deque
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 logger = logging.getLogger(__name__)
@@ -376,77 +376,361 @@ class FlowCounterNode(PipelineNode):
             })
 
 class TargetTrackerNode(PipelineNode):
+    _STATE_FILE = Path(__file__).resolve().parent.parent / "db" / "node_states.json"
+
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="targetTrackerNode")
-        import time
         self.target = int(data.get("targetCount", 100))
+        self.input_mode = data.get("inputMode", "auto")
         self.edge_type = data.get("edgeType", "rising")
-        
+        self.allow_over_target = data.get("allowOverTarget", True)
+        self.output_mode = data.get("outputMode", "on_complete")
+        self.retain_count_on_restart = data.get("retainCountOnRestart", True)
+        self.idle_timeout_seconds = float(data.get("idleTimeoutSeconds", 30.0))
+        self.unit_name = data.get("unitName", "items")
+        self.current_record_id = None
+        self.current_record_name = ""
+        self.peak_rate_per_minute = 0.0
+        self._last_point_ts = 0.0
+        self._last_record_sync_ts = 0.0
+
         self.actual = 0
         self.last_payload = False
+        self.last_numeric_val = None
         self.start_time = None
         self.is_complete = False
         self.current_rate_per_minute = 0.0
         self.eta_seconds = None
+        self._recent_events = deque(maxlen=300)
         self._last_rate_calc_ts = None
         self._last_update_ts = time.time()
+        self._last_activity_ts = None
+        self._last_persisted_save_ts = 0.0
+
+        if self.retain_count_on_restart:
+            self._load_persisted_state()
+
+    def _get_state_key(self) -> str:
+        project_id = getattr(self.router, "project_id", "default") or "default"
+        return f"{project_id}_{self.node_id}"
+
+    def _load_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            if not self._STATE_FILE.exists():
+                return
+            with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                all_states = json.load(f)
+            key = self._get_state_key()
+            if key in all_states:
+                state = all_states[key]
+                self.actual = int(state.get("actual", state.get("current_count", 0)))
+                self.start_time = state.get("start_time")
+                self.current_record_id = state.get("current_record_id")
+                self.current_record_name = state.get("current_record_name", "")
+                self.peak_rate_per_minute = float(state.get("peak_rate_per_minute", 0.0))
+                if self.actual >= self.target:
+                    self.is_complete = True
+                logger.info(f"TargetTrackerNode [{self.node_id}] restored count {self.actual} from persistent state")
+        except Exception as e:
+            logger.warning(f"TargetTrackerNode [{self.node_id}] failed to load persistent state: {e}")
+
+    def _save_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            self._STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            all_states = {}
+            if self._STATE_FILE.exists():
+                try:
+                    with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                        all_states = json.load(f)
+                except Exception:
+                    all_states = {}
+            key = self._get_state_key()
+            all_states[key] = {
+                "actual": self.actual,
+                "current_count": self.actual,
+                "target": self.target,
+                "start_time": self.start_time,
+                "is_complete": self.is_complete,
+                "current_record_id": self.current_record_id,
+                "current_record_name": self.current_record_name,
+                "peak_rate_per_minute": self.peak_rate_per_minute,
+                "date": datetime.date.today().isoformat(),
+                "updated_at": time.time()
+            }
+            temp_file = self._STATE_FILE.with_suffix(".tmp")
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(all_states, f, indent=2)
+            temp_file.replace(self._STATE_FILE)
+        except Exception as e:
+            logger.warning(f"TargetTrackerNode [{self.node_id}] failed to save persistent state: {e}")
+
+    def start_new_record(self, name: str = "", target: Optional[int] = None):
+        """Start a new counting run/record, stopping any previous running record."""
+        if self.current_record_id is not None:
+            self._finalize_current_record(status="stopped" if not self.is_complete else "completed")
+
+        now = time.time()
+        self.actual = 0
+        self.start_time = now
+        self.is_complete = False
+        self.current_rate_per_minute = 0.0
+        self.peak_rate_per_minute = 0.0
+        self.eta_seconds = None
+        self._recent_events.clear()
+        self._last_rate_calc_ts = None
+        self._last_activity_ts = now
+        self._last_update_ts = now
+        self._last_point_ts = now
+        self._last_record_sync_ts = now
+        if target is not None and target > 0:
+            self.target = target
+
+        project_id = getattr(self.router, "project_id", "default") or "default"
+        try:
+            from db.database import db
+            run_name = name.strip() if name else ""
+            if not run_name:
+                past_records = db.get_target_tracker_records(project_id, node_id=self.node_id, limit=100)
+                run_name = f"Run #{len(past_records) + 1}"
+
+            rec = db.create_target_tracker_record(
+                project_id=project_id,
+                node_id=self.node_id,
+                target=self.target,
+                name=run_name,
+                unit=self.unit_name
+            )
+            self.current_record_id = rec.id
+            self.current_record_name = rec.name
+        except Exception as e:
+            logger.warning(f"Failed to create target tracker record in DB: {e}")
+            self.current_record_id = None
+            self.current_record_name = name or "Run"
+
+        self._save_persisted_state()
+
+        if self.router.metadata_callback:
+            self.router.metadata_callback({
+                "type": "target_tracker_update",
+                "node_id": self.node_id,
+                "target": self.target,
+                "actual": 0,
+                "progress_percent": 0.0,
+                "current_rate_per_minute": 0.0,
+                "eta_seconds": None,
+                "is_complete": False,
+                "over_target": 0,
+                "just_completed": False,
+                "is_idle": True,
+                "record_id": self.current_record_id,
+                "record_name": self.current_record_name
+            })
+        return rec
+
+    def _finalize_current_record(self, status: str = "completed"):
+        """Finalize and close the active database record."""
+        if self.current_record_id is None:
+            return
+        now = time.time()
+        duration = max(0.0, (now - self.start_time) if self.start_time else 0.0)
+        elapsed_mins = duration / 60.0
+        avg_rate = round(self.actual / elapsed_mins, 1) if elapsed_mins > 0.05 else self.current_rate_per_minute
+        progress = (self.actual / self.target) * 100.0 if self.target > 0 else 100.0
+        over_target = max(0, self.actual - self.target)
+        try:
+            from db.database import db
+            db.update_target_tracker_record(
+                record_id=self.current_record_id,
+                actual=self.actual,
+                over_target=over_target,
+                progress_percent=round(progress, 1),
+                status=status,
+                duration_seconds=round(duration, 1),
+                avg_rate_per_minute=avg_rate,
+                peak_rate_per_minute=self.peak_rate_per_minute,
+                completed_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to finalize record {self.current_record_id}: {e}")
+
+    def cleanup(self) -> None:
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
 
     def process(self, msg: dict):
-        import time
         now = time.time()
-        
-        current_payload = bool(msg.get("payload"))
-        
-        trigger = False
-        if self.edge_type == "falling":
-            if not current_payload and self.last_payload:
-                trigger = True
+        raw_payload = msg.get("payload")
+
+        # 1. Determine input mode
+        mode = self.input_mode
+        if mode == "auto":
+            if isinstance(raw_payload, (int, float)) and not isinstance(raw_payload, bool):
+                mode = "numeric"
+            elif isinstance(raw_payload, dict) and any(k in raw_payload for k in ("total", "count", "current_count", "actual")):
+                mode = "numeric"
+            else:
+                mode = "pulse"
+
+        triggered_delta = 0
+
+        # 2. Extract count delta
+        if mode == "numeric":
+            val = None
+            if isinstance(raw_payload, dict):
+                for k in ("total", "count", "current_count", "actual"):
+                    if k in raw_payload and isinstance(raw_payload[k], (int, float)) and not isinstance(raw_payload[k], bool):
+                        val = int(raw_payload[k])
+                        break
+            elif isinstance(raw_payload, (int, float)) and not isinstance(raw_payload, bool):
+                val = int(raw_payload)
+
+            if val is not None:
+                if self.last_numeric_val is None:
+                    self.last_numeric_val = val
+                    if self.actual == 0 and val > 0:
+                        triggered_delta = val
+                else:
+                    if val > self.last_numeric_val:
+                        triggered_delta = val - self.last_numeric_val
+                        self.last_numeric_val = val
+                    elif val < self.last_numeric_val:
+                        self.last_numeric_val = val
         else:
-            if current_payload and not self.last_payload:
-                trigger = True
-                
-        self.last_payload = current_payload
-        
+            current_bool = False
+            if isinstance(raw_payload, dict):
+                current_bool = bool(raw_payload.get("value", raw_payload.get("state", False)))
+            else:
+                current_bool = bool(raw_payload)
+
+            if self.edge_type == "falling":
+                if not current_bool and self.last_payload:
+                    triggered_delta = 1
+            else:
+                if current_bool and not self.last_payload:
+                    triggered_delta = 1
+            self.last_payload = current_bool
+
         updated = False
-        if trigger and not self.is_complete:
-            if self.actual == 0:
-                self.start_time = now
-                self._last_rate_calc_ts = now
-                
-            self.actual += 1
-            updated = True
-            
-            if self.actual >= self.target:
-                self.is_complete = True
-                
-        # To keep UI fresh even without trigger
-        if self.actual > 1 and self.start_time is not None and not self.is_complete:
-            elapsed = now - self.start_time
-            if elapsed > 0.5:
-                # Recalculate rate ONLY every 1.0s to prevent rapid flickering on the dashboard
-                if self._last_rate_calc_ts is None or (now - self._last_rate_calc_ts > 1.0):
-                    rate_per_sec = (self.actual - 1) / elapsed
-                    self.current_rate_per_minute = round(rate_per_sec * 60.0, 2)
-                    if rate_per_sec > 0:
-                        remaining = self.target - self.actual
-                        self.eta_seconds = round(remaining / rate_per_sec, 1)
-                    else:
-                        self.eta_seconds = None
-                    self._last_rate_calc_ts = now
-            if now - getattr(self, '_last_update_ts', 0) > 1.0:
+        just_completed = False
+
+        # 3. Apply counted delta
+        if triggered_delta > 0:
+            if not self.is_complete or self.allow_over_target:
+                if self.actual == 0 or self.start_time is None:
+                    self.start_time = now
+                if self.current_record_id is None:
+                    self.start_new_record()
+                self.actual += triggered_delta
+                self._recent_events.append((now, triggered_delta))
+                self._last_activity_ts = now
                 updated = True
-        elif self.actual <= 1 and self.start_time is not None and not self.is_complete:
-            self.current_rate_per_minute = 0.0
-            self.eta_seconds = None
-        elif self.is_complete:
-            self.eta_seconds = 0
-            
+
+                if now - self._last_persisted_save_ts > 5.0:
+                    self._save_persisted_state()
+                    self._last_persisted_save_ts = now
+
+        # 4. Completion state evaluation
+        if self.actual >= self.target:
+            if not self.is_complete:
+                self.is_complete = True
+                just_completed = True
+                updated = True
+                self._save_persisted_state()
+        else:
+            if self.is_complete:
+                self.is_complete = False
+                updated = True
+
+        # 5. Sliding-window Rate and ETA Calculation
+        while self._recent_events and (now - self._recent_events[0][0] > 60.0):
+            self._recent_events.popleft()
+
+        is_idle = False
+        if self._last_activity_ts and (now - self._last_activity_ts > self.idle_timeout_seconds):
+            is_idle = True
+
+        should_recalc = (self._last_rate_calc_ts is None) or (now - self._last_rate_calc_ts >= 1.0)
+        if should_recalc:
+            if is_idle:
+                self.current_rate_per_minute = 0.0
+                self.eta_seconds = 0.0 if self.is_complete else None
+            elif len(self._recent_events) >= 2:
+                window_duration = max(1.0, self._recent_events[-1][0] - self._recent_events[0][0])
+                total_in_window = sum(delta for _, delta in self._recent_events) - self._recent_events[0][1]
+                rate_per_sec = total_in_window / window_duration
+                self.current_rate_per_minute = round(rate_per_sec * 60.0, 1)
+            elif len(self._recent_events) == 1 and self.start_time:
+                elapsed = max(1.0, now - self.start_time)
+                self.current_rate_per_minute = round((self.actual / elapsed) * 60.0, 1)
+            else:
+                self.current_rate_per_minute = 0.0
+
+            self.peak_rate_per_minute = max(self.peak_rate_per_minute, self.current_rate_per_minute)
+
+            if self.is_complete:
+                self.eta_seconds = 0.0
+            elif self.current_rate_per_minute > 0:
+                remaining = max(0, self.target - self.actual)
+                rate_per_sec = self.current_rate_per_minute / 60.0
+                self.eta_seconds = round(remaining / rate_per_sec, 1) if rate_per_sec > 0 else None
+            else:
+                self.eta_seconds = None
+
+            self._last_rate_calc_ts = now
+
+        if now - self._last_update_ts >= 1.0:
+            updated = True
+
         progress = (self.actual / self.target) * 100.0 if self.target > 0 else 100.0
-        if progress > 100.0:
+        if not self.allow_over_target and progress > 100.0:
             progress = 100.0
-            
-        # Emit telemetry
-        if self.router.metadata_callback and (updated or trigger):
+        progress = round(progress, 1)
+
+        over_target = max(0, self.actual - self.target)
+
+        # 6. Record timeline and periodic DB synchronization
+        if self.current_record_id is not None:
+            history_pt = None
+            if (now - self._last_point_ts >= 1.5) or just_completed:
+                t_rel = round(now - self.start_time, 1) if self.start_time else 0.0
+                history_pt = {
+                    "t_rel": t_rel,
+                    "ts": datetime.datetime.fromtimestamp(now, tz=datetime.timezone.utc).isoformat(),
+                    "actual": self.actual,
+                    "target": self.target,
+                    "rate": self.current_rate_per_minute,
+                    "progress": progress
+                }
+                self._last_point_ts = now
+
+            if ((now - self._last_record_sync_ts >= 3.0) or just_completed) and (self.actual > 0 or history_pt):
+                try:
+                    from db.database import db
+                    duration = max(0.0, (now - self.start_time) if self.start_time else 0.0)
+                    elapsed_mins = duration / 60.0
+                    avg_rate = round(self.actual / elapsed_mins, 1) if elapsed_mins > 0.05 else self.current_rate_per_minute
+                    db.update_target_tracker_record(
+                        record_id=self.current_record_id,
+                        actual=self.actual,
+                        over_target=over_target,
+                        progress_percent=progress,
+                        status="completed" if self.is_complete else "running",
+                        duration_seconds=round(duration, 1),
+                        avg_rate_per_minute=avg_rate,
+                        peak_rate_per_minute=self.peak_rate_per_minute,
+                        history_point=history_pt,
+                        completed_at=datetime.datetime.now(datetime.timezone.utc) if just_completed else None
+                    )
+                    self._last_record_sync_ts = now
+                except Exception as se:
+                    logger.warning(f"Failed to sync record {self.current_record_id} to DB: {se}")
+
+        # 7. Emit Telemetry
+        if self.router.metadata_callback and (updated or just_completed):
             self._last_update_ts = now
             self.router.metadata_callback({
                 "type": "target_tracker_update",
@@ -456,43 +740,74 @@ class TargetTrackerNode(PipelineNode):
                 "progress_percent": progress,
                 "current_rate_per_minute": self.current_rate_per_minute,
                 "eta_seconds": self.eta_seconds,
-                "is_complete": self.is_complete
+                "is_complete": self.is_complete,
+                "over_target": over_target,
+                "just_completed": just_completed,
+                "is_idle": is_idle,
+                "record_id": self.current_record_id,
+                "record_name": self.current_record_name
             })
-            
+
+        # 8. Downstream payload
+        downstream_value = just_completed if self.output_mode == "on_complete" else self.is_complete
+
         msg["payload"] = {
             "is_complete": self.is_complete,
-            "value": self.is_complete,
+            "value": downstream_value,
+            "just_completed": just_completed,
             "progress_percent": progress,
             "actual": self.actual,
             "target": self.target,
             "current_count": self.actual,
             "target_count": self.target,
+            "over_target": over_target,
             "current_rate_per_minute": self.current_rate_per_minute,
-            "eta_seconds": self.eta_seconds
+            "eta_seconds": self.eta_seconds,
+            "is_idle": is_idle,
+            "record_id": self.current_record_id,
+            "record_name": self.current_record_name
         }
         return msg
 
     def reset_counts(self):
+        if self.current_record_id is not None:
+            self._finalize_current_record(status="stopped" if not self.is_complete else "completed")
+            self.current_record_id = None
+            self.current_record_name = ""
+
         self.actual = 0
         self.last_payload = False
+        self.last_numeric_val = None
         self.start_time = None
         self.is_complete = False
         self.current_rate_per_minute = 0.0
+        self.peak_rate_per_minute = 0.0
         self.eta_seconds = None
+        self._recent_events.clear()
         self._last_rate_calc_ts = None
+        self._last_activity_ts = None
         self._last_update_ts = time.time()
-        
+        self._last_point_ts = 0.0
+        self._last_record_sync_ts = 0.0
+        self._save_persisted_state()
+
         if self.router.metadata_callback:
             self.router.metadata_callback({
                 "type": "target_tracker_update",
                 "node_id": self.node_id,
                 "target": self.target,
-                "actual": self.actual,
+                "actual": 0,
                 "progress_percent": 0.0,
                 "current_rate_per_minute": 0.0,
                 "eta_seconds": None,
-                "is_complete": False
+                "is_complete": False,
+                "over_target": 0,
+                "just_completed": False,
+                "is_idle": True,
+                "record_id": None,
+                "record_name": ""
             })
+
 
 class UnitThroughputNode(PipelineNode):
     def __init__(self, node_id: str, data: dict, router):
@@ -1005,7 +1320,13 @@ class ActionNode(PipelineNode):
         super().__init__(node_id, data, router, node_type="actionNode")
 
     def process(self, msg: dict):
-        val = bool(msg.get("payload"))
+        raw_payload = msg.get("payload")
+        if isinstance(raw_payload, dict) and ("just_completed" in raw_payload or "is_complete" in raw_payload):
+            val = bool(raw_payload.get("value", raw_payload.get("just_completed", raw_payload.get("is_complete", False))))
+        elif isinstance(raw_payload, dict) and "value" in raw_payload:
+            val = bool(raw_payload["value"])
+        else:
+            val = bool(raw_payload)
         trigger_on = str(self.data.get("triggerOn", "true")).lower() == "true"
         
         if val == trigger_on:
@@ -1098,12 +1419,16 @@ class HardwareOutputNode(PipelineNode):
         
     def process(self, msg: dict):
         payload = msg.get("payload")
-        if isinstance(payload, dict) and "newly_counted" in payload:
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            val = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
             val = payload["newly_counted"] > 0
         elif isinstance(payload, dict) and "detections" in payload:
             val = len(payload["detections"]) > 0
         elif isinstance(payload, list):
             val = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            val = bool(payload["value"])
         else:
             val = bool(payload)
             
@@ -1347,12 +1672,16 @@ class SnapshotNode(PipelineNode):
                 
     def process(self, msg: dict):
         payload = msg.get("payload")
-        if isinstance(payload, dict) and "newly_counted" in payload:
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            current_payload = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
             current_payload = payload["newly_counted"] > 0
         elif isinstance(payload, dict) and "detections" in payload:
             current_payload = len(payload["detections"]) > 0
         elif isinstance(payload, list):
             current_payload = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            current_payload = bool(payload["value"])
         else:
             current_payload = bool(payload)
         
