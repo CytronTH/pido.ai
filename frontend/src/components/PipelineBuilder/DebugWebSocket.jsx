@@ -25,7 +25,8 @@ export default function DebugWebSocket() {
         n.type === 'forkliftZoneNode' ||
         n.type === 'counterNode' ||
         n.type === 'unitThroughputNode' ||
-        n.type === 'targetTrackerNode'
+        n.type === 'targetTrackerNode' ||
+        n.type === 'logicNode'
       ) {
         const list = logics.get(n.id) || [];
         list.push(n.id);

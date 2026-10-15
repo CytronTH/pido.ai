@@ -72,10 +72,16 @@ export const nodeTutorials = {
     guide: {
       modes: [
         {
-          id: 'equation',
-          name: 'Equation Builder (โหมดลากวางบล็อก)',
-          badge: 'เหมาะสำหรับผู้เริ่มต้น',
-          desc: 'สร้างเงื่อนไขโดยการคลิกหรือลากบล็อกชิปคำสั่งมาวางใน Equation Box ระบบจะดึง Class ทั้งหมดจากโมเดล AI ที่เชื่อมต่ออยู่มาสร้างเป็นบล็อกให้อัตโนมัติ เช่น Has person, Count person, Conf. person และบล็อกตรรกะ AND, OR, NOT, เปรียบเทียบตัวเลข'
+          id: 'visual',
+          name: 'Visual Rule Builder (โหมดฟอร์ม No-Code)',
+          badge: 'แนะนำ / ใช้งานง่ายที่สุด',
+          desc: 'สร้างเงื่อนไขได้ง่ายผ่าน Dropdown และฟอร์มภาษาคน รองรับการตรวจพบ (Presence), นับจำนวน (Count), ความมั่นใจ (Confidence), ตำแหน่งกึ่งกลาง (Centered/ROI) และ Defect QC โดยระบบจะแปลงเป็น Python ให้เบื้องหลังอัตโนมัติ'
+        },
+        {
+          id: 'presets',
+          name: 'Factory Presets (แม่แบบโรงงาน 1 คลิก)',
+          badge: 'สูตรสำเร็จรูป',
+          desc: 'เลือกใช้งานรูปแบบการตัดสินใจยอดนิยมในอุตสาหกรรม เช่น ตรวจพบชิ้นงาน, ตรวจของขาด (Missing Part), ชิ้นงานเข้าจุดกึ่งกลาง QC, หรือความปลอดภัย PPE แค่เลือกคลาสแล้วกดใช้งานได้ทันที'
         },
         {
           id: 'code',

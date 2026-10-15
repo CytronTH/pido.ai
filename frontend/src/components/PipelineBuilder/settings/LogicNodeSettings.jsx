@@ -1,48 +1,57 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Zap, Code, LayoutList, GripVertical, Plus, ChevronDown, ChevronRight, Radio, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { 
+  Zap, Code, LayoutList, Plus, Trash2, Radio, Check, Copy, 
+  AlertTriangle, Crosshair, Package, Binary, ShieldAlert, Sparkles, 
+  Maximize2, Users, ChevronDown, ChevronRight, Activity, ArrowRight, 
+  Settings2, Sliders, CheckCircle2, XCircle
+} from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 import { useShallow } from 'zustand/react/shallow';
+import { 
+  COMMON_CLASSES, 
+  CONDITION_TYPES, 
+  FACTORY_PRESETS, 
+  compileRulesToExpression, 
+  parseExpressionToRules 
+} from './logicNodeUtils';
 
 const SNIPPETS = [
   { label: 'Any object',        expr: 'len(msg["payload"]) > 0' },
   { label: 'No object',         expr: 'len(msg["payload"]) == 0' },
   { label: 'Count >=',          expr: 'len(msg["payload"]) >= 2' },
-  { label: 'Has label',         expr: 'has("person")' },
+  { label: 'Has label',         expr: 'has("cup")' },
   { label: 'Centered in ROI',   expr: 'is_centered("cup")' },
   { label: 'Defect (Missing Date)', expr: 'is_centered("cup") and not centered_has("expire_date")' },
-  { label: 'A and B together',  expr: 'has("person") and has("car")' },
-  { label: 'A or B',           expr: 'has("person") or has("car")' },
+  { label: 'A and B together',  expr: 'has("cup") and has("expire_date")' },
+  { label: 'A or B',           expr: 'has("cup") or has("bottle")' },
 ];
 
 const VARS_REF = [
-  ['msg["payload"]',           'list   — the payload object'],
-  ['count',                    'int    — total detections in ROI'],
-  ['has("label")',             'bool   — label exists in ROI'],
-  ['is_centered("label")',     'bool   — label is centered in ROI (both X and Y)'],
-  ['centered_has("label")',    'bool   — centered object contains label inside it'],
-  ['centered_missing("label")','bool   — centered object is missing label'],
-  ['is_fully_in_roi("label")', 'bool   — bbox is completely within ROI bounds'],
-  ['center_x("label")',        'float  — center X normalized (0.0 to 1.0)'],
-  ['center_y("label")',        'float  — center Y normalized (0.0 to 1.0)'],
-  ['label_count("label")',     'int    — count of specific label'],
-  ['confidence',               'float  — max confidence (all)'],
-  ['label_confidence("label")', 'float  — max confidence of label'],
+  ['msg["payload"]',            'list   — the payload detections'],
+  ['count',                     'int    — total detections in ROI'],
+  ['has("label")',              'bool   — label exists in ROI'],
+  ['is_centered("label")',      'bool   — label is centered in ROI'],
+  ['centered_has("label")',     'bool   — centered object contains label inside'],
+  ['centered_missing("label")', 'bool   — centered object missing label'],
+  ['is_fully_in_roi("label")',  'bool   — bbox is completely inside ROI'],
+  ['label_count("label")',      'int    — count of specific label'],
+  ['confidence',                'float  — max confidence overall (0.0 - 1.0)'],
+  ['label_confidence("label")', 'float  — max confidence of label (0.0 - 1.0)'],
 ];
 
-export default function LogicNodeSettings({ nodeId, data, onChange }) {
-  const [showRef, setShowRef] = useState(false);
+export default function LogicNodeSettings({ nodeId, data, onChange, isSidebar = true }) {
   const [models, setModels] = useState([]);
-  const editorRef = useRef(null);
+  const [showRef, setShowRef] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [presetTargetClass, setPresetTargetClass] = useState('');
 
-  const { edges, nodes } = usePipelineStore(useShallow((state) => ({
+  const { edges, nodes, debugData } = usePipelineStore(useShallow((state) => ({
     edges: state.edges,
-    nodes: state.nodes
+    nodes: state.nodes,
+    debugData: state.debugData?.[nodeId]
   })));
 
-  // Find upstream node for AI classes
-  const upstreamEdge = edges.find(e => e.target === nodeId);
-  const upstreamNode = upstreamEdge ? nodes.find(n => n.id === upstreamEdge.source) : null;
-
+  // Fetch available AI models to extract classes
   useEffect(() => {
     fetch('/api/entities', { cache: 'no-store' })
       .then(r => r.json())
@@ -50,269 +59,747 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
       .catch(e => console.warn('Failed to fetch entities', e));
   }, []);
 
-  let availableClasses = [];
-  if (upstreamNode?.type === 'aiNode' && upstreamNode.data?.entityId) {
-    const aiModel = models.find(m => m.id === upstreamNode.data.entityId);
-    if (aiModel?.classes) availableClasses = aiModel.classes;
-  }
-
-  const expr           = data?.expression ?? 'len(msg["payload"]) > 0';
-  const isAdvancedMode = data?.isAdvancedMode ?? false;
-  const equationHtml   = data?.equationHtml ?? expr; 
-  const debounceMs     = data?.debounceMs ?? 0;
-  const outputMode     = data?.outputMode ?? 'on_change';
-  const cooldownMs     = data?.cooldownMs ?? 0;
-
-  const setExpr = v => onChange({ expression: v });
-  const setDebounce = v => onChange({ debounceMs: isNaN(parseInt(v)) ? 0 : Math.max(0, parseInt(v)) });
-  const setOutputMode = v => onChange({ outputMode: v });
-  const setCooldown = v => onChange({ cooldownMs: isNaN(parseInt(v)) ? 0 : Math.max(0, parseInt(v)) });
-  const setMode = (advanced) => onChange({ isAdvancedMode: advanced });
-
-  const initialHtml = useRef(data?.equationHtml ?? expr).current;
-
-  // Sync from props ONLY when switching nodes
-  useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.innerHTML = data?.equationHtml ?? expr;
-    }
-  }, [nodeId]);
-
-  const handleEditorInput = () => {
-    if (!editorRef.current) return;
-    const html = editorRef.current.innerHTML;
-    
-    let newExpr = '';
-    Array.from(editorRef.current.childNodes).forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        newExpr += node.textContent;
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        newExpr += node.getAttribute('data-code') || node.textContent;
+  // Multi-hop backwards traversal to find upstream AINode
+  const upstreamAiNode = useMemo(() => {
+    let currId = nodeId;
+    const visited = new Set();
+    while (currId && !visited.has(currId)) {
+      visited.add(currId);
+      const inEdge = edges.find(e => e.target === currId);
+      if (!inEdge) break;
+      const src = nodes.find(n => n.id === inEdge.source);
+      if (!src) break;
+      if (src.type === 'aiNode') {
+        return src;
       }
-    });
-
-    newExpr = newExpr.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
-
-    onChange({ 
-      equationHtml: html, 
-      expression: newExpr 
-    });
-  };
-
-  const insertBlockAtCursor = (html) => {
-    if (!editorRef.current) return;
-    
-    if (document.activeElement !== editorRef.current) {
-      editorRef.current.focus();
-      const range = document.createRange();
-      range.selectNodeContents(editorRef.current);
-      range.collapse(false);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
+      currId = src.id;
     }
-    
-    document.execCommand('insertHTML', false, html + '&nbsp;');
-    handleEditorInput();
+    return null;
+  }, [nodeId, nodes, edges]);
+
+  // Extract model classes from upstream AI node
+  const availableClasses = useMemo(() => {
+    if (!upstreamAiNode?.data?.entityId) return COMMON_CLASSES;
+    const aiModel = models.find(m => m.id === upstreamAiNode.data.entityId);
+    if (aiModel?.classes && aiModel.classes.length > 0) {
+      return aiModel.classes;
+    }
+    return COMMON_CLASSES;
+  }, [upstreamAiNode, models]);
+
+  // Active mode: 'visual' | 'presets' | 'code'
+  const activeMode = data?.rulesMode ?? (data?.isAdvancedMode ? 'code' : 'visual');
+  const expr = data?.expression ?? 'count > 0';
+  const combineMode = data?.rulesCombineMode ?? 'and';
+  const outputMode = data?.outputMode ?? 'on_change';
+  const debounceMs = data?.debounceMs ?? 0;
+  const cooldownMs = data?.cooldownMs ?? 0;
+
+  // Initialize and normalize rules so no required fields are undefined
+  const rules = useMemo(() => {
+    let rawRules = data?.rules;
+    if (!rawRules || !Array.isArray(rawRules) || rawRules.length === 0) {
+      const parsed = parseExpressionToRules(expr);
+      if (parsed?.rules) {
+        rawRules = parsed.rules;
+      } else {
+        rawRules = [
+          {
+            id: 'r_default',
+            type: 'presence',
+            condition: 'exists',
+            targetClass: availableClasses[0] || 'cup'
+          }
+        ];
+      }
+    }
+
+    const pClass = availableClasses[0] || 'cup';
+    const cClass = availableClasses[1] || availableClasses[0] || 'expire_date';
+
+    return rawRules.map((r, i) => {
+      if (r.type === 'defect') {
+        return {
+          ...r,
+          parentClass: r.parentClass || pClass,
+          childClass: r.childClass || cClass,
+          defectCondition: r.defectCondition || 'missing_part'
+        };
+      }
+      if (r.type === 'position') {
+        return {
+          ...r,
+          targetClass: r.targetClass || pClass,
+          posType: r.posType || 'centered'
+        };
+      }
+      if (r.type === 'presence') {
+        return {
+          ...r,
+          targetClass: r.targetClass || pClass,
+          condition: r.condition || 'exists'
+        };
+      }
+      if (r.type === 'count') {
+        return {
+          ...r,
+          targetClass: r.targetClass || pClass,
+          operator: r.operator || '>=',
+          value: r.value ?? 1
+        };
+      }
+      if (r.type === 'confidence') {
+        return {
+          ...r,
+          targetClass: r.targetClass || pClass,
+          operator: r.operator || '>=',
+          value: r.value ?? 75
+        };
+      }
+      return r;
+    });
+  }, [data?.rules, expr, availableClasses]);
+
+  // Auto-heal legacy or invalid expressions (e.g., if parentClass was missing or fell back to 'person'/'bottle' mistakenly)
+  useEffect(() => {
+    if (data?.rules && Array.isArray(data.rules) && data.rules.length > 0) {
+      let needsHeal = false;
+      const pClass = availableClasses[0] || 'cup';
+      const cClass = availableClasses[1] || availableClasses[0] || 'expire_date';
+      const isInvalidClass = (cls) => cls && availableClasses.length > 0 && !availableClasses.includes(cls);
+
+      const healedRules = data.rules.map(r => {
+        if (r.type === 'defect') {
+          const invalidParent = !r.parentClass || isInvalidClass(r.parentClass) || r.parentClass === 'bottle' || r.parentClass === 'person';
+          const invalidChild = !r.childClass || isInvalidClass(r.childClass) || r.childClass === 'cap';
+          if (invalidParent || invalidChild || r.targetClass) {
+            needsHeal = true;
+            const updated = {
+              ...r,
+              parentClass: invalidParent ? pClass : r.parentClass,
+              childClass: invalidChild ? cClass : r.childClass,
+              defectCondition: r.defectCondition || 'missing_part'
+            };
+            delete updated.targetClass;
+            return updated;
+          }
+        }
+        if (r.type === 'position' || r.type === 'presence') {
+          if (isInvalidClass(r.targetClass)) {
+            needsHeal = true;
+            return { ...r, targetClass: pClass };
+          }
+        }
+        return r;
+      });
+
+      const exprHasInvalidPerson = data.expression && data.expression.includes('"person"') && !availableClasses.includes('person');
+      const exprHasInvalidBottle = data.expression && data.expression.includes('"bottle"') && !availableClasses.includes('bottle');
+
+      if (needsHeal || exprHasInvalidPerson || exprHasInvalidBottle) {
+        const compiled = compileRulesToExpression(healedRules, combineMode, availableClasses);
+        onChange({
+          rules: healedRules,
+          expression: compiled
+        });
+      }
+    }
+  }, [data?.rules, data?.expression, availableClasses, combineMode]);
+
+  // Update mode
+  const setMode = (mode) => {
+    onChange({ 
+      rulesMode: mode,
+      isAdvancedMode: mode === 'code'
+    });
   };
 
-  const insertSnippet = (snippet) => setExpr(snippet);
-
-  const DraggableBlock = ({ label, code, colorClass = "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-500/50" }) => {
-    const html = `<span contenteditable="false" class="inline-flex items-center px-1.5 py-0.5 mx-0.5 my-0.5 rounded text-[11px] font-mono border shadow-sm align-middle select-none ${colorClass}" data-code='${code}'>${label}</span>`;
-    
-    return (
-      <div
-        draggable
-        onDragStart={(e) => {
-          e.stopPropagation();
-          e.dataTransfer.setData('text/html', html);
-          e.dataTransfer.setData('text/plain', code);
-        }}
-        onClick={() => insertBlockAtCursor(html)}
-        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono border shadow-sm cursor-pointer hover:brightness-125 nodrag select-none transition-all ${colorClass}`}
-        title="Click to insert or Drag & Drop"
-      >
-        <GripVertical size={10} className="opacity-50 -ml-0.5 cursor-grab active:cursor-grabbing" title="Drag me" />
-        {label}
-        <button 
-          onClick={(e) => { e.stopPropagation(); insertBlockAtCursor(html); }}
-          className="ml-1 opacity-70 hover:opacity-100 bg-black/20 hover:bg-black/40 rounded p-0.5 transition-opacity"
-          title="Click to add"
-        >
-          <Plus size={8} />
-        </button>
-      </div>
-    );
+  // Sync rules update & re-compile expression
+  const updateRules = (newRules, newCombineMode = combineMode) => {
+    const compiled = compileRulesToExpression(newRules, newCombineMode, availableClasses);
+    onChange({
+      rules: newRules,
+      rulesCombineMode: newCombineMode,
+      expression: compiled
+    });
   };
+
+  // Add a new condition with full valid defaults
+  const handleAddCondition = () => {
+    const pClass = availableClasses[0] || 'cup';
+    const newRule = {
+      id: 'r_' + Date.now(),
+      type: 'presence',
+      condition: 'exists',
+      targetClass: pClass
+    };
+    updateRules([...rules, newRule]);
+  };
+
+  // Switch condition type and populate full defaults for that type
+  const handleTypeChange = (index, newType) => {
+    const pClass = availableClasses[0] || 'cup';
+    const cClass = availableClasses[1] || availableClasses[0] || 'expire_date';
+
+    let defaults = { type: newType };
+    if (newType === 'defect') {
+      defaults = {
+        type: 'defect',
+        parentClass: pClass,
+        childClass: cClass,
+        defectCondition: 'missing_part'
+      };
+    } else if (newType === 'position') {
+      defaults = {
+        type: 'position',
+        posType: 'centered',
+        targetClass: pClass
+      };
+    } else if (newType === 'presence') {
+      defaults = {
+        type: 'presence',
+        condition: 'exists',
+        targetClass: pClass
+      };
+    } else if (newType === 'count') {
+      defaults = {
+        type: 'count',
+        targetClass: pClass,
+        operator: '>=',
+        value: 1
+      };
+    } else if (newType === 'confidence') {
+      defaults = {
+        type: 'confidence',
+        targetClass: pClass,
+        operator: '>=',
+        value: 75
+      };
+    }
+
+    const nextRules = [...rules];
+    const updatedRule = { ...nextRules[index], ...defaults };
+    if (newType === 'defect') {
+      delete updatedRule.targetClass;
+    }
+    nextRules[index] = updatedRule;
+    updateRules(nextRules);
+  };
+
+  // Update a single rule
+  const handleUpdateRule = (index, updates) => {
+    const nextRules = [...rules];
+    nextRules[index] = { ...nextRules[index], ...updates };
+    updateRules(nextRules);
+  };
+
+  // Remove a condition
+  const handleRemoveRule = (index) => {
+    if (rules.length <= 1) {
+      updateRules([{
+        id: 'r_' + Date.now(),
+        type: 'presence',
+        condition: 'exists',
+        targetClass: availableClasses[0] || 'cup'
+      }]);
+      return;
+    }
+    const nextRules = rules.filter((_, idx) => idx !== index);
+    updateRules(nextRules);
+  };
+
+  // Apply a factory preset
+  const handleApplyPreset = (preset) => {
+    const target = presetTargetClass || availableClasses[0] || 'cup';
+    const classesForPreset = [target, ...availableClasses.filter(c => c !== target)];
+    const generatedRules = preset.createRules(classesForPreset);
+    const newCombine = preset.combineMode || 'and';
+    const compiled = compileRulesToExpression(generatedRules, newCombine, availableClasses);
+
+    onChange({
+      rules: generatedRules,
+      rulesCombineMode: newCombine,
+      expression: compiled,
+      rulesMode: 'visual',
+      isAdvancedMode: false
+    });
+  };
+
+  const handleCopyExpr = () => {
+    navigator.clipboard?.writeText(expr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  // Live state from telemetry / websocket
+  const liveState = debugData?.value;
+  const isLiveMatched = liveState === true;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Mode Toggle */}
+    <div className="flex flex-col gap-3.5">
+      {/* Real-time Status Banner */}
+      <div className={`p-2.5 rounded-lg border flex items-center justify-between transition-all ${
+        isLiveMatched 
+          ? 'bg-emerald-500/10 border-emerald-500/50 shadow-sm shadow-emerald-500/10' 
+          : 'bg-canvas border-line'
+      }`}>
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            {isLiveMatched && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            )}
+            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+              isLiveMatched ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-line-strong'
+            }`}></span>
+          </span>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-semibold flex items-center gap-1.5">
+              สถานะประเมินผล:
+              <span className={`font-mono font-bold ${isLiveMatched ? 'text-emerald-700 dark:text-emerald-400' : 'text-fg-subtle'}`}>
+                {isLiveMatched ? '🟢 MATCHED (TRUE)' : '⚪ WAITING (FALSE)'}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {upstreamAiNode && (
+          <span className="text-[10px] px-2 py-0.5 rounded bg-surface border border-line-strong font-mono text-fg-secondary">
+            AI: {upstreamAiNode.data?.label || 'Connected'}
+          </span>
+        )}
+      </div>
+
+      {/* Mode Switcher Tabs */}
       <div className="flex bg-canvas rounded-lg p-1 border border-line shrink-0">
         <button 
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${!isAdvancedMode ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
-          onClick={() => setMode(false)}
+          type="button"
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            activeMode === 'visual' 
+              ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm border border-line/60' 
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+          onClick={() => setMode('visual')}
         >
-          <LayoutList size={12} /> Equation Builder
+          <LayoutList size={13} /> Visual Builder
         </button>
         <button 
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-md transition-colors ${isAdvancedMode ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm' : 'text-fg-subtle hover:text-fg-secondary'}`}
-          onClick={() => setMode(true)}
+          type="button"
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            activeMode === 'presets' 
+              ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm border border-line/60' 
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+          onClick={() => setMode('presets')}
         >
-          <Code size={12} /> Code Editor
+          <Zap size={13} /> Factory Presets
+        </button>
+        <button 
+          type="button"
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            activeMode === 'code' 
+              ? 'bg-surface-2 text-orange-700 dark:text-orange-400 shadow-sm border border-line/60' 
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+          onClick={() => setMode('code')}
+        >
+          <Code size={13} /> Python Code
         </button>
       </div>
 
-      {!isAdvancedMode && (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1 relative">
-            <label className="text-[10px] text-orange-700 dark:text-orange-300 font-bold uppercase tracking-wider flex justify-between items-center">
-              <span>Equation Box</span>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-orange-500/70 font-normal">Drag & Drop blocks here</span>
-                <button 
-                  onClick={() => {
-                    if (editorRef.current) {
-                      editorRef.current.innerHTML = '';
-                      handleEditorInput();
-                    }
-                  }}
-                  className="bg-red-100 dark:bg-red-900/30 hover:bg-red-800/60 text-red-600 dark:text-red-400 p-1 rounded transition-colors"
-                  title="Clear Equation"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </label>
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onInput={handleEditorInput}
-              onBlur={handleEditorInput}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'copy';
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const html = e.dataTransfer.getData('text/html');
-                if (html) {
-                  let range;
-                  if (document.caretRangeFromPoint) {
-                    range = document.caretRangeFromPoint(e.clientX, e.clientY);
-                  } else if (e.rangeParent) {
-                    range = document.createRange();
-                    range.setStart(e.rangeParent, e.rangeOffset);
-                  }
-                  if (range) {
-                    const sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                  }
-                  document.execCommand('insertHTML', false, html + '&nbsp;');
-                  handleEditorInput();
-                }
-              }}
-              onClick={(e) => {
-                if (e.target === editorRef.current) {
-                  const range = document.createRange();
-                  range.selectNodeContents(editorRef.current);
-                  range.collapse(false);
-                  const sel = window.getSelection();
-                  sel.removeAllRanges();
-                  sel.addRange(range);
-                }
-              }}
-              className="w-full bg-black/60 border border-orange-900/50 shadow-inner rounded-lg p-3 text-sm outline-none focus:border-orange-500 min-h-[90px] leading-relaxed cursor-text break-words font-mono text-fg"
-            />
-            
-            <div className="text-[10px] font-mono flex items-start gap-1 p-2 bg-canvas rounded border border-line mt-1 text-fg-muted">
-              <span className="text-orange-500/50 shrink-0">Output:</span> 
-              <span className="break-all">{expr}</span>
+      {/* MODE 1: VISUAL RULE BUILDER */}
+      {activeMode === 'visual' && (
+        <div className="flex flex-col gap-3">
+          {/* Combine Mode Selector (AND / OR) */}
+          <div className="flex items-center justify-between bg-surface-2/40 px-3 py-2 rounded-lg border border-line">
+            <span className="text-xs font-medium text-fg-secondary">
+              การรวมเงื่อนไขทั้งหมด:
+            </span>
+            <div className="flex items-center gap-1 bg-canvas p-0.5 rounded-md border border-line">
+              <button
+                type="button"
+                onClick={() => updateRules(rules, 'and')}
+                className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors ${
+                  combineMode === 'and'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-fg-subtle hover:text-fg'
+                }`}
+              >
+                AND (ตรงทุกข้อ)
+              </button>
+              <button
+                type="button"
+                onClick={() => updateRules(rules, 'or')}
+                className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors ${
+                  combineMode === 'or'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-fg-subtle hover:text-fg'
+                }`}
+              >
+                OR (ตรงข้อใดข้อหนึ่ง)
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 bg-surface-2/40 p-3 rounded-lg border border-line-strong/50 max-h-[350px] overflow-y-auto styled-scrollbar">
-            <div className="text-xs font-bold uppercase text-fg-muted">Palette</div>
-            
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] text-fg-subtle">Operators & Logic</span>
-              <div className="flex flex-wrap gap-1.5">
-                <DraggableBlock label="==" code=" == " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
-                <DraggableBlock label="!=" code=" != " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
-                <DraggableBlock label=">" code=" > " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
-                <DraggableBlock label="<" code=" < " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
-                <DraggableBlock label=">=" code=" >= " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
-                <DraggableBlock label="<=" code=" <= " colorClass="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-500/50" />
-                
-                <DraggableBlock label="AND" code=" and " colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
-                <DraggableBlock label="OR" code=" or " colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
-                <DraggableBlock label="NOT" code=" not " colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5 mt-2">
-              <span className="text-[10px] text-fg-subtle">General Properties</span>
-              <div className="flex flex-wrap gap-1.5">
-                <DraggableBlock label="Total Count" code="len(msg['payload'])" colorClass="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-500/50" />
-                <DraggableBlock label="Max Confidence" code="confidence" colorClass="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-500/50" />
-                <DraggableBlock label="Flow: New Count" code="payload.get('newly_counted', 0)" colorClass="bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border-teal-500/50" />
-                <DraggableBlock label="Flow: Total" code="payload.get('total', 0)" colorClass="bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border-teal-500/50" />
-              </div>
-            </div>
-
-            {availableClasses.length > 0 ? (
-              <div className="flex flex-col gap-2 mt-2">
-                <span className="text-[10px] text-fg-subtle">AI Classes ({availableClasses.length})</span>
-                {availableClasses.map(cls => (
-                  <div key={cls} className="flex flex-col gap-1 p-2 rounded border border-line-strong/60 bg-surface/40">
-                    <span className="text-[10px] font-bold capitalize px-0.5 text-fg-secondary">{cls}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <DraggableBlock label={`Has ${cls}`} code={`has("${cls}")`} colorClass="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-500/50" />
-                      <DraggableBlock label={`Centered ${cls}`} code={`is_centered("${cls}")`} colorClass="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-500/50" />
-                      <DraggableBlock label={`Centered has ${cls}`} code={`centered_has("${cls}")`} colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
-                      <DraggableBlock label={`Count ${cls}`} code={`label_count("${cls}")`} colorClass="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-500/50" />
-                      <DraggableBlock label={`Conf. ${cls}`} code={`label_confidence("${cls}")`} colorClass="bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border-pink-500/50" />
-                    </div>
+          {/* Condition Cards */}
+          <div className="flex flex-col gap-2.5 max-h-[380px] overflow-y-auto styled-scrollbar pr-0.5">
+            {rules.map((rule, idx) => (
+              <div 
+                key={rule.id || idx} 
+                className="p-3 rounded-lg border border-line-strong bg-surface-2/30 flex flex-col gap-2.5 relative group hover:border-orange-500/40 transition-colors"
+              >
+                {/* Card Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30 flex items-center justify-center text-[10px] font-mono font-bold">
+                      {idx + 1}
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-fg-muted">
+                      {idx === 0 ? 'ถ้าเงื่อนไข (IF)' : (combineMode === 'and' ? 'และ (AND)' : 'หรือ (OR)')}
+                    </span>
                   </div>
-                ))}
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveRule(idx)}
+                    className="p-1 rounded text-fg-subtle hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                    title="ลบเงื่อนไขนี้"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+
+                {/* Condition Type Selector */}
+                <div className="grid grid-cols-1 gap-2">
+                  <select
+                    className="w-full bg-surface border border-line-strong rounded-md p-1.5 text-xs text-fg focus:outline-none focus:border-orange-500 font-medium"
+                    value={rule.type || 'presence'}
+                    onChange={(e) => handleTypeChange(idx, e.target.value)}
+                  >
+                    {CONDITION_TYPES.map(ct => (
+                      <option key={ct.id} value={ct.id}>{ct.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Sub-inputs based on Condition Type */}
+                <div className="bg-canvas/60 p-2.5 rounded border border-line/70 flex flex-col gap-2">
+                  {/* Type 1: Presence */}
+                  {rule.type === 'presence' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">สถานะ</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-fg"
+                          value={rule.condition || 'exists'}
+                          onChange={(e) => handleUpdateRule(idx, { condition: e.target.value })}
+                        >
+                          <option value="exists">✅ ตรวจพบ (Exists)</option>
+                          <option value="not_exists">❌ ไม่พบ (Missing)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">คลาสวัตถุ (Class)</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg"
+                          value={rule.targetClass || availableClasses[0] || 'cup'}
+                          onChange={(e) => handleUpdateRule(idx, { targetClass: e.target.value })}
+                        >
+                          {availableClasses.map(cls => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Type 2: Count */}
+                  {rule.type === 'count' && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] text-fg-subtle block mb-1">คลาส</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg"
+                          value={rule.targetClass || 'all'}
+                          onChange={(e) => handleUpdateRule(idx, { targetClass: e.target.value })}
+                        >
+                          <option value="all">🌐 ทุกคลาส (All)</option>
+                          {availableClasses.map(cls => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">ตัวดำเนินการ</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg text-center"
+                          value={rule.operator || '>='}
+                          onChange={(e) => handleUpdateRule(idx, { operator: e.target.value })}
+                        >
+                          <option value=">=">&gt;= (อย่างน้อย)</option>
+                          <option value="==">== (เท่ากับ)</option>
+                          <option value="<=">&lt;= (ไม่เกิน)</option>
+                          <option value=">">&gt; (มากกว่า)</option>
+                          <option value="<">&lt; (น้อยกว่า)</option>
+                          <option value="!=">!= (ไม่เท่ากับ)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">จำนวนชิ้น</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-right font-mono text-fg"
+                          value={rule.value ?? 1}
+                          onChange={(e) => handleUpdateRule(idx, { value: parseInt(e.target.value, 10) || 0 })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Type 3: Confidence */}
+                  {rule.type === 'confidence' && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-1">
+                        <label className="text-[10px] text-fg-subtle block mb-1">คลาส</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg"
+                          value={rule.targetClass || 'all'}
+                          onChange={(e) => handleUpdateRule(idx, { targetClass: e.target.value })}
+                        >
+                          <option value="all">🌐 ทุกคลาส (All)</option>
+                          {availableClasses.map(cls => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">เกณฑ์</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg text-center"
+                          value={rule.operator || '>='}
+                          onChange={(e) => handleUpdateRule(idx, { operator: e.target.value })}
+                        >
+                          <option value=">=">&gt;= (อย่างน้อย)</option>
+                          <option value="<=">&lt;= (ไม่เกิน)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">ความมั่นใจ (%)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          step="5"
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-right font-mono text-fg"
+                          value={rule.value ?? 75}
+                          onChange={(e) => handleUpdateRule(idx, { value: Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 75)) })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Type 4: Position */}
+                  {rule.type === 'position' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">เงื่อนไขตำแหน่ง</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-fg"
+                          value={rule.posType || 'centered'}
+                          onChange={(e) => handleUpdateRule(idx, { posType: e.target.value })}
+                        >
+                          <option value="centered">🎯 อยู่กึ่งกลาง ROI (Centered)</option>
+                          <option value="fully_in_roi">📦 อยู่ในกรอบสมบูรณ์ (Fully in ROI)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">คลาสวัตถุ</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg"
+                          value={rule.targetClass || availableClasses[0] || 'cup'}
+                          onChange={(e) => handleUpdateRule(idx, { targetClass: e.target.value })}
+                        >
+                          {availableClasses.map(cls => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Type 5: Defect (QC) */}
+                  {rule.type === 'defect' && (
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <label className="text-[10px] text-fg-subtle block mb-1">รูปแบบการตรวจสอบ</label>
+                        <select
+                          className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-fg font-medium"
+                          value={rule.defectCondition || 'missing_part'}
+                          onChange={(e) => handleUpdateRule(idx, { defectCondition: e.target.value })}
+                        >
+                          <option value="missing_part">⚠️ ตรวจจุดกึ่งกลาง: พบชิ้นงานหลัก แต่ขาดชิ้นส่วนย่อย (Centered Defect)</option>
+                          <option value="missing_anywhere">🔍 ตรวจทั่วทั้งภาพ: พบชิ้นงานหลัก แต่ไม่พบชิ้นส่วนย่อย (General Defect)</option>
+                          <option value="has_part">✅ ตรวจจุดกึ่งกลาง: พบชิ้นงานหลัก และมีชิ้นส่วนย่อยครบ (Centered Assembly OK)</option>
+                          <option value="has_anywhere">📦 ตรวจทั่วทั้งภาพ: มีทั้งชิ้นงานหลักและชิ้นส่วนย่อยครบ (General Assembly OK)</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-fg-subtle block mb-1">ชิ้นงานหลัก (Parent)</label>
+                          <select
+                            className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg"
+                            value={rule.parentClass || availableClasses[0] || 'cup'}
+                            onChange={(e) => handleUpdateRule(idx, { parentClass: e.target.value })}
+                          >
+                            {availableClasses.map(cls => (
+                              <option key={cls} value={cls}>{cls}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-fg-subtle block mb-1">ชิ้นส่วนย่อย (Child/Part)</label>
+                          <select
+                            className="w-full bg-surface border border-line-strong rounded p-1 text-xs font-mono text-fg"
+                            value={rule.childClass || availableClasses[1] || availableClasses[0] || 'expire_date'}
+                            onChange={(e) => handleUpdateRule(idx, { childClass: e.target.value })}
+                          >
+                            {availableClasses.map(cls => (
+                              <option key={cls} value={cls}>{cls}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="mt-4 text-[10px] text-center py-4 border border-dashed border-line-strong rounded-lg text-fg-subtle">
-                Connect to an AI Node to see class blocks
-              </div>
-            )}
+            ))}
+          </div>
+
+          {/* Add Condition Button */}
+          <button
+            type="button"
+            onClick={handleAddCondition}
+            className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-dashed border-orange-500/60 hover:border-orange-500 hover:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs font-semibold transition-all"
+          >
+            <Plus size={14} /> เพิ่มเงื่อนไข ({combineMode === 'and' ? 'AND' : 'OR'})
+          </button>
+
+          {/* Generated Python Expression Preview */}
+          <div className="bg-canvas border border-line rounded-lg p-2.5 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[10px] font-mono text-fg-subtle">
+              <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400 font-bold">
+                <Code size={11} /> Generated Python Expression:
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyExpr}
+                className="hover:text-fg flex items-center gap-1 text-[10px] transition-colors"
+                title="คัดลอกโค้ด"
+              >
+                {copied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="font-mono text-xs text-orange-600 dark:text-orange-300 break-all bg-surface-2/60 p-2 rounded border border-line-strong/40">
+              {expr}
+            </div>
           </div>
         </div>
       )}
 
-      {isAdvancedMode && (
-        <div className="flex flex-col gap-4">
+      {/* MODE 2: FACTORY PRESETS */}
+      {activeMode === 'presets' && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-fg-secondary">
+              เลือกคลาสเป้าหมายสำหรับแม่แบบ:
+            </label>
+            <select
+              className="w-full bg-surface border border-line-strong rounded-md p-1.5 text-xs font-mono text-fg"
+              value={presetTargetClass || availableClasses[0] || 'cup'}
+              onChange={(e) => setPresetTargetClass(e.target.value)}
+            >
+              {availableClasses.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto styled-scrollbar pr-0.5">
+            {FACTORY_PRESETS.map(preset => (
+              <div
+                key={preset.id}
+                className="p-3 rounded-lg border border-line-strong bg-surface-2/40 hover:border-orange-500/50 hover:bg-surface-2 transition-all flex flex-col gap-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-fg">{preset.title}</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-medium">
+                        {preset.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-fg-muted mt-0.5 leading-relaxed">
+                      {preset.desc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-line/60">
+                  <span className="text-[10px] font-mono text-fg-subtle truncate max-w-[180px]">
+                    Target: {presetTargetClass || availableClasses[0] || 'cup'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset(preset)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-semibold transition-colors shadow-sm"
+                  >
+                    ใช้แม่แบบนี้ <ArrowRight size={11} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODE 3: PYTHON CODE EDITOR */}
+      {activeMode === 'code' && (
+        <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold uppercase tracking-wider flex justify-between text-fg-muted">
-              <span>Expression</span>
-              <span className="text-orange-700 dark:text-orange-400 font-normal">Python</span>
+              <span>Python Expression</span>
+              <span className="text-orange-600 dark:text-orange-400 font-mono text-[10px]">eval()</span>
             </label>
             <textarea
-              className="bg-canvas border border-line-strong rounded-lg p-3 text-sm font-mono text-green-700 dark:text-green-300 focus:outline-none focus:border-orange-500 resize-none leading-relaxed w-full"
+              className="bg-canvas border border-line-strong rounded-lg p-2.5 text-xs font-mono text-green-700 dark:text-green-300 focus:outline-none focus:border-orange-500 resize-none leading-relaxed w-full"
               rows={4}
               value={expr}
-              onChange={e => setExpr(e.target.value)}
-              placeholder={'len(msg["payload"]) > 0\nhas("person") and has("car")\nlabel_count("person") >= 2'}
+              onChange={e => onChange({ expression: e.target.value })}
+              placeholder={'count > 0\nhas("cup") and not centered_has("expire_date")'}
               spellCheck={false}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-wider text-fg-subtle">Quick insert</label>
+            <label className="text-[10px] uppercase tracking-wider text-fg-subtle">Quick Snippets</label>
             <div className="flex flex-wrap gap-1.5">
               {SNIPPETS.map(s => (
                 <button
                   key={s.label}
-                  onClick={() => insertSnippet(s.expr)}
-                  className="text-[10px] bg-surface-2 hover:bg-orange-200 dark:hover:bg-orange-900/40 border border-line-strong hover:border-orange-600 hover:text-orange-700 dark:hover:text-orange-300 px-2 py-1 rounded transition-colors text-fg-secondary"
+                  type="button"
+                  onClick={() => onChange({ expression: s.expr })}
+                  className="text-[10px] bg-surface-2 hover:bg-orange-100 dark:hover:bg-orange-950/40 border border-line-strong hover:border-orange-500 hover:text-orange-600 px-2 py-1 rounded transition-colors text-fg-secondary"
                   title={s.expr}
                 >
                   {s.label}
@@ -321,25 +808,26 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
             </div>
           </div>
 
-          <div className="border border-line-strong/60 rounded-lg overflow-hidden mt-2">
+          <div className="border border-line rounded-lg overflow-hidden mt-1">
             <button
-              className="w-full flex items-center justify-between px-3 py-2 bg-surface-2/50 hover:bg-surface-2 text-xs transition-colors text-fg-secondary hover:text-fg"
+              type="button"
+              className="w-full flex items-center justify-between px-3 py-2 bg-surface-2/50 hover:bg-surface-2 text-xs transition-colors text-fg-secondary"
               onClick={() => setShowRef(r => !r)}
             >
-              <span className="flex items-center gap-2">
-                <Zap size={14} className="text-orange-700 dark:text-orange-400" />
-                Available variables
+              <span className="flex items-center gap-1.5 font-medium">
+                <Zap size={13} className="text-orange-500" />
+                Available variables & functions
               </span>
-              {showRef ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {showRef ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             </button>
             {showRef && (
-              <div className="bg-canvas/80 px-3 py-3 flex flex-col gap-2">
+              <div className="bg-canvas/90 px-3 py-2.5 flex flex-col gap-2 max-h-[160px] overflow-y-auto styled-scrollbar">
                 {VARS_REF.map(([v, desc]) => (
                   <div key={v} className="flex gap-2 items-start">
                     <code
                       className="text-[10px] font-mono text-amber-700 dark:text-amber-300 bg-surface-2 px-1.5 py-0.5 rounded cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-colors shrink-0"
-                      onClick={() => setExpr(v)}
-                      title="Click to insert"
+                      onClick={() => onChange({ expression: expr + (expr ? ' and ' : '') + v })}
+                      title="คลิกเพื่อแทรกต่อท้าย"
                     >
                       {v}
                     </code>
@@ -352,7 +840,7 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
         </div>
       )}
 
-      {/* Output Trigger & Flow Control */}
+      {/* OUTPUT TRIGGER & ANTI-FLOOD CONTROLS */}
       <div className="flex flex-col gap-2.5 p-3 rounded-lg bg-canvas border border-line mt-1">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -364,17 +852,17 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
         <div className="flex flex-col gap-1.5">
           <select
             value={outputMode}
-            onChange={e => setOutputMode(e.target.value)}
+            onChange={e => onChange({ outputMode: e.target.value })}
             className="w-full bg-surface border border-line-strong hover:border-orange-500/70 focus:border-orange-500 rounded p-1.5 text-xs focus:outline-none transition-colors font-medium text-fg"
           >
             <option value="on_change">🔄 On Change (ส่งเฉพาะเมื่อสถานะเปลี่ยน)</option>
-            <option value="rising_edge">⚡ Rising Edge (ส่งเมื่อเป็นจริงครั้งแรก)</option>
+            <option value="rising_edge">⚡ Rising Edge (ส่ง 1 ครั้งเมื่อเริ่มเป็นจริง)</option>
             <option value="continuous">🌊 Continuous (ส่งทุกเฟรม - 30 FPS)</option>
           </select>
           <p className="text-[10px] leading-tight text-fg-muted">
-            {outputMode === 'on_change' && '🛡️ แนะนำ: ส่งสัญญาณเฉพาะเมื่อเงื่อนไขเปลี่ยน (False ↔ True) ช่วยลดข้อมูลซ้ำซ้อน'}
-            {outputMode === 'rising_edge' && '⚡ เหมาะสำหรับแจ้งเตือน/ถ่ายภาพ: ส่งออกเพียง 1 ครั้งเมื่อเริ่มตรวจพบวัตถุ'}
-            {outputMode === 'continuous' && '⚠️ ส่งข้อมูลต่อเนื่องทุกเฟรม: อาจทำให้โหนดปลายทางทำงานหนักหากรับข้อมูล 30Hz'}
+            {outputMode === 'on_change' && '🛡️ แนะนำ: ส่งสัญญาณเฉพาะเมื่อสถานะเปลี่ยน (False ↔ True) ช่วยลดภาระโหนดปลายทาง'}
+            {outputMode === 'rising_edge' && '⚡ เหมาะสำหรับสั่งถ่ายภาพ/แจ้งเตือน: ยิงสัญญาณ 1 ครั้งเมื่อตรวจพบ'}
+            {outputMode === 'continuous' && '⚠️ ส่งทุกเฟรม: อาจทำให้โหนดปลายทางทำงานหนักหากรับข้อมูล 30Hz'}
           </p>
         </div>
 
@@ -385,10 +873,12 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
               <span className="text-[9px] text-fg-subtle">หน่วงกันสัญญาณกะพริบ</span>
             </label>
             <input
-              type="number" min="0" step="100"
+              type="number" 
+              min="0" 
+              step="100"
               className="mt-1 w-full bg-surface border border-line-strong rounded p-1.5 text-xs focus:outline-none focus:border-orange-500 text-right font-mono text-fg"
               value={debounceMs}
-              onChange={e => setDebounce(e.target.value)}
+              onChange={e => onChange({ debounceMs: Math.max(0, parseInt(e.target.value, 10) || 0) })}
             />
           </div>
 
@@ -398,10 +888,12 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
               <span className="text-[9px] text-fg-subtle">ระยะพักป้องกันยิงซ้ำ</span>
             </label>
             <input
-              type="number" min="0" step="500"
+              type="number" 
+              min="0" 
+              step="500"
               className="mt-1 w-full bg-surface border border-line-strong rounded p-1.5 text-xs focus:outline-none focus:border-orange-500 text-right font-mono text-fg"
               value={cooldownMs}
-              onChange={e => setCooldown(e.target.value)}
+              onChange={e => onChange({ cooldownMs: Math.max(0, parseInt(e.target.value, 10) || 0) })}
               placeholder="0"
             />
           </div>
