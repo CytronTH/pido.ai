@@ -54,6 +54,24 @@ class DashboardVersion(SQLModel, table=True):
         UniqueConstraint("project_id", "version_number", name="uix_dashboard_version_number"),
     )
 
+class PipelineVersion(SQLModel, table=True):
+    """Immutable snapshot of a project's pipeline (nodes & edges), created on deploy or manual save."""
+    __tablename__ = "pipeline_versions"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    project_id: str = Field(index=True, foreign_key="project.id", ondelete="CASCADE")
+    version_number: int = Field(index=True)
+    note: str = Field(default="")
+    pipeline_json: str = Field(default="{}")
+    node_count: int = Field(default=0)
+    edge_count: int = Field(default=0)
+    changes_json: str = Field(default="{}")
+    restored_from_version: Optional[int] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "version_number", name="uix_pipeline_version_number"),
+    )
+
 class Camera(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     name: str

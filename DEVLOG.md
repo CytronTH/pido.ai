@@ -25,6 +25,37 @@
 - 
 -->
 
+## [2026-10-15] - ระบบ Pipeline Version History และ Cross-System Compatibility Check
+
+### 🎯 เป้าหมาย (Goals)
+- [x] จัดการระบบ History ระหว่าง Pipeline Builder และ Live Dashboard ให้เป็นไปตามหลัก Decoupled Architecture (ไม่ผูกประวัติรวมกันเป็นก้อนเดียว แต่แยกอิสระระดับ Micro)
+- [x] พัฒนาระบบ Pipeline Version History ที่ทำงานได้จริง (บันทึกเวอร์ชันอัตโนมัติเมื่อ Deploy + สร้าง Checkpoint กำหนดชื่อเองได้)
+- [x] สร้างระบบ Cross-System Compatibility Check ตรวจสอบความเข้ากันได้ระหว่าง Node ใน Pipeline กับ Widget บน Dashboard ทั้งสองทิศทาง
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Backend**:
+  - `backend/db/models.py`: เพิ่มโมเดล `PipelineVersion` พร้อม `version_number`, `note`, `pipeline_json`, `node_count`, `edge_count`, `changes_json`, `restored_from_version`
+  - `backend/ai_engine/pipeline_settings_differ.py`: พัฒนา Engine ตรวจจับและเปรียบเทียบการตั้งค่าของแต่ละโหนดแบบเจาะลึก (Field-by-Field: ค่าเดิม -> ค่าใหม่ พร้อมชื่อฟิลด์ภาษาไทย เช่น ค่าความมั่นใจ, พิน GPIO, ROI Box, เป้าหมายการนับ)
+  - `backend/web_server/routers/pipeline_versions.py`: เพิ่ม Endpoint ตรวจสอบ Diff (`/{vid}/diff`) และพรีวิวการเปลี่ยนแปลง (`/preview-diff`) บันทึก `changes_json` อัตโนมัติในทุกเวอร์ชัน
+  - `backend/web_server/main.py`: เชื่อมโยง Router, เพิ่มระบบ Auto-snapshot บันทึกเวอร์ชันของไปป์ไลน์อัตโนมัติทุกครั้งที่ Deploy สำเร็จ และเพิ่ม Backward-compatibility alias สำหรับ `/revisions`
+- **Frontend**:
+  - `frontend/src/components/PipelineVersions/pipelineVersionsApi.js`: เพิ่มฟังก์ชัน `getVersionDiff` และ `previewPipelineDiff`
+  - `frontend/src/components/ProjectRevisionsModal.jsx`: 
+    - เพิ่มแผง **Expandable Diff Inspector** ในแต่ละเวอร์ชัน แสดงตารางเปรียบเทียบค่าพารามิเตอร์เดิม $\rightarrow$ ค่าใหม่ (Highlight สีเขียว/แดง)
+    - แสดงป้ายกำกับจำนวนโหนดที่แก้ไข/เพิ่ม/ลบ
+    - เพิ่มระบบ Smart Diff Preview ในกล่อง Manual Checkpoint พร้อมปุ่ม **"ใช้เป็น Note" (Magic Wand)** เพื่อดึงสรุปการเปลี่ยนแปลงมาเป็นชื่อบันทึกได้ทันที
+  - `frontend/src/components/PipelineBuilder/PipelineBuilder.jsx`: อัปเดตการกู้คืน Pipeline ให้โหลดเข้า Store โดยตรง ไม่ต้องรีโหลดเบราว์เซอร์
+  - `frontend/src/components/DashboardVersions/VersionHistoryPanel.jsx` & `LiveDashboard.jsx`: เพิ่มระบบตรวจสอบก่อนกู้คืน Dashboard ว่ามี Widget ตัวใดอ้างอิงโหนดที่ไม่มีใน Pipeline ปัจจุบันหรือไม่
+- **Testing & Verification**:
+  - สร้างชุดทดสอบ `backend/test_pipeline_versions.py` ทดสอบการเปรียบเทียบ Parameter รายฟิลด์และ Cascade Delete (ผ่าน 100%)
+  - รัน `npm run build` ใน Frontend ผ่าน 100%
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ไม่รวมประวัติ Pipeline และ Dashboard เข้าด้วยกัน แต่ใช้ระบบ Two-Tier History (แยกอิสระต่อกัน และเตือนความเข้ากันได้เมื่อกู้คืน)
+- **เหตุผล:** ป้องกันผลกระทบด้านความปลอดภัย (Blast Radius) ของระบบ Edge AI — การจัดหน้าจอ Dashboard ไม่ควรทำให้ Hailo NPU/กล้องรีสตาร์ท และการย้อน Flow ไปป์ไลน์ไม่ควรไปทำลาย Layout หน้าจอของผู้ใช้งาน
+- **เรื่องที่ตัดสินใจ:** พัฒนาตัวกรอง Ignored UI Keys (ตัด `positions`, `dragging`, `selected` ออกจากการเปรียบเทียบ Data)
+- **เหตุผล:** เพื่อให้ระบบโฟกัสเฉพาะ Logic และ Parameter สำคัญจริง ๆ ของผู้ใช้เท่านั้น ไม่นำการลากเลื่อนพิกัดบน Canvas มานับเป็นการเปลี่ยน Setting
+
 ## [2026-10-15] - ปรับปรุง Hardware I/O Nodes ให้รองรับ Raspberry Pi 5 มาตรฐานแบบเต็มรูปแบบ (ยกเลิก IRIV EdgeAI Legacy)
 
 ### 🎯 เป้าหมาย (Goals)

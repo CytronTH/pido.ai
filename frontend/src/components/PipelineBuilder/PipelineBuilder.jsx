@@ -1065,7 +1065,28 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           isOpen={isRevisionsModalOpen}
           onClose={() => setIsRevisionsModalOpen(false)}
           projectId={currentProject?.id}
-          onRestoreSuccess={() => window.location.reload()}
+          currentNodes={nodes}
+          currentEdges={edges}
+          onRestoreSuccess={(restoredVersion, warnings) => {
+            if (restoredVersion?.pipeline?.nodes) {
+              setPipeline(restoredVersion.pipeline.nodes, restoredVersion.pipeline.edges || []);
+            } else {
+              window.location.reload();
+              return;
+            }
+            if (warnings && warnings.length > 0) {
+              setToastMessage({
+                type: 'warning',
+                text: `กู้คืน Pipeline v${restoredVersion?.version_number} สำเร็จ (${warnings.length} widget บน Dashboard อาจขาดการเชื่อมต่อ)`
+              });
+            } else {
+              setToastMessage({
+                type: 'success',
+                text: `กู้คืน Pipeline v${restoredVersion?.version_number || ''} สำเร็จ (พร้อม Deploy)`
+              });
+            }
+            setTimeout(() => setToastMessage(null), 5000);
+          }}
         />
       </ReactFlowProvider>
     </div>

@@ -1017,6 +1017,8 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         isDirty={isDirty}
         onRestored={handleRestored}
         refreshKey={historyRefreshKey}
+        dataSources={dataSources}
+        dataSourcesLoaded={dataSourcesLoaded}
       />
 
       <SaveVersionModal

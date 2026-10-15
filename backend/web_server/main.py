@@ -198,11 +198,13 @@ app.include_router(project_backup_router)
 from .routers.auth import router as auth_router
 from .routers.users import router as users_router
 from .routers.dashboard_versions import router as dashboard_versions_router
+from .routers.pipeline_versions import router as pipeline_versions_router
 from .routers.project_data import router as project_data_router
 from .routers.target_tracker import router as target_tracker_router
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(dashboard_versions_router)
+app.include_router(pipeline_versions_router)
 app.include_router(project_data_router)
 app.include_router(target_tracker_router)
 
@@ -1173,6 +1175,7 @@ class PipelinePayload(BaseModel):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
     deploy_mode: Optional[str] = "modified_nodes"  # "modified_nodes" | "modified_flows" | "full"
+    version_note: Optional[str] = None
 
 @app.post("/api/wiki/sandbox/deploy")
 async def deploy_wiki_sandbox(payload: PipelinePayload):
@@ -1281,6 +1284,7 @@ async def deploy_pipeline(payload: PipelinePayload):
                     })
 
                 await asyncio.to_thread(write_projects, projects)
+                await asyncio.to_thread(_record_deploy_pipeline_version, project_id, payload.nodes, payload.edges, diff.action, payload.version_note)
 
                 return {
                     "status": "success",
@@ -1323,6 +1327,7 @@ async def deploy_pipeline(payload: PipelinePayload):
             })
 
         await asyncio.to_thread(write_projects, projects)
+        await asyncio.to_thread(_record_deploy_pipeline_version, project_id, payload.nodes, payload.edges, "full_restart", payload.version_note)
             
         return {
             "status": "success",
@@ -1333,6 +1338,64 @@ async def deploy_pipeline(payload: PipelinePayload):
     except Exception as e:
         logger.error(f"Failed to deploy pipeline for {project_id}: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
+
+def _record_deploy_pipeline_version(project_id: str, nodes: list, edges: list, deploy_mode: str, note: Optional[str] = None):
+    try:
+        from sqlmodel import Session
+        from db.database import db
+        from db.models import Project
+        from .routers.pipeline_versions import create_pipeline_version
+        with Session(db.engine) as session:
+            project = session.get(Project, project_id)
+            if project:
+                version_note = note or f"Deploy ({deploy_mode})"
+                create_pipeline_version(session, project, {"nodes": nodes, "edges": edges}, version_note)
+                session.commit()
+    except Exception as e:
+        logger.warning(f"Failed to auto-save pipeline version on deploy: {e}")
+
+# --- Legacy Project Revisions Endpoints ---
+@app.get("/api/projects/{project_id}/revisions")
+async def get_project_revisions_legacy(project_id: str):
+    from .routers.pipeline_versions import list_versions
+    versions = await list_versions(project_id)
+    return [
+        {
+            "id": v.id,
+            "name": f"v{v.version_number}: {v.note}",
+            "version_number": v.version_number,
+            "note": v.note,
+            "node_count": v.node_count,
+            "created_at": v.created_at.isoformat()
+        }
+        for v in versions
+    ]
+
+@app.post("/api/projects/{project_id}/revisions")
+async def save_project_revision_legacy(project_id: str, payload: Dict[str, Any]):
+    from .routers.pipeline_versions import save_version, PipelineVersionCreate
+    note = str(payload.get("name") or payload.get("note") or "Manual Checkpoint").strip()
+    pipeline = payload.get("pipeline")
+    if not pipeline:
+        projects = read_projects()
+        target = next((p for p in projects if p["id"] == project_id), None)
+        pipeline = target.get("pipeline", {"nodes": [], "edges": []}) if target else {"nodes": [], "edges": []}
+    return await save_version(project_id, PipelineVersionCreate(note=note, pipeline=pipeline))
+
+@app.post("/api/projects/{project_id}/restore/{revision_id}")
+async def restore_project_revision_legacy(project_id: str, revision_id: str):
+    from .routers.pipeline_versions import restore_version, PipelineVersionRestore
+    res = await restore_version(project_id, revision_id, PipelineVersionRestore())
+    try:
+        projects = read_projects()
+        for p in projects:
+            if p["id"] == project_id:
+                p["pipeline"] = res.version.pipeline
+                break
+        write_projects(projects)
+    except Exception as e:
+        logger.warning(f"Failed to sync restored pipeline to projects.json: {e}")
+    return res
 
 @app.post("/api/pipeline/stop/{project_id}")
 async def stop_pipeline(project_id: str):
