@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-from ai_engine.message_router import MessageRouter, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
+from ai_engine.message_router import MessageRouter, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, RS485OutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
 
 class CameraStreamConfig:
     def __init__(self, stream_id: str):
@@ -149,13 +149,24 @@ class PipelineParser:
                 router.add_node(nid, ActionNode(nid, merged_data, router))
             elif ntype == "digitalOutputNode":
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="digital_output"))
-                config.digital_outputs.append({"pin": ndata.get("pin", "DO0")}) # Keep for GPIO init
+                config.digital_outputs.append({
+                    "pin": ndata.get("pin", "17"),
+                    "active_high": str(ndata.get("activeState", "high")).lower() != "low"
+                })
             elif ntype == "ledNode":
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="led"))
             elif ntype == "buzzerNode":
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="buzzer"))
+            elif ntype == "rs485Node":
+                router.add_node(nid, RS485OutputNode(nid, ndata, router))
             elif ntype == "digitalInputNode":
-                config.digital_inputs.append({"id": nid, "pin": ndata.get("pin", "DI0")})
+                config.digital_inputs.append({
+                    "id": nid,
+                    "pin": ndata.get("pin", "17"),
+                    "pull_resistor": ndata.get("pullResistor", "up"),
+                    "bounce_time": float(ndata.get("bounceTime", 0.1)),
+                    "active_low": str(ndata.get("activeState", "high")).lower() == "low"
+                })
             elif ntype == "dashboardMetricNode":
                 router.add_node(nid, DashboardOutputNode(nid, ndata, router))
                 config.dashboard_nodes.append({

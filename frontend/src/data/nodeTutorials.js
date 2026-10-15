@@ -159,15 +159,15 @@ export const nodeTutorials = {
     supportedOutputs: []
   },
   digitalInputNode: {
-    title: "Digital Input",
-    description: "โหนดรับสัญญาณไฟฟ้า (0V / 3.3V) จากภายนอก",
+    title: "Digital Input (GPIO)",
+    description: "โหนดรับสัญญาณไฟฟ้า (0V / 3.3V) จากภายนอกผ่าน 40-Pin Header ของ Raspberry Pi 5",
     input: {
-      desc: "รับสัญญาณไฟฟ้าจริงจากฮาร์ดแวร์ภายนอก (ผ่านสายไฟเข้าพอร์ต DI)",
-      example: "เซ็นเซอร์ประตู, สวิตช์ปุ่มกด"
+      desc: "รับสัญญาณไฟฟ้าจริงจากฮาร์ดแวร์ภายนอก (ผ่านพิน BCM GPIO สูงสุดไม่เกิน 3.3V)",
+      example: "เซ็นเซอร์ประตู, สวิตช์ปุ่มกดต่อลง GND"
     },
     process: {
-      desc: "อ่านสถานะทางไฟฟ้าแบบดิจิทัล และแปลงเป็นค่า True (มีไฟ) หรือ False (ไม่มีไฟ)",
-      example: "หากกดสวิตช์ จะอ่านค่าได้ True"
+      desc: "อ่านสถานะทางไฟฟ้าแบบดิจิทัล พร้อมตัวเลือก Pull-Up / Pull-Down และแปลงเป็นค่า True หรือ False",
+      example: "เมื่อกดสวิตช์ จะอ่านค่าได้ True"
     },
     output: {
       desc: "สถานะความจริง (True / False) สำหรับส่งไปสั่งงาน Logic หรือ Action",
@@ -177,15 +177,15 @@ export const nodeTutorials = {
     supportedOutputs: ['logicNode', 'actionNode', 'dashboardTextNode', 'dashboardLogNode']
   },
   digitalOutputNode: {
-    title: "Digital Output",
-    description: "โหนดสั่งจ่ายไฟ (0V / 3.3V) ไปยังฮาร์ดแวร์ภายนอก",
+    title: "Digital Output / Relay",
+    description: "โหนดสั่งสัญญาณไฟฟ้า (3.3V / GND) ไปยัง Relay หรือฮาร์ดแวร์ภายนอก",
     input: {
       desc: "รับสถานะ True/False จาก Logic Node",
       example: "ต่อสายจาก Output ของ Logic Node"
     },
     process: {
-      desc: "เมื่อได้รับสัญญาณ True จะสั่งให้ชิปจ่ายไฟ 3.3V ออกไปยังพอร์ต DO ที่กำหนด (สลับสถานะเปิด/ปิดสวิตช์อิเล็กทรอนิกส์)",
-      example: "สั่งทำงาน Relay เพื่อเปิดประตูอัตโนมัติ"
+      desc: "เมื่อได้รับสัญญาณ True จะสั่งจ่ายสัญญาณไปยังพิน BCM GPIO ที่กำหนด (รองรับทั้ง Active High 3.3V และ Active Low สำหรับบอร์ด Relay ทั่วไป)",
+      example: "สั่งเปิด Relay ประตูอัตโนมัติ"
     },
     output: {
       desc: "ไม่ส่งข้อมูลในระบบ (สั่งการด้วยไฟฟ้าจริงออกนอกบอร์ด)",
@@ -195,18 +195,18 @@ export const nodeTutorials = {
     supportedOutputs: []
   },
   ledNode: {
-    title: "LED Driver",
-    description: "โหนดควบคุมหลอดไฟ LED บนบอร์ด",
+    title: "LED / PWM Driver",
+    description: "โหนดควบคุมระดับไฟหรี่หรือ LED ผ่านพิน Hardware PWM ของ Raspberry Pi 5",
     input: {
       desc: "รับสถานะ True/False จาก Logic Node",
       example: "ต่อสายจาก Output ของ Logic Node"
     },
     process: {
-      desc: "เมื่อได้รับสัญญาณ True จะสั่งจ่ายกระแสไฟฟ้าไปยังหลอด LED ตามระดับความสว่าง (Brightness) ที่คุณกำหนดผ่านระบบ PWM",
-      example: "ไฟ LED ติดสว่าง 80% เมื่อพบคน"
+      desc: "เมื่อได้รับสัญญาณ True จะสั่งจ่ายสัญญาณ PWM 3.3V (Duty Cycle 0-100%) ออกทางพิน GPIO เช่น GPIO 12, 13, 18, 19",
+      example: "ไฟ LED ติดสว่าง 80% เมื่อตรวจพบวัตถุ"
     },
     output: {
-      desc: "ไม่ส่งข้อมูลในระบบ (แสดงผลเป็นแสงไฟจริง)",
+      desc: "ไม่ส่งข้อมูลในระบบ (แสดงผลเป็นสัญญาณ PWM 3.3V)",
       example: "N/A"
     },
     supportedInputs: ['logicNode', 'digitalInputNode'],
@@ -214,14 +214,14 @@ export const nodeTutorials = {
   },
   buzzerNode: {
     title: "Active Buzzer",
-    description: "โหนดสร้างเสียงเตือน (Buzzer)",
+    description: "โหนดสั่งการ External Active Buzzer พร้อมระบบดับเสียงอัตโนมัติ (Duration)",
     input: {
       desc: "รับสถานะ True/False จาก Logic Node",
       example: "ต่อสายจาก Output ของ Logic Node"
     },
     process: {
-      desc: "เมื่อได้รับสัญญาณ True จะสั่งจ่ายกระแสไฟไปยังลำโพง Buzzer ทำให้เกิดเสียงดังเตือน ปี๊บๆ",
-      example: "เสียงเตือนดัง 1 วินาที เมื่อมีผู้บุกรุก"
+      desc: "เมื่อได้รับสัญญาณ True จะสั่งจ่ายกระแสไฟไปยัง Buzzer ที่ต่ออยู่กับพิน GPIO ตามระยะเวลา Beep Duration (วินาที) ที่กำหนด",
+      example: "เสียงเตือนดัง 1 วินาทีเมื่อมีสัญญาณเตือน"
     },
     output: {
       desc: "ไม่ส่งข้อมูลในระบบ (แสดงผลเป็นเสียงจริง)",
@@ -232,17 +232,17 @@ export const nodeTutorials = {
   },
   rs485Node: {
     title: "RS485 Modbus",
-    description: "โหนดสื่อสารกับอุปกรณ์อุตสาหกรรมด้วยโปรโตคอล RS485",
+    description: "โหนดสื่อสารกับอุปกรณ์อุตสาหกรรมผ่านหัวแปลง USB-to-RS485 บน Raspberry Pi 5",
     input: {
       desc: "รับสถานะ True/False จาก Logic Node",
       example: "ต่อสายจาก Output ของ Logic Node"
     },
     process: {
-      desc: "ส่งชุดข้อความ (Payload) เป็น String หรือ Hex ออกไปทางพอร์ต Serial RS485 เพื่อสื่อสารกับ PLC หรือเครื่องจักร",
-      example: "ส่ง Hex: 01 05 00 00 FF 00 8C 3A"
+      desc: "ส่งชุดข้อความ (Payload) เป็น Plain Text หรือ Hex Byte ออกไปทางพอร์ต Serial เช่น /dev/ttyUSB0",
+      example: "ส่ง Hex: 01 05 00 00 FF 00"
     },
     output: {
-      desc: "ไม่ส่งข้อมูลในระบบ (ส่งออกเป็นสัญญาณ Serial)",
+      desc: "ไม่ส่งข้อมูลในระบบ (ส่งออกเป็นสัญญาณ Serial RS485)",
       example: "N/A"
     },
     supportedInputs: ['logicNode', 'digitalInputNode'],

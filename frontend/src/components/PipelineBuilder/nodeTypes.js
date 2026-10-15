@@ -17,6 +17,11 @@ import TargetTrackerNode from './nodes/TargetTrackerNode';
 import DatabaseWriterNode from './nodes/DatabaseWriterNode';
 import CollectionWriterNode from './nodes/CollectionWriterNode';
 import UnitThroughputNode from './nodes/UnitThroughputNode';
+import DigitalInputNode from './nodes/DigitalInputNode';
+import DigitalOutputNode from './nodes/DigitalOutputNode';
+import LEDNode from './nodes/LEDNode';
+import BuzzerNode from './nodes/BuzzerNode';
+import RS485Node from './nodes/RS485Node';
 import ButtonEdge from './edges/ButtonEdge';
 
 export const DEFAULT_NODE_NAMES = {
@@ -46,7 +51,7 @@ export const DEFAULT_NODE_NAMES = {
   digitalInputNode: 'Digital Input',
   digitalOutputNode: 'Digital Output',
   buzzerNode: 'Active Buzzer',
-  ledNode: 'LED Driver',
+  ledNode: 'LED / PWM Driver',
   rs485Node: 'RS485 Modbus',
 };
 
@@ -73,5 +78,10 @@ export const nodeTypes = {
   databaseWriterNode: memo(DatabaseWriterNode),
   collectionWriterNode: memo(CollectionWriterNode),
   unitThroughputNode: memo(UnitThroughputNode),
+  digitalInputNode: memo(DigitalInputNode),
+  digitalOutputNode: memo(DigitalOutputNode),
+  ledNode: memo(LEDNode),
+  buzzerNode: memo(BuzzerNode),
+  rs485Node: memo(RS485Node),
 };
 

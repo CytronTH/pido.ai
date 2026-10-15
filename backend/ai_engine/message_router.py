@@ -1414,7 +1414,10 @@ class HardwareOutputNode(PipelineNode):
     def __init__(self, node_id, data, router, hw_type="digital_output"):
         super().__init__(node_id, data, router, node_type=f"hardwareOutputNode_{hw_type}")
         self.hw_type = hw_type
-        self.pin = data.get("pin")
+        # Default pin if not provided
+        default_pin = "19" if hw_type == "buzzer" else "17"
+        self.pin = str(data.get("pin", default_pin)) if data.get("pin") is not None else default_pin
+        self.duration = float(data.get("duration", 1.0))
         self._last_is_active = None
         
     def process(self, msg: dict):
@@ -1438,21 +1441,68 @@ class HardwareOutputNode(PipelineNode):
         # Only log and set hardware if state changed
         if self._last_is_active != is_active:
             self._last_is_active = is_active
-            logger.info(f"HardwareOutputNode {self.node_id} (type: {self.hw_type}) state changed: active={is_active}")
+            logger.info(f"HardwareOutputNode {self.node_id} (type: {self.hw_type}, pin: {self.pin}) state changed: active={is_active}")
             try:
                 from hardware.gpio_manager import gpio_mgr
                 if self.hw_type == "led":
                     brightness = float(self.data.get("brightness", 100)) / 100.0 if is_active else 0.0
                     gpio_mgr.set_pwm(self.pin, brightness)
                 elif self.hw_type == "buzzer":
-                    gpio_mgr.set_output("BUZZER", is_active)
+                    if is_active:
+                        gpio_mgr.trigger_buzzer(self.pin, duration=self.duration)
+                    else:
+                        gpio_mgr.set_output(self.pin, False)
                 elif self.hw_type == "digital_output":
                     action = self.data.get("action", "on")
                     final_out = is_active if action == "on" else not is_active
                     gpio_mgr.set_output(self.pin, final_out)
             except Exception as e:
-                logger.error(f"Hardware output error: {e}")
+                logger.error(f"Hardware output error on node {self.node_id}: {e}")
             
+        return msg
+
+class RS485OutputNode(PipelineNode):
+    def __init__(self, node_id, data, router):
+        super().__init__(node_id, data, router, node_type="rs485Node")
+        self.port = str(data.get("port", "/dev/ttyUSB0"))
+        self.baudrate = int(data.get("baudrate", 9600))
+        self.hex_mode = bool(data.get("hex_mode", False))
+        self.payload_template = data.get("payload", "")
+        self.trigger_on = str(data.get("triggerOn", "true")).lower() == "true"
+        self._last_is_active = None
+
+    def process(self, msg: dict) -> dict:
+        payload = msg.get("payload")
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            val = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
+            val = payload["newly_counted"] > 0
+        elif isinstance(payload, dict) and "detections" in payload:
+            val = len(payload["detections"]) > 0
+        elif isinstance(payload, list):
+            val = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            val = bool(payload["value"])
+        else:
+            val = bool(payload)
+
+        is_active = (val == self.trigger_on)
+        if is_active and self._last_is_active != is_active:
+            try:
+                from hardware.rs485_manager import rs485_mgr
+                rs485_mgr.configure(port=self.port, baudrate=self.baudrate)
+                raw_payload = self.payload_template if self.payload_template else str(payload)
+                if self.hex_mode:
+                    hex_clean = raw_payload.replace(" ", "").replace("0x", "").replace(",", "")
+                    data_bytes = bytes.fromhex(hex_clean)
+                else:
+                    data_bytes = raw_payload.encode("utf-8")
+                rs485_mgr.send_data(data_bytes)
+                logger.info(f"RS485OutputNode {self.node_id}: Sent {len(data_bytes)} bytes to {self.port}")
+            except Exception as e:
+                logger.error(f"RS485 output error on node {self.node_id}: {e}")
+
+        self._last_is_active = is_active
         return msg
 
 class SnapshotNode(PipelineNode):

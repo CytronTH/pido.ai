@@ -81,35 +81,53 @@ class HailoPipelineWorker:
             return
 
         # Initialize Hardware using Router Nodes
-        from hardware.gpio_manager import PIN_MAP
+        from hardware.gpio_manager import parse_pin
         if self.config and hasattr(self.config, 'router'):
+            do_configs = {
+                d.get("pin"): d.get("active_high", True)
+                for d in getattr(self.config, "digital_outputs", [])
+                if isinstance(d, dict)
+            }
             for node_id, node in self.config.router.nodes.items():
                 if hasattr(node, 'hw_type'):
                     pin_str = getattr(node, 'pin', None)
                     if pin_str:
-                        pin_num = PIN_MAP.get(pin_str)
-                        if pin_num:
+                        pin_num = parse_pin(pin_str)
+                        if pin_num is not None:
                             if node.hw_type == "digital_output":
-                                gpio_mgr.setup_output(pin_str, pin_num)
+                                active_high = do_configs.get(pin_str, True)
+                                gpio_mgr.setup_output(str(pin_str), pin_num, active_high=active_high)
                             elif node.hw_type == "led":
-                                gpio_mgr.setup_pwm(pin_str, pin_num)
+                                gpio_mgr.setup_pwm(str(pin_str), pin_num)
                     if getattr(node, 'hw_type') == "buzzer":
-                        gpio_mgr.setup_buzzer("BUZZER", PIN_MAP.get("BUZZER", 19))
+                        buzzer_pin = getattr(node, 'pin', "19")
+                        buzzer_pin_num = parse_pin(buzzer_pin)
+                        if buzzer_pin_num is not None:
+                            gpio_mgr.setup_buzzer(str(buzzer_pin), buzzer_pin_num)
                         
         if self.config and hasattr(self.config, 'digital_inputs'):
             for di in self.config.digital_inputs:
                 node_id = di["id"]
                 pin_str = di["pin"]
-                pin_num = PIN_MAP.get(pin_str)
-                if pin_num:
-                    gpio_mgr.setup_input(pin_str, pin_num)
-                    def make_callback(nid, val):
+                pin_num = parse_pin(pin_str)
+                pull_resistor = di.get("pull_resistor", "up")
+                bounce_time = float(di.get("bounce_time", 0.1))
+                active_low = bool(di.get("active_low", False))
+                if pin_num is not None:
+                    gpio_mgr.setup_input(
+                        str(pin_str),
+                        pin_num,
+                        bounce_time=bounce_time,
+                        pull_resistor=pull_resistor,
+                    )
+                    def make_callback(nid, val, invert=active_low):
+                        final_val = not val if invert else val
                         def cb():
                             if hasattr(self.config, 'router') and self.config.router:
-                                self.config.router.inject_message(nid, {"payload": val, "metadata": {"source": "gpio"}})
+                                self.config.router.inject_message(nid, {"payload": final_val, "metadata": {"source": "gpio"}})
                         return cb
                     
-                    device = gpio_mgr.devices.get(pin_str)
+                    device = gpio_mgr.devices.get(str(pin_str))
                     if device:
                         device.when_activated = make_callback(node_id, True)
                         device.when_deactivated = make_callback(node_id, False)

@@ -15,6 +15,7 @@ ROUTER_NODE_TYPES = {
     "digitalOutputNode",
     "ledNode",
     "buzzerNode",
+    "rs485Node",
     "dashboardMetricNode",
     "dashboardTextNode",
     "dashboardLogNode",
