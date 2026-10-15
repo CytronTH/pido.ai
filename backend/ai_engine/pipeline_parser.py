@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-from ai_engine.message_router import MessageRouter, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, RS485OutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
+from ai_engine.message_router import MessageRouter, PipelineNode, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, RS485OutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
 
 class CameraStreamConfig:
     def __init__(self, stream_id: str):
@@ -120,12 +120,15 @@ class PipelineParser:
             logger.debug(f"Telemetry pre-registration error: {ex}")
         
         # 1. Create Router Nodes for Data Flow
+        router.node_configs = {n["id"]: n.get("data", {}) for n in nodes}
         for n in nodes:
             nid = n["id"]
             ntype = n.get("type")
             ndata = n.get("data", {})
             
-            if ntype == "logicNode":
+            if ntype == "aiNode":
+                router.add_node(nid, PipelineNode(nid, ndata, router, node_type="aiNode"))
+            elif ntype == "logicNode":
                 router.add_node(nid, LogicNode(nid, ndata, router))
             elif ntype == "counterNode":
                 router.add_node(nid, CounterNode(nid, ndata, router))
@@ -195,9 +198,10 @@ class PipelineParser:
                 from ai_engine.forklift_zone_monitor import ForkliftZoneNode
                 router.add_node(nid, ForkliftZoneNode(nid, ndata, router))
             elif ntype == "dashboardLogNode":
-                router.add_node(nid, DashboardOutputNode(nid, ndata, router))
+                from ai_engine.message_router import DashboardLogNode
+                router.add_node(nid, DashboardLogNode(nid, ndata, router))
                 config.dashboard_nodes.append({
-                    "id": f"dashboard.{nid}.history", "name": ndata.get("label", "Log"), "dataType": "array_text", "widgetType": "textFeed"
+                    "id": f"dashboard.{nid}.history", "name": ndata.get("label", "Dashboard Log"), "dataType": "array_text", "widgetType": "textFeed"
                 })
         for edge in edges:
             src = edge.get("source")

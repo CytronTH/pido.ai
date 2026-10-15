@@ -1,96 +1,61 @@
 import React from 'react';
-import { Handle, Position, useHandleConnections, useNodesData } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
 import { List } from 'lucide-react';
-import NodeHeader from './NodeHeader';
 import usePipelineStore from '../../../store/usePipelineStore';
+import NodeHeader from './NodeHeader';
+import DashboardLogNodeSettings from '../settings/DashboardLogNodeSettings';
 
-export default function DashboardLogNode({ id, data }) {
+const COLOR_THEMES = {
+  rose: { border: 'border-rose-600', selectedBorder: 'border-rose-400 shadow-rose-500/20', iconBg: 'bg-rose-600', headerBg: 'bg-rose-600/20 border-rose-900/50', handle: 'bg-rose-500', text: 'text-rose-400' },
+  amber: { border: 'border-amber-600', selectedBorder: 'border-amber-400 shadow-amber-500/20', iconBg: 'bg-amber-600', headerBg: 'bg-amber-600/20 border-amber-900/50', handle: 'bg-amber-500', text: 'text-amber-400' },
+  emerald: { border: 'border-emerald-600', selectedBorder: 'border-emerald-400 shadow-emerald-500/20', iconBg: 'bg-emerald-600', headerBg: 'bg-emerald-600/20 border-emerald-900/50', handle: 'bg-emerald-500', text: 'text-emerald-400' },
+  sky: { border: 'border-sky-600', selectedBorder: 'border-sky-400 shadow-sky-500/20', iconBg: 'bg-sky-600', headerBg: 'bg-sky-600/20 border-sky-900/50', handle: 'bg-sky-500', text: 'text-sky-400' },
+  purple: { border: 'border-purple-600', selectedBorder: 'border-purple-400 shadow-purple-500/20', iconBg: 'bg-purple-600', headerBg: 'bg-purple-600/20 border-purple-900/50', handle: 'bg-purple-500', text: 'text-purple-400' },
+  indigo: { border: 'border-indigo-600', selectedBorder: 'border-indigo-400 shadow-indigo-500/20', iconBg: 'bg-indigo-600', headerBg: 'bg-indigo-600/20 border-indigo-900/50', handle: 'bg-indigo-500', text: 'text-indigo-400' },
+};
+
+export default function DashboardLogNode({ id, data, selected }) {
   const isCompact = data?.viewMode === 'compact';
-  const globalUpdateNodeData = usePipelineStore((state) => state.updateNodeData);
-  const updateNodeData = data?.onUpdate || globalUpdateNodeData;
-  const connections = useHandleConnections({ type: 'target' });
-  const upstreamNode = useNodesData(connections[0]?.source || 'empty-id');
+  const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
-  const handleLabelChange = (e) => {
-    updateNodeData(id, { label: e.target.value });
+  const handleSettingsChange = (updates) => {
+    updateNodeData(id, updates);
   };
 
-  const handleSourceChange = (e) => {
-    updateNodeData(id, { sourcePath: e.target.value });
-  };
-
-  const getAvailableProperties = () => {
-    if (!upstreamNode) return [];
-    
-    if (upstreamNode.type === 'aiNode' || upstreamNode.type === 'logicNode') {
-      return [
-        { value: 'msg.payload', label: 'msg.payload (Full Object)' },
-        { value: 'msg.payload.detections', label: 'msg.payload.detections (Array)' },
-        { value: 'msg.payload.count', label: 'msg.payload.count (Number)' },
-        { value: 'msg.payload.labels', label: 'msg.payload.labels (Array)' },
-        { value: 'msg.payload.max_confidence', label: 'msg.payload.max_confidence (Number)' }
-      ];
-    }
-    
-    return [
-      { value: 'msg.payload', label: 'msg.payload (Full Object)' },
-      { value: 'msg.payload.count', label: 'msg.payload.count (Number)' },
-      { value: 'alerts', label: 'System Alerts (Feed)' }
-    ];
-  };
-
-  const availableProperties = getAvailableProperties();
+  const logMode = data?.logMode || (data?.messageTemplate ? 'custom' : 'property');
+  const theme = COLOR_THEMES[data?.logColor] || COLOR_THEMES.indigo;
 
   return (
-    <div className={`bg-surface border-2 border-indigo-600 rounded-xl shadow-lg shadow-indigo-900/20 ${isCompact ? 'w-48' : 'w-64'} text-fg overflow-hidden`}>
+    <div className={`bg-surface border-2 ${selected ? theme.selectedBorder : theme.border} rounded-xl shadow-lg shadow-indigo-900/10 ${isCompact ? 'w-48' : 'w-72'} text-fg overflow-hidden transition-all duration-200`}>
       <NodeHeader
         id={id}
         icon={List}
-        iconBg="bg-indigo-600"
-        headerBg="bg-indigo-600/20 border-indigo-900/50"
+        iconBg={theme.iconBg}
+        headerBg={theme.headerBg}
         defaultName="Dashboard Log"
         defaultSubtitle="Historical Feed Output"
         data={data}
       />
       
-      <div className={`p-4 flex flex-col gap-3 ${isCompact ? 'hidden' : ''}`}>
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Output Label (For Dashboard)
-          <input 
-            type="text"
-            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-indigo-500 nodrag"
-            value={data?.label || ''}
-            onChange={handleLabelChange}
-            placeholder="e.g. Alert History"
-          />
-        </label>
-        
-        <label className="text-xs text-fg-muted flex flex-col gap-1">
-          Property
-          <input
-            list={`properties-${id}`}
-            className="bg-surface-2 border border-line-strong rounded-md p-1.5 text-sm focus:outline-none focus:border-indigo-500 nodrag disabled:opacity-50"
-            value={data?.sourcePath || ''}
-            onChange={handleSourceChange}
-            placeholder={upstreamNode ? "e.g. msg.payload" : "Connect a node first..."}
-            disabled={!upstreamNode}
-          />
-          <datalist id={`properties-${id}`}>
-            {availableProperties.map(prop => (
-              <option key={prop.value} value={prop.value}>{prop.label}</option>
-            ))}
-          </datalist>
-        </label>
-
-        <div className="text-[10px] text-fg-subtle mt-1">
-          Provides historical feed data to Log widgets.
+      {isCompact ? (
+        <div className="p-3 text-[11px] text-fg-subtle flex flex-col gap-1">
+          <div className="font-semibold text-fg truncate">
+            {data?.label || 'Dashboard Log'}
+          </div>
+          <div className={`text-[10px] ${theme.text} font-mono truncate`}>
+            {logMode === 'custom' ? `Msg: "${data?.messageTemplate || 'Alert'}"` : `Path: ${data?.sourcePath || 'msg.payload'}`}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 flex flex-col gap-3">
+          <DashboardLogNodeSettings nodeId={id} data={data} onChange={handleSettingsChange} />
+        </div>
+      )}
 
       <Handle 
         type="target" 
         position={Position.Left} 
-        className="w-3 h-3 bg-indigo-500 border-2 border-line-subtle"
+        className={`w-3 h-3 ${theme.handle} border-2 border-line-subtle`}
       />
     </div>
   );

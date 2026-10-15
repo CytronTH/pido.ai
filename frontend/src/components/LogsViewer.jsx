@@ -586,6 +586,13 @@ export default function LogsViewer({ projectId, embedded = false }) {
                         </span>
                       </div>
 
+                      {/* Log Message Display if present */}
+                      {log.payload?.message && (
+                        <p className="mt-1.5 text-[11px] text-fg font-medium line-clamp-2 leading-snug" title={log.payload.message}>
+                          {log.payload.message}
+                        </p>
+                      )}
+
                       {/* Tags Badges or Payload Label */}
                       {logTags.length > 0 ? (
                         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -743,8 +750,16 @@ export default function LogsViewer({ projectId, embedded = false }) {
                           </td>
 
                           {/* Payload Summary */}
-                          <td className="px-5 py-3 font-mono text-[11px] text-fg-muted max-w-[280px] truncate">
-                            {log.payload ? JSON.stringify(log.payload) : '-'}
+                          <td className="px-5 py-3 text-[11px] max-w-[280px] truncate">
+                            {log.payload?.message ? (
+                              <span className="text-fg-secondary font-sans font-medium" title={log.payload.message}>
+                                {log.payload.message}
+                              </span>
+                            ) : log.payload ? (
+                              <span className="font-mono text-fg-muted">{JSON.stringify(log.payload)}</span>
+                            ) : (
+                              <span className="font-mono text-fg-muted">-</span>
+                            )}
                           </td>
                         </tr>
 
@@ -942,6 +957,18 @@ export default function LogsViewer({ projectId, embedded = false }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Log Message in Lightbox Modal */}
+                  {selectedLog.payload?.message && (
+                    <div className="p-3 bg-surface-2/60 rounded-xl border border-line">
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-fg-muted mb-1">
+                        Log Message
+                      </h4>
+                      <p className="text-xs text-fg font-medium leading-relaxed">
+                        {selectedLog.payload.message}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Tags Detail in Lightbox */}
                   {Array.isArray(selectedLog.payload?.tags) && selectedLog.payload.tags.length > 0 && (

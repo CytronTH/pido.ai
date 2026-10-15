@@ -826,6 +826,7 @@ class HailoPipelineWorker:
                         "timestamp": time.time(),
                         "ai_task": ai_task,
                         "fps": current_fps,
+                        "roi": getattr(stream_cfg, 'roi', None) if stream_cfg else None,
                         "bbox_draw_mode": getattr(stream_cfg, 'bbox_draw_mode', 'frontend') if stream_cfg else 'frontend',
                         "bbox_line_thickness": getattr(stream_cfg, 'bbox_line_thickness', 2) if stream_cfg else 2,
                         "bbox_font_thickness": getattr(stream_cfg, 'bbox_font_thickness', 1) if stream_cfg else 1

@@ -540,8 +540,13 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-fg-secondary mb-1.5">Data Source Binding</label>
-                  {widgetItem.type === 'chart' ? (
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-fg-secondary">Data Source Binding</label>
+                    {widgetItem.type === 'textFeed' && (
+                      <span className="text-[10px] text-indigo-400 font-medium">Select one or more Log Sources</span>
+                    )}
+                  </div>
+                  {widgetItem.type === 'chart' || widgetItem.type === 'textFeed' ? (
                     <div className="w-full bg-canvas border border-line-strong rounded-lg p-3 text-fg text-sm max-h-40 overflow-y-auto shadow-inner custom-scrollbar">
                       {(() => {
                         const danglingPaths = (formData.dataPaths || []).filter(p => !filteredSources.some(ds => ds.id === p));
@@ -563,10 +568,10 @@ export default function WidgetSettingsModal({ isOpen, onClose, onSave, widgetIte
                               checked={formData.dataPaths?.includes(ds.id)}
                               onChange={(e) => {
                                 const paths = formData.dataPaths || [];
-                                if (e.target.checked) setFormData({ ...formData, dataPaths: [...paths, ds.id] });
-                                else setFormData({ ...formData, dataPaths: paths.filter(p => p !== ds.id) });
+                                const newPaths = e.target.checked ? [...paths, ds.id] : paths.filter(p => p !== ds.id);
+                                setFormData({ ...formData, dataPaths: newPaths, dataPath: newPaths[0] || '' });
                               }}
-                              className="w-4 h-4 rounded border-line-stronger bg-surface text-blue-500 focus:ring-blue-500 focus:ring-offset-surface cursor-pointer"
+                              className="w-4 h-4 rounded border-line-stronger bg-surface text-indigo-600 focus:ring-indigo-500 focus:ring-offset-surface cursor-pointer"
                             />
                             <div className="flex flex-col">
                               <span className="font-medium">{ds.name}</span>

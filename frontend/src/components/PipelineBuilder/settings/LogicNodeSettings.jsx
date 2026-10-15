@@ -8,6 +8,8 @@ const SNIPPETS = [
   { label: 'No object',         expr: 'len(msg["payload"]) == 0' },
   { label: 'Count >=',          expr: 'len(msg["payload"]) >= 2' },
   { label: 'Has label',         expr: 'has("person")' },
+  { label: 'Centered in ROI',   expr: 'is_centered("cup")' },
+  { label: 'Defect (Missing Date)', expr: 'is_centered("cup") and not centered_has("expire_date")' },
   { label: 'A and B together',  expr: 'has("person") and has("car")' },
   { label: 'A or B',           expr: 'has("person") or has("car")' },
 ];
@@ -16,6 +18,12 @@ const VARS_REF = [
   ['msg["payload"]',           'list   — the payload object'],
   ['count',                    'int    — total detections in ROI'],
   ['has("label")',             'bool   — label exists in ROI'],
+  ['is_centered("label")',     'bool   — label is centered in ROI (both X and Y)'],
+  ['centered_has("label")',    'bool   — centered object contains label inside it'],
+  ['centered_missing("label")','bool   — centered object is missing label'],
+  ['is_fully_in_roi("label")', 'bool   — bbox is completely within ROI bounds'],
+  ['center_x("label")',        'float  — center X normalized (0.0 to 1.0)'],
+  ['center_y("label")',        'float  — center Y normalized (0.0 to 1.0)'],
   ['label_count("label")',     'int    — count of specific label'],
   ['confidence',               'float  — max confidence (all)'],
   ['label_confidence("label")', 'float  — max confidence of label'],
@@ -263,6 +271,8 @@ export default function LogicNodeSettings({ nodeId, data, onChange }) {
                     <span className="text-[10px] font-bold capitalize px-0.5 text-fg-secondary">{cls}</span>
                     <div className="flex flex-wrap gap-1.5">
                       <DraggableBlock label={`Has ${cls}`} code={`has("${cls}")`} colorClass="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-500/50" />
+                      <DraggableBlock label={`Centered ${cls}`} code={`is_centered("${cls}")`} colorClass="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-500/50" />
+                      <DraggableBlock label={`Centered has ${cls}`} code={`centered_has("${cls}")`} colorClass="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-500/50" />
                       <DraggableBlock label={`Count ${cls}`} code={`label_count("${cls}")`} colorClass="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-500/50" />
                       <DraggableBlock label={`Conf. ${cls}`} code={`label_confidence("${cls}")`} colorClass="bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border-pink-500/50" />
                     </div>
