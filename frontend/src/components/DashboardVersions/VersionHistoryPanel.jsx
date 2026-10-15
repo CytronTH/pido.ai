@@ -1,19 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, History, RotateCcw, Loader2, AlertTriangle, LayoutGrid, CheckCircle2, RefreshCw } from 'lucide-react';
-import { listDashboardVersions, restoreDashboardVersion, formatRelativeTime, formatDateTime } from './dashboardVersionsApi';
+import { listDashboardVersions, getDashboardVersion, restoreDashboardVersion, formatRelativeTime, formatDateTime } from './dashboardVersionsApi';
 import usePermissions from '../../utils/usePermissions';
 
 /**
  * Slide-over listing saved dashboard versions (newest first) with non-destructive restore.
  * `onRestored(versionDetail)` receives the newly created version (including its layout).
  */
-export default function VersionHistoryPanel({ isOpen, onClose, projectId, currentVersion, isDirty, onRestored, refreshKey }) {
+export default function VersionHistoryPanel({ 
+  isOpen, 
+  onClose, 
+  projectId, 
+  currentVersion, 
+  isDirty, 
+  onRestored, 
+  refreshKey,
+  dataSources = [],
+  dataSourcesLoaded = false
+}) {
   const { canEdit } = usePermissions();
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [restoringId, setRestoringId] = useState(null);
+  const [checkingCompatId, setCheckingCompatId] = useState(null);
+  const [compatWarnings, setCompatWarnings] = useState([]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -31,9 +43,42 @@ export default function VersionHistoryPanel({ isOpen, onClose, projectId, curren
   useEffect(() => {
     if (isOpen) {
       setConfirmId(null);
+      setCompatWarnings([]);
       load();
     }
   }, [isOpen, load, refreshKey]);
+
+  const handleStartRestore = async (v) => {
+    setConfirmId(v.id);
+    setCompatWarnings([]);
+    if (dataSourcesLoaded && dataSources) {
+      setCheckingCompatId(v.id);
+      try {
+        const detail = await getDashboardVersion(projectId, v.id);
+        const widgets = detail.layout?.lg || [];
+        const missing = [];
+        for (const item of widgets) {
+          const cfg = item?.config || {};
+          const paths = [cfg.dataPath, ...(Array.isArray(cfg.dataPaths) ? cfg.dataPaths : [])].filter(Boolean);
+          for (const p of paths) {
+            const clean = String(p).replace('dashboard.', '').split('.')[0];
+            const matched = dataSources.some(ds => ds.id === clean || ds.id === p);
+            if (!matched) {
+              missing.push({
+                widgetTitle: cfg.title || cfg.name || item.i,
+                path: p,
+              });
+            }
+          }
+        }
+        setCompatWarnings(missing);
+      } catch (err) {
+        console.warn("Could not check dashboard version compatibility:", err);
+      } finally {
+        setCheckingCompatId(null);
+      }
+    }
+  };
 
   const handleRestore = async (v) => {
     setRestoringId(v.id);
@@ -41,6 +86,7 @@ export default function VersionHistoryPanel({ isOpen, onClose, projectId, curren
     try {
       const restored = await restoreDashboardVersion(projectId, v.id);
       setConfirmId(null);
+      setCompatWarnings([]);
       onRestored(restored);
       await load();
     } catch (e) {
@@ -116,7 +162,7 @@ export default function VersionHistoryPanel({ isOpen, onClose, projectId, curren
                       </span>
                       {canEdit && !isCurrent && !confirming && (
                         <button
-                          onClick={() => setConfirmId(v.id)}
+                          onClick={() => handleStartRestore(v)}
                           className="text-[11px] flex items-center gap-1 text-blue-500 hover:text-blue-600 hover:underline"
                         >
                           <RotateCcw size={11} /> กู้คืน
@@ -124,17 +170,51 @@ export default function VersionHistoryPanel({ isOpen, onClose, projectId, curren
                       )}
                     </div>
                     {canEdit && confirming && (
-                      <div className="mt-2 pt-2 border-t border-line flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-fg-muted">กู้คืนเป็นเวอร์ชันใหม่?</span>
-                        <div className="flex gap-1.5">
-                          <button onClick={() => setConfirmId(null)} className="text-[11px] px-2 py-1 rounded border border-line-strong text-fg-secondary hover:bg-surface-2">ยกเลิก</button>
-                          <button
-                            onClick={() => handleRestore(v)}
-                            disabled={restoringId !== null}
-                            className="text-[11px] px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 flex items-center gap-1"
-                          >
-                            {restoringId === v.id ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />} กู้คืน
-                          </button>
+                      <div className="mt-2 pt-2 border-t border-line space-y-2">
+                        {checkingCompatId === v.id ? (
+                          <div className="flex items-center gap-1.5 text-[11px] text-fg-muted py-1">
+                            <Loader2 size={11} className="animate-spin text-blue-500" />
+                            <span>กำลังตรวจความเข้ากันได้กับ Pipeline...</span>
+                          </div>
+                        ) : compatWarnings.length > 0 ? (
+                          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 text-[11px] text-amber-800 dark:text-amber-200">
+                            <div className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 mb-0.5">
+                              <AlertTriangle size={12} className="shrink-0" />
+                              <span>พบ {compatWarnings.length} widget ที่อ้างอิงโหนดที่ไม่มีใน Pipeline:</span>
+                            </div>
+                            <ul className="list-disc list-inside text-[10px] text-fg-muted pl-0.5 max-h-24 overflow-y-auto">
+                              {compatWarnings.map((w, i) => (
+                                <li key={i}>"{w.widgetTitle}" (โหนด: {w.path})</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 size={11} />
+                            <span>เข้ากันได้กับโหนดใน Pipeline ปัจจุบัน</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-fg-muted">กู้คืนเป็นเวอร์ชันใหม่?</span>
+                          <div className="flex gap-1.5">
+                            <button 
+                              onClick={() => {
+                                setConfirmId(null);
+                                setCompatWarnings([]);
+                              }} 
+                              className="text-[11px] px-2 py-1 rounded border border-line-strong text-fg-secondary hover:bg-surface-2"
+                            >
+                              ยกเลิก
+                            </button>
+                            <button
+                              onClick={() => handleRestore(v)}
+                              disabled={restoringId !== null}
+                              className="text-[11px] px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {restoringId === v.id ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />} กู้คืน
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}

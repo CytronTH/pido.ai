@@ -106,6 +106,13 @@ class DatabaseManager:
                         conn.commit()
                     except Exception:
                         pass
+
+                # PipelineVersion schema migrations
+                try:
+                    conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN changes_json VARCHAR DEFAULT '{}';"))
+                    conn.commit()
+                except Exception:
+                    pass
                 
             from db.auth import get_password_hash
             from sqlmodel import Session, select
