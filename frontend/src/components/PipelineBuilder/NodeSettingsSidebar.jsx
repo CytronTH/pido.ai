@@ -22,6 +22,11 @@ import RateLimitNodeSettings from './settings/RateLimitNodeSettings';
 import FunctionNodeSettings from './settings/FunctionNodeSettings';
 import DebugNodeSettings from './settings/DebugNodeSettings';
 import DebugOutputNodeSettings from './settings/DebugOutputNodeSettings';
+import DigitalInputNodeSettings from './settings/DigitalInputNodeSettings';
+import DigitalOutputNodeSettings from './settings/DigitalOutputNodeSettings';
+import LEDNodeSettings from './settings/LEDNodeSettings';
+import BuzzerNodeSettings from './settings/BuzzerNodeSettings';
+import RS485NodeSettings from './settings/RS485NodeSettings';
 
 const settingsComponents = {
   inputNode: InputNodeSettings,
@@ -42,6 +47,11 @@ const settingsComponents = {
   functionNode: FunctionNodeSettings,
   debugNode: DebugNodeSettings,
   debugOutputNode: DebugOutputNodeSettings,
+  digitalInputNode: DigitalInputNodeSettings,
+  digitalOutputNode: DigitalOutputNodeSettings,
+  ledNode: LEDNodeSettings,
+  buzzerNode: BuzzerNodeSettings,
+  rs485Node: RS485NodeSettings,
 };
 
 export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose }) {
