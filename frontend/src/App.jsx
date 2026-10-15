@@ -193,7 +193,8 @@ function AppContent() {
                 const history = prevNodeData?.history || [];
                 
                 let newHistory = history;
-                if (history.length === 0 || history[0].value !== data.value) {
+                const isLogEvent = Boolean(data.is_log);
+                if (isLogEvent || history.length === 0 || history[0].value !== data.value) {
                     let ts = new Date().toLocaleTimeString();
                     if (data.msg && data.msg.metadata && data.msg.metadata.timestamp) {
                        ts = new Date(data.msg.metadata.timestamp * 1000).toLocaleTimeString();
@@ -209,7 +210,18 @@ function AppContent() {
                        delete safeMsg.detections;
                     }
 
-                    const newItem = { timestamp: ts, value: data.value, msg: safeMsg };
+                    const rawTime = (data.msg?.metadata?.timestamp ? data.msg.metadata.timestamp * 1000 : (data.timestamp ? data.timestamp * 1000 : Date.now()));
+                    const newItem = { 
+                       id: `${data.node_id}_${rawTime}_${Math.random()}`,
+                       timestamp: ts, 
+                       raw_time: rawTime,
+                       value: data.value, 
+                       color: data.color || 'indigo',
+                       source: data.source_label || '',
+                       node_id: data.node_id,
+                       snapshot_path: data.snapshot_path || null,
+                       msg: safeMsg 
+                    };
                     newHistory = [newItem, ...history].slice(0, 50);
                 }
                 

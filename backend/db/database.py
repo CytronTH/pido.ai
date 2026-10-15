@@ -232,8 +232,64 @@ class DatabaseManager:
                 
             with Session(self.engine_telemetry) as session:
                 try:
+                    # Pre-process entries to deduplicate and merge event_logs with matching snapshot_path
+                    merged_events = {}
+                    final_entries = []
                     for log_entry in entries:
+                        if log_entry.get('table') == 'event_logs' and log_entry.get('snapshot_path'):
+                            sp_key = str(log_entry.get('snapshot_path')).split('/')[-1]
+                            if sp_key in merged_events:
+                                existing = merged_events[sp_key]
+                                ex_p = existing.get('payload') or {}
+                                new_p = log_entry.get('payload') or {}
+                                merged_p = {**ex_p, **new_p}
+                                if ex_p.get('tags') and not new_p.get('tags'):
+                                    merged_p['tags'] = ex_p['tags']
+                                elif new_p.get('tags') and not ex_p.get('tags'):
+                                    merged_p['tags'] = new_p['tags']
+                                if new_p.get('message'):
+                                    merged_p['message'] = new_p['message']
+                                if new_p.get('color'):
+                                    merged_p['color'] = new_p['color']
+                                if log_entry.get('event_type') == 'SNAPSHOT' or existing.get('event_type') == 'SNAPSHOT':
+                                    existing['event_type'] = 'SNAPSHOT'
+                                existing['payload'] = merged_p
+                                continue
+                            else:
+                                merged_events[sp_key] = log_entry
+                                final_entries.append(log_entry)
+                        else:
+                            final_entries.append(log_entry)
+
+                    for log_entry in final_entries:
                         if log_entry['table'] == 'event_logs':
+                            sp = log_entry.get('snapshot_path')
+                            if sp:
+                                sp_key = str(sp).split('/')[-1]
+                                existing_event = session.exec(
+                                    select(EventLog)
+                                    .where(EventLog.snapshot_path.like(f"%{sp_key}"))
+                                    .order_by(EventLog.id.desc())
+                                ).first()
+                                if existing_event:
+                                    try:
+                                        old_p = json.loads(existing_event.payload) if existing_event.payload else {}
+                                    except Exception:
+                                        old_p = {}
+                                    new_p = log_entry.get('payload') or {}
+                                    merged_p = {**old_p, **new_p}
+                                    if new_p.get('message'):
+                                        merged_p['message'] = new_p['message']
+                                    if new_p.get('tags'):
+                                        merged_p['tags'] = new_p['tags']
+                                    if new_p.get('color'):
+                                        merged_p['color'] = new_p['color']
+                                    existing_event.payload = json.dumps(merged_p)
+                                    if log_entry.get('event_type') == 'SNAPSHOT':
+                                        existing_event.event_type = 'SNAPSHOT'
+                                    session.add(existing_event)
+                                    continue
+
                             event = EventLog(
                                 node_id=log_entry.get('node_id'),
                                 project_id=log_entry.get('project_id'),

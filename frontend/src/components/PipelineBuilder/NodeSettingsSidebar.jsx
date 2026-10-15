@@ -28,6 +28,7 @@ import LEDNodeSettings from './settings/LEDNodeSettings';
 import BuzzerNodeSettings from './settings/BuzzerNodeSettings';
 import RS485NodeSettings from './settings/RS485NodeSettings';
 import CommentNodeSettings from './settings/CommentNodeSettings';
+import DashboardLogNodeSettings from './settings/DashboardLogNodeSettings';
 
 const settingsComponents = {
   inputNode: InputNodeSettings,
@@ -41,6 +42,7 @@ const settingsComponents = {
   dashboardMetricNode: DashboardWidgetSettings,
   dashboardChartNode: DashboardWidgetSettings,
   dashboardTextNode: DashboardWidgetSettings,
+  dashboardLogNode: DashboardLogNodeSettings,
   dashboardVideoNode: DashboardVideoNodeSettings,
   snapshotNode: SnapshotNodeSettings,
   targetTrackerNode: TargetTrackerNodeSettings,

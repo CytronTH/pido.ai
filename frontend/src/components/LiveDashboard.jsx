@@ -290,7 +290,39 @@ const checkWidgetPipelineAlert = (item, metadata, dataSources, dataSourcesLoaded
     return { hasAlert: false };
   }
 
-  // Case: Single-value widgets (metric, gauge, capacityBar, radialDonut, trafficLight, targetTracker, text, textFeed)
+  // Case: textFeed (supports multi-source aggregation via dataPaths)
+  if (type === 'textFeed') {
+    const paths = config.dataPaths && config.dataPaths.length > 0 
+      ? config.dataPaths 
+      : (config.dataPath ? [config.dataPath] : []);
+    
+    if (paths.length === 0) {
+      return {
+        hasAlert: true,
+        statusType: 'unbound',
+        statusLabel: 'ยังไม่ได้เลือก Data Source',
+        reason: 'ยังไม่ได้ผูกข้อมูลกับ Node ใน Pipeline Builder',
+        detail: 'Widget Log Feed นี้ต้องผูกอย่างน้อย 1 Data Source จาก Pipeline Builder',
+        suggestion: 'คลิกปุ่ม "เปิดการตั้งค่า Widget" ด้านล่างเพื่อเลือก Dashboard Log Node',
+        dataPath: 'ไม่ได้ระบุ (None)'
+      };
+    }
+    const hasAnyMatch = paths.some(p => dataSources.some(ds => ds.id === p));
+    if (dataSourcesLoaded && !hasAnyMatch) {
+      return {
+        hasAlert: true,
+        statusType: 'dangling',
+        statusLabel: 'Data Source ไม่พบใน Pipeline',
+        reason: 'ไม่พบ Data Source ที่เลือกไว้ใน Pipeline ปัจจุบัน',
+        detail: `Data paths (${paths.join(', ')}) ไม่มีอยู่ใน Pipeline Builder ที่กำลังรันอยู่`,
+        suggestion: 'ตรวจสอบการเชื่อมโยง Node ในหน้า Pipeline Builder หรือเลือก Data Source ใหม่ในการตั้งค่า Widget',
+        dataPath: paths.join(', ')
+      };
+    }
+    return { hasAlert: false };
+  }
+
+  // Case: Single-value widgets (metric, gauge, capacityBar, radialDonut, trafficLight, targetTracker, text)
   const dataPath = config.dataPath;
   if (!dataPath || dataPath.trim() === '') {
     return {
@@ -405,6 +437,21 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
       localStorage.setItem('pido_global_timeframe', tf);
     } catch {}
   };
+
+  // Initial event logs from database to prevent empty feed on reload
+  const [initialDbLogs, setInitialDbLogs] = useState([]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`/api/logs?project_id=${projectId}&limit=50`)
+      .then(res => res.json())
+      .then(result => {
+        if (result?.status === 'success' && Array.isArray(result.data)) {
+          setInitialDbLogs(result.data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch initial event logs", err));
+  }, [projectId]);
   // RGL normalises (compacts) the layout on first render; adopt that result as the clean baseline.
   const adoptBaselineRef = useRef(false);
   const adoptTimerRef = useRef(null);
@@ -892,13 +939,73 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                     projectId={projectId} 
                   />
                 )}
-                {type === 'textFeed' && (
-                  <TextFeedWidget 
-                    title={config.title} 
-                    feedData={getNestedValue(metadata, config.dataPath) || []} 
-                    config={config}
-                  />
-                )}
+                {type === 'textFeed' && (() => {
+                  const paths = config.dataPaths && config.dataPaths.length > 0 
+                    ? config.dataPaths 
+                    : (config.dataPath ? [config.dataPath] : []);
+                  
+                  let mergedFeed = [];
+                  const targetNodeIds = [];
+                  paths.forEach(p => {
+                    const match = p.match(/^dashboard\.(.+?)\.(?:value|history)$/);
+                    if (match) targetNodeIds.push(match[1]);
+                    const items = getNestedValue(metadata, p);
+                    if (Array.isArray(items)) {
+                      mergedFeed = mergedFeed.concat(items);
+                    }
+                  });
+
+                  // Format historical logs from database
+                  const formattedDbLogs = (initialDbLogs || [])
+                    .filter(log => targetNodeIds.length === 0 || targetNodeIds.includes(log.node_id))
+                    .map(log => {
+                      const rawTime = log.timestamp ? new Date(log.timestamp).getTime() : 0;
+                      const ts = log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '';
+                      const payload = (typeof log.payload === 'object' && log.payload !== null) ? log.payload : {};
+                      const snap = log.snapshot_path ? (
+                        log.snapshot_path.startsWith('/api/snapshots/') 
+                          ? log.snapshot_path 
+                          : `/api/snapshots/${log.snapshot_path.split('/').pop()}`
+                      ) : null;
+                      return {
+                        id: `db_${log.id}`,
+                        timestamp: ts,
+                        raw_time: rawTime,
+                        value: payload.message || payload.value || 'Event Log',
+                        color: payload.color || 'indigo',
+                        source: payload.source || '',
+                        node_id: log.node_id,
+                        snapshot_path: snap,
+                        is_db: true
+                      };
+                    });
+
+                  // Merge live feed with historical DB logs (deduplicate within 1.5s window)
+                  const combined = [...mergedFeed];
+                  formattedDbLogs.forEach(dbItem => {
+                    const exists = combined.some(liveItem => 
+                      Math.abs((liveItem.raw_time || 0) - dbItem.raw_time) < 1500 && liveItem.node_id === dbItem.node_id
+                    );
+                    if (!exists) {
+                      combined.push(dbItem);
+                    }
+                  });
+
+                  // Sort newest first by raw_time / timestamp
+                  combined.sort((a, b) => {
+                    const tA = a?.raw_time || 0;
+                    const tB = b?.raw_time || 0;
+                    return tB - tA;
+                  });
+
+                  return (
+                    <TextFeedWidget 
+                      title={config.title} 
+                      feedData={combined.slice(0, 50)} 
+                      config={config}
+                    />
+                  );
+                })()}
                 {type === 'chart' && (
                   (() => {
                     const paths = config.dataPaths || (config.dataPath ? [config.dataPath] : []);

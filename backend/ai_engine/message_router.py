@@ -102,6 +102,149 @@ class LogicNode(PipelineNode):
             
             all_confidences = [obj.get("confidence", 0) for obj in parsed_results]
 
+            # Resolve upstream ROI from message metadata or router nodes
+            upstream_roi = msg.get("metadata", {}).get("roi")
+            if not upstream_roi and hasattr(self, 'router') and self.router:
+                node_configs = getattr(self.router, 'node_configs', {})
+                for src_id, targets in getattr(self.router, 'edges', {}).items():
+                    target_ids = [t[0] if isinstance(t, tuple) else t for t in targets]
+                    if self.node_id in target_ids:
+                        src_node = getattr(self.router, 'nodes', {}).get(src_id)
+                        if src_node and getattr(src_node, 'node_type', '') == 'aiNode':
+                            upstream_roi = src_node.data.get("roi")
+                            if upstream_roi:
+                                break
+                        src_data = node_configs.get(src_id, {})
+                        if src_data.get("roi"):
+                            upstream_roi = src_data.get("roi")
+                            break
+
+            rx = float(upstream_roi.get("x", 0.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 0.0
+            ry = float(upstream_roi.get("y", 0.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 0.0
+            rw = float(upstream_roi.get("w", 1.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 1.0
+            rh = float(upstream_roi.get("h", 1.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 1.0
+
+            roi_cx = rx + rw / 2.0
+            roi_cy = ry + rh / 2.0
+
+            def _center_x(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float((bbox[0] + bbox[2]) / 2.0)
+                return -1.0
+
+            def _center_y(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float((bbox[1] + bbox[3]) / 2.0)
+                return -1.0
+
+            def _bbox_width(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float(abs(bbox[2] - bbox[0]))
+                return 0.0
+
+            def _bbox_height(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float(abs(bbox[3] - bbox[1]))
+                return 0.0
+
+            def _is_centered(lbl, min_val=None, max_val=None, tolerance=0.08, axis="both"):
+                tol = float(min_val) if (min_val is not None and max_val is None) else float(tolerance)
+                for o in parsed_results:
+                    if o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            cx = float((bbox[0] + bbox[2]) / 2.0)
+                            cy = float((bbox[1] + bbox[3]) / 2.0)
+                            if min_val is not None and max_val is not None:
+                                low, high = float(min_val), float(max_val)
+                                if axis == "x":
+                                    if low <= cx <= high: return True
+                                elif axis == "y":
+                                    if low <= cy <= high: return True
+                                else:
+                                    # Both axes must be in range
+                                    if (low <= cx <= high) and (low <= cy <= high): return True
+                            else:
+                                x_ok = abs(cx - roi_cx) <= tol
+                                y_ok = abs(cy - roi_cy) <= tol
+                                if axis == "x":
+                                    if x_ok: return True
+                                elif axis == "y":
+                                    if y_ok: return True
+                                else:
+                                    # Default: both axes must align to center of ROI
+                                    if x_ok and y_ok: return True
+                return False
+
+            def _get_centered_objects(parent_lbl=None, tolerance=0.08, axis="both"):
+                tol = float(tolerance)
+                matches = []
+                for o in parsed_results:
+                    if parent_lbl is None or o.get("label") == parent_lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            cx = float((bbox[0] + bbox[2]) / 2.0)
+                            cy = float((bbox[1] + bbox[3]) / 2.0)
+                            x_ok = abs(cx - roi_cx) <= tol
+                            y_ok = abs(cy - roi_cy) <= tol
+                            if axis == "x" and x_ok:
+                                matches.append(o)
+                            elif axis == "y" and y_ok:
+                                matches.append(o)
+                            elif (axis not in ("x", "y")) and (x_ok and y_ok):
+                                matches.append(o)
+                return matches
+
+            def _centered_has(child_lbl, parent_lbl=None, tolerance=0.08, axis="both"):
+                """Check if any centered object contains child_lbl inside its bounding box."""
+                centered_parents = _get_centered_objects(parent_lbl, tolerance, axis)
+                if not centered_parents:
+                    return False
+                for p in centered_parents:
+                    pb = p.get("bbox")
+                    if not pb or len(pb) < 4:
+                        continue
+                    px1, py1, px2, py2 = pb[0], pb[1], pb[2], pb[3]
+                    for o in parsed_results:
+                        if o.get("label") == child_lbl:
+                            ob = o.get("bbox")
+                            if ob and len(ob) >= 4:
+                                ocx = (ob[0] + ob[2]) / 2.0
+                                ocy = (ob[1] + ob[3]) / 2.0
+                                if (px1 <= ocx <= px2) and (py1 <= ocy <= py2):
+                                    return True
+                return False
+
+            def _centered_missing(child_lbl, parent_lbl=None, tolerance=0.08, axis="both"):
+                """Returns True if a centered object is present, but does NOT contain child_lbl."""
+                centered_parents = _get_centered_objects(parent_lbl, tolerance, axis)
+                if not centered_parents:
+                    return False
+                return not _centered_has(child_lbl, parent_lbl, tolerance, axis)
+
+            def _is_fully_in_roi(lbl, margin=0.02):
+                for o in parsed_results:
+                    if o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            x1, y1, x2, y2 = float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
+                            if (x1 >= rx + margin and x2 <= rx + rw - margin and
+                                y1 >= ry + margin and y2 <= ry + rh - margin):
+                                return True
+                return False
+
             eval_ctx = {
                 "msg": msg,
                 "context": msg.get("context", {}),
@@ -114,6 +257,14 @@ class LogicNode(PipelineNode):
                 "label_confidence": _label_confidence,
                 "all_labels": _all_labels,
                 "any_label": _any_label,
+                "center_x": _center_x,
+                "center_y": _center_y,
+                "bbox_width": _bbox_width,
+                "bbox_height": _bbox_height,
+                "is_centered": _is_centered,
+                "centered_has": _centered_has,
+                "centered_missing": _centered_missing,
+                "is_fully_in_roi": _is_fully_in_roi,
                 "confidence": max(all_confidences) if all_confidences else 0.0,
                 "min": min, "max": max, "len": len,
                 "any": any, "all": all, "abs": abs, "round": round,
@@ -128,6 +279,10 @@ class LogicNode(PipelineNode):
         else:
             # If payload is boolean or other
             is_true = bool(payload)
+
+        if is_true != getattr(self, '_last_logged_is_true', None):
+            self._last_logged_is_true = is_true
+            logger.info(f"LogicNode [{self.node_id}] is_true={is_true} (eval='{self.expression}')")
 
         # Debounce
         current_time = time.time()
@@ -1410,6 +1565,190 @@ class DashboardOutputNode(PipelineNode):
             
         return msg
 
+
+class DashboardLogNode(PipelineNode):
+    def __init__(self, node_id: str, data: dict, router):
+        super().__init__(node_id, data, router, node_type="dashboardLogNode")
+        self.source_path: str = data.get("sourcePath", "msg.payload")
+        self.log_mode: str = data.get("logMode", "custom" if data.get("messageTemplate") else "property")
+        self.message_template: str = data.get("messageTemplate", "")
+        self.trigger_condition: str = data.get("triggerCondition", "on_true")
+        self.cooldown_seconds: float = float(data.get("cooldownSeconds", 1.0))
+        self.log_color: str = data.get("logColor", "indigo")
+        self.label: str = data.get("label", "Dashboard Log")
+        self.save_to_db: bool = data.get("saveToDb", True)
+        self.last_val = None
+        self.last_emit_time: float = 0.0
+
+    def process(self, msg: dict) -> dict:
+        if not self.router.metadata_callback:
+            return msg
+
+        import time
+        import re
+
+        def get_nested(d, path: str):
+            if not path:
+                return None
+            clean_path = re.sub(r'\[(\d+)\]', r'.\1', path)
+            keys = clean_path.split('.')
+            if keys and keys[0] == "msg":
+                keys = keys[1:]
+            val = d
+            if keys and keys[0] != "payload" and isinstance(val, dict) and "payload" in val and isinstance(val["payload"], dict) and keys[0] in val["payload"]:
+                val = val["payload"]
+
+            for k in keys:
+                if isinstance(val, dict) and k in val:
+                    val = val[k]
+                elif isinstance(val, list):
+                    if k == "length":
+                        val = len(val)
+                    elif k.isdigit() and int(k) < len(val):
+                        val = val[int(k)]
+                    else:
+                        return None
+                else:
+                    if k == "value" and isinstance(val, (bool, int, float, str)):
+                        return val
+                    return None
+            return val
+
+        val = get_nested(msg, self.source_path)
+        if val is None and self.source_path in ("value", "msg.value", "msg.payload.value"):
+            val = msg.get("value", msg.get("payload"))
+            if isinstance(val, dict) and "value" in val:
+                val = val["value"]
+
+        if val is None:
+            val = msg.get("payload")
+
+        current_time = time.time()
+
+        # Evaluate trigger condition
+        should_log = False
+        if self.trigger_condition == "on_true":
+            if isinstance(val, bool):
+                should_log = val
+            elif isinstance(val, (int, float)):
+                should_log = (val > 0)
+            elif isinstance(val, (list, dict, str)):
+                should_log = bool(val)
+            else:
+                should_log = bool(val)
+        elif self.trigger_condition == "on_change":
+            should_log = (val != self.last_val)
+        else:  # "all"
+            should_log = True
+
+        if not should_log:
+            self.last_val = val
+            return msg
+
+        # Apply cooldown / rate throttle
+        if self.cooldown_seconds > 0 and (current_time - self.last_emit_time < self.cooldown_seconds):
+            self.last_val = val
+            return msg
+
+        self.last_emit_time = current_time
+        self.last_val = val
+
+        # Check for attached snapshot evidence
+        # 1. Directly in message from upstream SnapshotNode
+        snapshot_path = msg.get("snapshot_path")
+        # 2. Check context from previous nodes in the same branch
+        if not snapshot_path and isinstance(msg.get("context"), dict):
+            for v in msg["context"].values():
+                if isinstance(v, dict) and v.get("snapshot_path"):
+                    snapshot_path = v["snapshot_path"]
+                    break
+        # 3. Check router recent snapshot (e.g. parallel edge from same trigger within 2s)
+        if not snapshot_path and hasattr(self.router, "last_snapshot") and self.router.last_snapshot:
+            last_snap = self.router.last_snapshot
+            if current_time - last_snap.get("time", 0) < 2.0:
+                snapshot_path = last_snap.get("path")
+
+        # Resolve camera ID
+        camera_id = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
+        if not camera_id and hasattr(self.router, "last_snapshot") and self.router.last_snapshot:
+            camera_id = self.router.last_snapshot.get("camera_id")
+
+        # Format message content
+        if self.log_mode == "custom" and self.message_template.strip():
+            rendered = self.message_template
+            count_val = get_nested(msg, "msg.payload.count") or get_nested(msg, "msg.payload.total") or ""
+            rendered = rendered.replace("{value}", str(val))
+            rendered = rendered.replace("{count}", str(count_val))
+            rendered = rendered.replace("{timestamp}", time.strftime("%H:%M:%S", time.localtime(current_time)))
+            rendered = rendered.replace("{snapshot_url}", snapshot_path or "")
+            rendered = rendered.replace("{snapshot}", snapshot_path or "")
+            log_entry_val = rendered
+        else:
+            log_entry_val = val
+
+        logger.info(f"DashboardLogNode {self.node_id}: Emitting log ({self.log_color}): {log_entry_val} [snapshot={snapshot_path}]")
+
+        self.router.metadata_callback({
+            "type": "dashboard_update",
+            "node_id": self.node_id,
+            "value": log_entry_val,
+            "color": self.log_color,
+            "source_label": self.label,
+            "is_log": True,
+            "timestamp": current_time,
+            "camera_id": camera_id,
+            "snapshot_path": snapshot_path
+        })
+
+        # Save to database if enabled
+        if self.save_to_db:
+            try:
+                from pathlib import Path
+                import sys
+                backend_dir = Path(__file__).resolve().parent.parent
+                if str(backend_dir) not in sys.path:
+                    sys.path.insert(0, str(backend_dir))
+                from db.database import db
+
+                # Inherit tags & snapshot label if this log is attached to a snapshot
+                tags = msg.get("snapshot_tags")
+                snapshot_label = msg.get("snapshot_label")
+                if not tags and hasattr(self.router, "last_snapshot") and self.router.last_snapshot:
+                    if current_time - self.router.last_snapshot.get("time", 0) < 2.0:
+                        tags = self.router.last_snapshot.get("tags")
+                        if not snapshot_label:
+                            snapshot_label = self.router.last_snapshot.get("label")
+                tags = tags or []
+                label = snapshot_label or self.label
+
+                event_type = "SNAPSHOT" if snapshot_path else "DASHBOARD_LOG"
+
+                db.log_event(
+                    node_id=self.node_id,
+                    project_id=self.router.project_id,
+                    event_type=event_type,
+                    payload={
+                        "label": label,
+                        "message": str(log_entry_val),
+                        "color": self.log_color,
+                        "source": self.label,
+                        "tags": tags,
+                        "node_id": self.node_id,
+                        "value": val if isinstance(val, (int, float, str, bool)) else None
+                    },
+                    camera_id=camera_id,
+                    snapshot_path=snapshot_path
+                )
+            except Exception as db_err:
+                logger.error(f"DashboardLogNode [{self.node_id}] db log error: {db_err}")
+
+        # Forward snapshot_path in msg for downstream nodes
+        if snapshot_path:
+            msg["snapshot_path"] = snapshot_path
+
+        return msg
+
+
 class HardwareOutputNode(PipelineNode):
     def __init__(self, node_id, data, router, hw_type="digital_output"):
         super().__init__(node_id, data, router, node_type=f"hardwareOutputNode_{hw_type}")
@@ -1556,6 +1895,7 @@ class SnapshotNode(PipelineNode):
             cid = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
             if cid:
                 stream_id = str(cid)
+                raw_camera_id = str(cid)
         if not stream_id and self.camera_id:
             stream_id = str(self.camera_id)
 
@@ -1577,13 +1917,12 @@ class SnapshotNode(PipelineNode):
                         ntype = getattr(src_node, 'node_type', '') or src_node.data.get("type", "")
                         if ntype == 'aiNode' and not ai_node:
                             ai_node = src_node
-                        elif ntype == 'inputNode' and not input_node:
-                            input_node = src_node
-                            
-                        # If node has explicit cameraId or entityId
-                        scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId") or src_node.data.get("entityId")
-                        if scid and not raw_camera_id:
-                            raw_camera_id = str(scid)
+                        elif ntype == 'inputNode':
+                            if not input_node:
+                                input_node = src_node
+                            scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId") or src_node.data.get("entityId")
+                            if scid and not raw_camera_id:
+                                raw_camera_id = str(scid)
                             
                     queue.append(src_id)
 
@@ -1613,15 +1952,23 @@ class SnapshotNode(PipelineNode):
         bbox_draw_mode = self._get_bbox_draw_mode(msg, stream_id)
         
         # 6. Choose RTSP URL:
-        # In frontend draw mode, we pull from shared_{raw_camera_id} because it is the exact same clean,
-        # low-latency video stream that DebugNode uses (syncs with WebSocket/NPU metadata).
-        # In backend draw mode, we pull from {project_id}_{stream_id} because hailooverlay burned the boxes into that stream.
-        if bbox_draw_mode == "frontend" and raw_camera_id:
-            rtsp_url = f"rtsp://127.0.0.1:8554/shared_{raw_camera_id}"
-        elif stream_id:
-            rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{stream_id}"
-        else:
-            rtsp_url = None
+        rtsp_url = None
+        try:
+            from media_server.camera_manager import camera_mgr
+            for cid in [raw_camera_id, stream_id]:
+                if cid:
+                    url = camera_mgr.get_rtsp_url(cid)
+                    if url:
+                        rtsp_url = url
+                        break
+        except Exception:
+            pass
+
+        if not rtsp_url:
+            if bbox_draw_mode == "frontend" and raw_camera_id:
+                rtsp_url = f"rtsp://127.0.0.1:8554/shared_{raw_camera_id}"
+            elif stream_id:
+                rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{stream_id}"
 
         return stream_id, raw_camera_id, rtsp_url
 
@@ -1946,24 +2293,44 @@ class SnapshotNode(PipelineNode):
                             t.start()
                             self._threads.append(t)
                     
-                    # Log to DB
-                    import sys
-                    backend_dir = Path(__file__).resolve().parent.parent
-                    if str(backend_dir) not in sys.path:
-                        sys.path.insert(0, str(backend_dir))
-                    from db.database import db
-                    
-                    payload = msg.get("payload")
-                    db.log_event(
-                        node_id=self.node_id,
-                        project_id=self.router.project_id,
-                        event_type="SNAPSHOT",
-                        payload={"label": self.label, "trigger": payload, "tags": self.tags},
-                        camera_id=camera_id,
-                        snapshot_path=str(filepath)
-                    )
+                    # Populate snapshot metadata in msg and router
                     msg["snapshot_path"] = snapshot_url
                     msg["snapshot_tags"] = self.tags
+                    msg["snapshot_label"] = self.label
+                    self.router.last_snapshot = {
+                        "path": snapshot_url,
+                        "time": time.time(),
+                        "camera_id": camera_id,
+                        "tags": self.tags,
+                        "label": self.label
+                    }
+
+                    # Check if downstream contains a DashboardLogNode with save_to_db enabled
+                    has_downstream_db_logger = False
+                    for tgt in self.router.edges.get(self.node_id, []):
+                        tgt_id = tgt[0] if isinstance(tgt, tuple) else tgt
+                        tgt_node = self.router.nodes.get(tgt_id)
+                        if tgt_node and getattr(tgt_node, 'node_type', '') == 'dashboardLogNode' and getattr(tgt_node, 'save_to_db', True):
+                            has_downstream_db_logger = True
+                            break
+
+                    # If downstream DashboardLogNode will save to DB, skip here to prevent duplicate rows
+                    if not has_downstream_db_logger:
+                        import sys
+                        backend_dir = Path(__file__).resolve().parent.parent
+                        if str(backend_dir) not in sys.path:
+                            sys.path.insert(0, str(backend_dir))
+                        from db.database import db
+                        
+                        payload = msg.get("payload")
+                        db.log_event(
+                            node_id=self.node_id,
+                            project_id=self.router.project_id,
+                            event_type="SNAPSHOT",
+                            payload={"label": self.label, "trigger": payload, "tags": self.tags},
+                            camera_id=camera_id,
+                            snapshot_path=snapshot_url
+                        )
                 except Exception as e:
                     logger.error(f"Snapshot error: {e}")
                     
