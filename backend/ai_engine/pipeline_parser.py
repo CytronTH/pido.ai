@@ -81,8 +81,8 @@ class PipelineParser:
         raw_nodes = payload.get("nodes", [])
         raw_edges = payload.get("edges", [])
         
-        # Filter out disabled nodes
-        nodes = [n for n in raw_nodes if not n.get("data", {}).get("disabled", False)]
+        # Filter out disabled nodes and visual annotation nodes (e.g. commentNode)
+        nodes = [n for n in raw_nodes if not n.get("data", {}).get("disabled", False) and n.get("type") != "commentNode"]
         active_node_ids = {n["id"] for n in nodes}
         
         # Filter out edges connected to disabled nodes

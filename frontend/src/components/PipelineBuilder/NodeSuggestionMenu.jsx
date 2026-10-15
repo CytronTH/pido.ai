@@ -28,6 +28,7 @@ const NODE_NAMES = {
   dashboardChartNode: 'Chart',
   dashboardLogNode: 'Dashboard Log',
   debugNode: 'Debug node',
+  commentNode: 'Comment / Note',
 };
 
 // Forward compatibility: When dragging from a Source handle (output) to find a Target

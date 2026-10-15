@@ -22,6 +22,7 @@ import DigitalOutputNode from './nodes/DigitalOutputNode';
 import LEDNode from './nodes/LEDNode';
 import BuzzerNode from './nodes/BuzzerNode';
 import RS485Node from './nodes/RS485Node';
+import CommentNode from './nodes/CommentNode';
 import ButtonEdge from './edges/ButtonEdge';
 
 export const DEFAULT_NODE_NAMES = {
@@ -53,6 +54,7 @@ export const DEFAULT_NODE_NAMES = {
   buzzerNode: 'Active Buzzer',
   ledNode: 'LED / PWM Driver',
   rs485Node: 'RS485 Modbus',
+  commentNode: 'Comment / Note',
 };
 
 export const edgeTypes = {
@@ -83,5 +85,6 @@ export const nodeTypes = {
   ledNode: memo(LEDNode),
   buzzerNode: memo(BuzzerNode),
   rs485Node: memo(RS485Node),
+  commentNode: memo(CommentNode),
 };
 

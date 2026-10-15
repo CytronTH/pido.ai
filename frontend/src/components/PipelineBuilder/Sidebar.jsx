@@ -3,7 +3,7 @@ import {
   Camera, BrainCircuit, Filter, Timer, Code, Hash, ArrowRightLeft, Target, 
   Activity, Database, BookOpen, Image, Video, Type, LineChart, List, Bell, 
   ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, 
-  Info, X 
+  Info, X, StickyNote 
 } from 'lucide-react';
 
 export const NODE_CATEGORIES = [
@@ -58,6 +58,13 @@ export const NODE_CATEGORIES = [
       { type: 'dashboardTextNode', label: 'Text Value', desc: 'Status text display', icon: Type, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
       { type: 'dashboardChartNode', label: 'Chart', desc: 'Time-series chart output', icon: LineChart, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
       { type: 'dashboardLogNode', label: 'Dashboard Log', desc: 'Historical feed output', icon: List, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
+    ]
+  },
+  {
+    title: 'Documentation & Notes',
+    badgeColor: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+    items: [
+      { type: 'commentNode', label: 'Comment / Note', desc: 'Sticky note & flow documentation', icon: StickyNote, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
     ]
   },
   {
