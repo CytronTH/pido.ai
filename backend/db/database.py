@@ -21,7 +21,16 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         if db_path is None:
             base_dir = Path(__file__).resolve().parent
-            db_path = str(base_dir / "vision_studio.sqlite")
+            legacy_db = base_dir / "vision_studio.sqlite"
+            new_db = base_dir / "pido_ai.sqlite"
+            # Migrate legacy database if new database does not exist yet
+            if legacy_db.exists() and not new_db.exists():
+                try:
+                    shutil.copy2(legacy_db, new_db)
+                    logger.info(f"Migrated legacy database {legacy_db} to {new_db}")
+                except Exception as e:
+                    logger.warning(f"Could not copy legacy db {legacy_db}: {e}")
+            db_path = str(new_db)
         
         self.db_path = db_path
         sqlite_url = f"sqlite:///{self.db_path}"

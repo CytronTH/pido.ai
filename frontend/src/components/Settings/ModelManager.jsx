@@ -55,7 +55,7 @@ export default function ModelManager({
         (activeProjects && activeProjects[proj.id]) || proj.is_running
       );
 
-      // In vision studio, nodes are stored inside proj.pipeline.nodes
+      // In PiDo.AI, nodes are stored inside proj.pipeline.nodes
       const nodes = proj.pipeline?.nodes || proj.nodes || [];
 
       nodes.forEach((node) => {

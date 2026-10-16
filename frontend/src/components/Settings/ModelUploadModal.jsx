@@ -253,7 +253,7 @@ export default function ModelUploadModal({ isOpen, onClose, onUploadSuccess, soF
                     Drag & drop your <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">.hef</span> file here, or <span className="text-purple-600 dark:text-purple-400 underline">browse</span>
                   </div>
                   <div className="text-xs text-fg-subtle mt-1">
-                    Compiled for Hailo-8 / Hailo-8L NPU (e.g. from Hailo DFC or IRIV Model Studio)
+                    Compiled for Hailo-8 / Hailo-8L NPU (e.g. from Hailo DFC or PiDo Model Studio)
                   </div>
                 </div>
                 <input
