@@ -28,7 +28,7 @@ const NODE_NAMES = {
   dashboardChartNode: 'Chart',
   dashboardLogNode: 'Dashboard Log',
   debugNode: 'Debug node',
-  debugOutputNode: 'Debug Output',
+  commentNode: 'Comment / Note',
 };
 
 // Forward compatibility: When dragging from a Source handle (output) to find a Target
@@ -98,7 +98,7 @@ const COMPATIBILITY_TARGETS = {
     'dashboardTextNode', 'dashboardLogNode', 'databaseWriterNode', 'debugNode'
   ],
 
-  debugNode: ['debugOutputNode', 'debugNode'],
+  debugNode: ['debugNode'],
 };
 
 // Backward compatibility: When dragging from a Target handle (input) to find a Source
@@ -128,7 +128,6 @@ const COMPATIBILITY_SOURCES = {
   rs485Node: ['logicNode', 'counterNode', 'digitalInputNode', 'functionNode'],
   rateLimitNode: ['aiNode', 'logicNode', 'flowCounterNode', 'counterNode', 'functionNode', 'digitalInputNode'],
   functionNode: ['aiNode', 'logicNode', 'flowCounterNode', 'counterNode', 'unitThroughputNode', 'targetTrackerNode', 'snapshotNode', 'digitalInputNode'],
-  debugOutputNode: ['debugNode'],
   debugNode: [
     'inputNode', 'aiNode', 'logicNode', 'counterNode', 'flowCounterNode',
     'unitThroughputNode', 'targetTrackerNode', 'databaseWriterNode',

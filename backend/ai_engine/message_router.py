@@ -2,7 +2,11 @@ import logging
 import time
 import queue
 import threading
-from typing import Dict, Any, List
+import json
+import datetime
+from pathlib import Path
+from collections import deque
+from typing import Dict, Any, List, Optional
 
 
 logger = logging.getLogger(__name__)
@@ -98,6 +102,149 @@ class LogicNode(PipelineNode):
             
             all_confidences = [obj.get("confidence", 0) for obj in parsed_results]
 
+            # Resolve upstream ROI from message metadata or router nodes
+            upstream_roi = msg.get("metadata", {}).get("roi")
+            if not upstream_roi and hasattr(self, 'router') and self.router:
+                node_configs = getattr(self.router, 'node_configs', {})
+                for src_id, targets in getattr(self.router, 'edges', {}).items():
+                    target_ids = [t[0] if isinstance(t, tuple) else t for t in targets]
+                    if self.node_id in target_ids:
+                        src_node = getattr(self.router, 'nodes', {}).get(src_id)
+                        if src_node and getattr(src_node, 'node_type', '') == 'aiNode':
+                            upstream_roi = src_node.data.get("roi")
+                            if upstream_roi:
+                                break
+                        src_data = node_configs.get(src_id, {})
+                        if src_data.get("roi"):
+                            upstream_roi = src_data.get("roi")
+                            break
+
+            rx = float(upstream_roi.get("x", 0.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 0.0
+            ry = float(upstream_roi.get("y", 0.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 0.0
+            rw = float(upstream_roi.get("w", 1.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 1.0
+            rh = float(upstream_roi.get("h", 1.0)) if (upstream_roi and isinstance(upstream_roi, dict)) else 1.0
+
+            roi_cx = rx + rw / 2.0
+            roi_cy = ry + rh / 2.0
+
+            def _center_x(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float((bbox[0] + bbox[2]) / 2.0)
+                return -1.0
+
+            def _center_y(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float((bbox[1] + bbox[3]) / 2.0)
+                return -1.0
+
+            def _bbox_width(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float(abs(bbox[2] - bbox[0]))
+                return 0.0
+
+            def _bbox_height(lbl=None):
+                for o in parsed_results:
+                    if lbl is None or o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            return float(abs(bbox[3] - bbox[1]))
+                return 0.0
+
+            def _is_centered(lbl, min_val=None, max_val=None, tolerance=0.08, axis="both"):
+                tol = float(min_val) if (min_val is not None and max_val is None) else float(tolerance)
+                for o in parsed_results:
+                    if o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            cx = float((bbox[0] + bbox[2]) / 2.0)
+                            cy = float((bbox[1] + bbox[3]) / 2.0)
+                            if min_val is not None and max_val is not None:
+                                low, high = float(min_val), float(max_val)
+                                if axis == "x":
+                                    if low <= cx <= high: return True
+                                elif axis == "y":
+                                    if low <= cy <= high: return True
+                                else:
+                                    # Both axes must be in range
+                                    if (low <= cx <= high) and (low <= cy <= high): return True
+                            else:
+                                x_ok = abs(cx - roi_cx) <= tol
+                                y_ok = abs(cy - roi_cy) <= tol
+                                if axis == "x":
+                                    if x_ok: return True
+                                elif axis == "y":
+                                    if y_ok: return True
+                                else:
+                                    # Default: both axes must align to center of ROI
+                                    if x_ok and y_ok: return True
+                return False
+
+            def _get_centered_objects(parent_lbl=None, tolerance=0.08, axis="both"):
+                tol = float(tolerance)
+                matches = []
+                for o in parsed_results:
+                    if parent_lbl is None or o.get("label") == parent_lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            cx = float((bbox[0] + bbox[2]) / 2.0)
+                            cy = float((bbox[1] + bbox[3]) / 2.0)
+                            x_ok = abs(cx - roi_cx) <= tol
+                            y_ok = abs(cy - roi_cy) <= tol
+                            if axis == "x" and x_ok:
+                                matches.append(o)
+                            elif axis == "y" and y_ok:
+                                matches.append(o)
+                            elif (axis not in ("x", "y")) and (x_ok and y_ok):
+                                matches.append(o)
+                return matches
+
+            def _centered_has(child_lbl, parent_lbl=None, tolerance=0.08, axis="both"):
+                """Check if any centered object contains child_lbl inside its bounding box."""
+                centered_parents = _get_centered_objects(parent_lbl, tolerance, axis)
+                if not centered_parents:
+                    return False
+                for p in centered_parents:
+                    pb = p.get("bbox")
+                    if not pb or len(pb) < 4:
+                        continue
+                    px1, py1, px2, py2 = pb[0], pb[1], pb[2], pb[3]
+                    for o in parsed_results:
+                        if o.get("label") == child_lbl:
+                            ob = o.get("bbox")
+                            if ob and len(ob) >= 4:
+                                ocx = (ob[0] + ob[2]) / 2.0
+                                ocy = (ob[1] + ob[3]) / 2.0
+                                if (px1 <= ocx <= px2) and (py1 <= ocy <= py2):
+                                    return True
+                return False
+
+            def _centered_missing(child_lbl, parent_lbl=None, tolerance=0.08, axis="both"):
+                """Returns True if a centered object is present, but does NOT contain child_lbl."""
+                centered_parents = _get_centered_objects(parent_lbl, tolerance, axis)
+                if not centered_parents:
+                    return False
+                return not _centered_has(child_lbl, parent_lbl, tolerance, axis)
+
+            def _is_fully_in_roi(lbl, margin=0.02):
+                for o in parsed_results:
+                    if o.get("label") == lbl:
+                        bbox = o.get("bbox")
+                        if bbox and len(bbox) >= 4:
+                            x1, y1, x2, y2 = float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
+                            if (x1 >= rx + margin and x2 <= rx + rw - margin and
+                                y1 >= ry + margin and y2 <= ry + rh - margin):
+                                return True
+                return False
+
             eval_ctx = {
                 "msg": msg,
                 "context": msg.get("context", {}),
@@ -110,6 +257,14 @@ class LogicNode(PipelineNode):
                 "label_confidence": _label_confidence,
                 "all_labels": _all_labels,
                 "any_label": _any_label,
+                "center_x": _center_x,
+                "center_y": _center_y,
+                "bbox_width": _bbox_width,
+                "bbox_height": _bbox_height,
+                "is_centered": _is_centered,
+                "centered_has": _centered_has,
+                "centered_missing": _centered_missing,
+                "is_fully_in_roi": _is_fully_in_roi,
                 "confidence": max(all_confidences) if all_confidences else 0.0,
                 "min": min, "max": max, "len": len,
                 "any": any, "all": all, "abs": abs, "round": round,
@@ -124,6 +279,10 @@ class LogicNode(PipelineNode):
         else:
             # If payload is boolean or other
             is_true = bool(payload)
+
+        if is_true != getattr(self, '_last_logged_is_true', None):
+            self._last_logged_is_true = is_true
+            logger.info(f"LogicNode [{self.node_id}] is_true={is_true} (eval='{self.expression}')")
 
         # Debounce
         current_time = time.time()
@@ -372,72 +531,361 @@ class FlowCounterNode(PipelineNode):
             })
 
 class TargetTrackerNode(PipelineNode):
+    _STATE_FILE = Path(__file__).resolve().parent.parent / "db" / "node_states.json"
+
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="targetTrackerNode")
-        import time
         self.target = int(data.get("targetCount", 100))
+        self.input_mode = data.get("inputMode", "auto")
         self.edge_type = data.get("edgeType", "rising")
-        
+        self.allow_over_target = data.get("allowOverTarget", True)
+        self.output_mode = data.get("outputMode", "on_complete")
+        self.retain_count_on_restart = data.get("retainCountOnRestart", True)
+        self.idle_timeout_seconds = float(data.get("idleTimeoutSeconds", 30.0))
+        self.unit_name = data.get("unitName", "items")
+        self.current_record_id = None
+        self.current_record_name = ""
+        self.peak_rate_per_minute = 0.0
+        self._last_point_ts = 0.0
+        self._last_record_sync_ts = 0.0
+
         self.actual = 0
         self.last_payload = False
+        self.last_numeric_val = None
         self.start_time = None
         self.is_complete = False
         self.current_rate_per_minute = 0.0
         self.eta_seconds = None
+        self._recent_events = deque(maxlen=300)
+        self._last_rate_calc_ts = None
         self._last_update_ts = time.time()
+        self._last_activity_ts = None
+        self._last_persisted_save_ts = 0.0
+
+        if self.retain_count_on_restart:
+            self._load_persisted_state()
+
+    def _get_state_key(self) -> str:
+        project_id = getattr(self.router, "project_id", "default") or "default"
+        return f"{project_id}_{self.node_id}"
+
+    def _load_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            if not self._STATE_FILE.exists():
+                return
+            with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                all_states = json.load(f)
+            key = self._get_state_key()
+            if key in all_states:
+                state = all_states[key]
+                self.actual = int(state.get("actual", state.get("current_count", 0)))
+                self.start_time = state.get("start_time")
+                self.current_record_id = state.get("current_record_id")
+                self.current_record_name = state.get("current_record_name", "")
+                self.peak_rate_per_minute = float(state.get("peak_rate_per_minute", 0.0))
+                if self.actual >= self.target:
+                    self.is_complete = True
+                logger.info(f"TargetTrackerNode [{self.node_id}] restored count {self.actual} from persistent state")
+        except Exception as e:
+            logger.warning(f"TargetTrackerNode [{self.node_id}] failed to load persistent state: {e}")
+
+    def _save_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            self._STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            all_states = {}
+            if self._STATE_FILE.exists():
+                try:
+                    with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                        all_states = json.load(f)
+                except Exception:
+                    all_states = {}
+            key = self._get_state_key()
+            all_states[key] = {
+                "actual": self.actual,
+                "current_count": self.actual,
+                "target": self.target,
+                "start_time": self.start_time,
+                "is_complete": self.is_complete,
+                "current_record_id": self.current_record_id,
+                "current_record_name": self.current_record_name,
+                "peak_rate_per_minute": self.peak_rate_per_minute,
+                "date": datetime.date.today().isoformat(),
+                "updated_at": time.time()
+            }
+            temp_file = self._STATE_FILE.with_suffix(".tmp")
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(all_states, f, indent=2)
+            temp_file.replace(self._STATE_FILE)
+        except Exception as e:
+            logger.warning(f"TargetTrackerNode [{self.node_id}] failed to save persistent state: {e}")
+
+    def start_new_record(self, name: str = "", target: Optional[int] = None):
+        """Start a new counting run/record, stopping any previous running record."""
+        if self.current_record_id is not None:
+            self._finalize_current_record(status="stopped" if not self.is_complete else "completed")
+
+        now = time.time()
+        self.actual = 0
+        self.start_time = now
+        self.is_complete = False
+        self.current_rate_per_minute = 0.0
+        self.peak_rate_per_minute = 0.0
+        self.eta_seconds = None
+        self._recent_events.clear()
+        self._last_rate_calc_ts = None
+        self._last_activity_ts = now
+        self._last_update_ts = now
+        self._last_point_ts = now
+        self._last_record_sync_ts = now
+        if target is not None and target > 0:
+            self.target = target
+
+        project_id = getattr(self.router, "project_id", "default") or "default"
+        try:
+            from db.database import db
+            run_name = name.strip() if name else ""
+            if not run_name:
+                past_records = db.get_target_tracker_records(project_id, node_id=self.node_id, limit=100)
+                run_name = f"Run #{len(past_records) + 1}"
+
+            rec = db.create_target_tracker_record(
+                project_id=project_id,
+                node_id=self.node_id,
+                target=self.target,
+                name=run_name,
+                unit=self.unit_name
+            )
+            self.current_record_id = rec.id
+            self.current_record_name = rec.name
+        except Exception as e:
+            logger.warning(f"Failed to create target tracker record in DB: {e}")
+            self.current_record_id = None
+            self.current_record_name = name or "Run"
+
+        self._save_persisted_state()
+
+        if self.router.metadata_callback:
+            self.router.metadata_callback({
+                "type": "target_tracker_update",
+                "node_id": self.node_id,
+                "target": self.target,
+                "actual": 0,
+                "progress_percent": 0.0,
+                "current_rate_per_minute": 0.0,
+                "eta_seconds": None,
+                "is_complete": False,
+                "over_target": 0,
+                "just_completed": False,
+                "is_idle": True,
+                "record_id": self.current_record_id,
+                "record_name": self.current_record_name
+            })
+        return rec
+
+    def _finalize_current_record(self, status: str = "completed"):
+        """Finalize and close the active database record."""
+        if self.current_record_id is None:
+            return
+        now = time.time()
+        duration = max(0.0, (now - self.start_time) if self.start_time else 0.0)
+        elapsed_mins = duration / 60.0
+        avg_rate = round(self.actual / elapsed_mins, 1) if elapsed_mins > 0.05 else self.current_rate_per_minute
+        progress = (self.actual / self.target) * 100.0 if self.target > 0 else 100.0
+        over_target = max(0, self.actual - self.target)
+        try:
+            from db.database import db
+            db.update_target_tracker_record(
+                record_id=self.current_record_id,
+                actual=self.actual,
+                over_target=over_target,
+                progress_percent=round(progress, 1),
+                status=status,
+                duration_seconds=round(duration, 1),
+                avg_rate_per_minute=avg_rate,
+                peak_rate_per_minute=self.peak_rate_per_minute,
+                completed_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to finalize record {self.current_record_id}: {e}")
+
+    def cleanup(self) -> None:
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
 
     def process(self, msg: dict):
-        import time
         now = time.time()
-        
-        current_payload = bool(msg.get("payload"))
-        
-        trigger = False
-        if self.edge_type == "falling":
-            if not current_payload and self.last_payload:
-                trigger = True
+        raw_payload = msg.get("payload")
+
+        # 1. Determine input mode
+        mode = self.input_mode
+        if mode == "auto":
+            if isinstance(raw_payload, (int, float)) and not isinstance(raw_payload, bool):
+                mode = "numeric"
+            elif isinstance(raw_payload, dict) and any(k in raw_payload for k in ("total", "count", "current_count", "actual")):
+                mode = "numeric"
+            else:
+                mode = "pulse"
+
+        triggered_delta = 0
+
+        # 2. Extract count delta
+        if mode == "numeric":
+            val = None
+            if isinstance(raw_payload, dict):
+                for k in ("total", "count", "current_count", "actual"):
+                    if k in raw_payload and isinstance(raw_payload[k], (int, float)) and not isinstance(raw_payload[k], bool):
+                        val = int(raw_payload[k])
+                        break
+            elif isinstance(raw_payload, (int, float)) and not isinstance(raw_payload, bool):
+                val = int(raw_payload)
+
+            if val is not None:
+                if self.last_numeric_val is None:
+                    self.last_numeric_val = val
+                    if self.actual == 0 and val > 0:
+                        triggered_delta = val
+                else:
+                    if val > self.last_numeric_val:
+                        triggered_delta = val - self.last_numeric_val
+                        self.last_numeric_val = val
+                    elif val < self.last_numeric_val:
+                        self.last_numeric_val = val
         else:
-            if current_payload and not self.last_payload:
-                trigger = True
-                
-        self.last_payload = current_payload
-        
+            current_bool = False
+            if isinstance(raw_payload, dict):
+                current_bool = bool(raw_payload.get("value", raw_payload.get("state", False)))
+            else:
+                current_bool = bool(raw_payload)
+
+            if self.edge_type == "falling":
+                if not current_bool and self.last_payload:
+                    triggered_delta = 1
+            else:
+                if current_bool and not self.last_payload:
+                    triggered_delta = 1
+            self.last_payload = current_bool
+
         updated = False
-        if trigger and not self.is_complete:
-            if self.actual == 0:
-                self.start_time = now
-                
-            self.actual += 1
-            updated = True
-            
-            if self.actual >= self.target:
-                self.is_complete = True
-                
-        # To keep UI fresh even without trigger
-        if self.actual > 0 and self.start_time is not None and not self.is_complete:
-            elapsed = now - self.start_time
-            if elapsed > 0:
-                # Recalculate rate ONLY every 1.0s to prevent rapid flickering on the dashboard
-                if now - getattr(self, '_last_rate_calc_ts', 0) > 1.0:
-                    rate_per_sec = self.actual / elapsed
-                    self.current_rate_per_minute = rate_per_sec * 60.0
-                    if rate_per_sec > 0:
-                        remaining = self.target - self.actual
-                        self.eta_seconds = remaining / rate_per_sec
-                    else:
-                        self.eta_seconds = None
-                    self._last_rate_calc_ts = now
-            if now - getattr(self, '_last_update_ts', 0) > 1.0:
+        just_completed = False
+
+        # 3. Apply counted delta
+        if triggered_delta > 0:
+            if not self.is_complete or self.allow_over_target:
+                if self.actual == 0 or self.start_time is None:
+                    self.start_time = now
+                if self.current_record_id is None:
+                    self.start_new_record()
+                self.actual += triggered_delta
+                self._recent_events.append((now, triggered_delta))
+                self._last_activity_ts = now
                 updated = True
-        elif self.is_complete:
-            self.eta_seconds = 0
-            
+
+                if now - self._last_persisted_save_ts > 5.0:
+                    self._save_persisted_state()
+                    self._last_persisted_save_ts = now
+
+        # 4. Completion state evaluation
+        if self.actual >= self.target:
+            if not self.is_complete:
+                self.is_complete = True
+                just_completed = True
+                updated = True
+                self._save_persisted_state()
+        else:
+            if self.is_complete:
+                self.is_complete = False
+                updated = True
+
+        # 5. Sliding-window Rate and ETA Calculation
+        while self._recent_events and (now - self._recent_events[0][0] > 60.0):
+            self._recent_events.popleft()
+
+        is_idle = False
+        if self._last_activity_ts and (now - self._last_activity_ts > self.idle_timeout_seconds):
+            is_idle = True
+
+        should_recalc = (self._last_rate_calc_ts is None) or (now - self._last_rate_calc_ts >= 1.0)
+        if should_recalc:
+            if is_idle:
+                self.current_rate_per_minute = 0.0
+                self.eta_seconds = 0.0 if self.is_complete else None
+            elif len(self._recent_events) >= 2:
+                window_duration = max(1.0, self._recent_events[-1][0] - self._recent_events[0][0])
+                total_in_window = sum(delta for _, delta in self._recent_events) - self._recent_events[0][1]
+                rate_per_sec = total_in_window / window_duration
+                self.current_rate_per_minute = round(rate_per_sec * 60.0, 1)
+            elif len(self._recent_events) == 1 and self.start_time:
+                elapsed = max(1.0, now - self.start_time)
+                self.current_rate_per_minute = round((self.actual / elapsed) * 60.0, 1)
+            else:
+                self.current_rate_per_minute = 0.0
+
+            self.peak_rate_per_minute = max(self.peak_rate_per_minute, self.current_rate_per_minute)
+
+            if self.is_complete:
+                self.eta_seconds = 0.0
+            elif self.current_rate_per_minute > 0:
+                remaining = max(0, self.target - self.actual)
+                rate_per_sec = self.current_rate_per_minute / 60.0
+                self.eta_seconds = round(remaining / rate_per_sec, 1) if rate_per_sec > 0 else None
+            else:
+                self.eta_seconds = None
+
+            self._last_rate_calc_ts = now
+
+        if now - self._last_update_ts >= 1.0:
+            updated = True
+
         progress = (self.actual / self.target) * 100.0 if self.target > 0 else 100.0
-        if progress > 100.0:
+        if not self.allow_over_target and progress > 100.0:
             progress = 100.0
-            
-        # Emit telemetry
-        if self.router.metadata_callback and (updated or trigger):
+        progress = round(progress, 1)
+
+        over_target = max(0, self.actual - self.target)
+
+        # 6. Record timeline and periodic DB synchronization
+        if self.current_record_id is not None:
+            history_pt = None
+            if (now - self._last_point_ts >= 1.5) or just_completed:
+                t_rel = round(now - self.start_time, 1) if self.start_time else 0.0
+                history_pt = {
+                    "t_rel": t_rel,
+                    "ts": datetime.datetime.fromtimestamp(now, tz=datetime.timezone.utc).isoformat(),
+                    "actual": self.actual,
+                    "target": self.target,
+                    "rate": self.current_rate_per_minute,
+                    "progress": progress
+                }
+                self._last_point_ts = now
+
+            if ((now - self._last_record_sync_ts >= 3.0) or just_completed) and (self.actual > 0 or history_pt):
+                try:
+                    from db.database import db
+                    duration = max(0.0, (now - self.start_time) if self.start_time else 0.0)
+                    elapsed_mins = duration / 60.0
+                    avg_rate = round(self.actual / elapsed_mins, 1) if elapsed_mins > 0.05 else self.current_rate_per_minute
+                    db.update_target_tracker_record(
+                        record_id=self.current_record_id,
+                        actual=self.actual,
+                        over_target=over_target,
+                        progress_percent=progress,
+                        status="completed" if self.is_complete else "running",
+                        duration_seconds=round(duration, 1),
+                        avg_rate_per_minute=avg_rate,
+                        peak_rate_per_minute=self.peak_rate_per_minute,
+                        history_point=history_pt,
+                        completed_at=datetime.datetime.now(datetime.timezone.utc) if just_completed else None
+                    )
+                    self._last_record_sync_ts = now
+                except Exception as se:
+                    logger.warning(f"Failed to sync record {self.current_record_id} to DB: {se}")
+
+        # 7. Emit Telemetry
+        if self.router.metadata_callback and (updated or just_completed):
             self._last_update_ts = now
             self.router.metadata_callback({
                 "type": "target_tracker_update",
@@ -447,89 +895,302 @@ class TargetTrackerNode(PipelineNode):
                 "progress_percent": progress,
                 "current_rate_per_minute": self.current_rate_per_minute,
                 "eta_seconds": self.eta_seconds,
-                "is_complete": self.is_complete
+                "is_complete": self.is_complete,
+                "over_target": over_target,
+                "just_completed": just_completed,
+                "is_idle": is_idle,
+                "record_id": self.current_record_id,
+                "record_name": self.current_record_name
             })
-            
+
+        # 8. Downstream payload
+        downstream_value = just_completed if self.output_mode == "on_complete" else self.is_complete
+
         msg["payload"] = {
             "is_complete": self.is_complete,
-            "value": self.is_complete,
+            "value": downstream_value,
+            "just_completed": just_completed,
             "progress_percent": progress,
             "actual": self.actual,
             "target": self.target,
             "current_count": self.actual,
             "target_count": self.target,
+            "over_target": over_target,
             "current_rate_per_minute": self.current_rate_per_minute,
-            "eta_seconds": self.eta_seconds
+            "eta_seconds": self.eta_seconds,
+            "is_idle": is_idle,
+            "record_id": self.current_record_id,
+            "record_name": self.current_record_name
         }
         return msg
 
     def reset_counts(self):
+        if self.current_record_id is not None:
+            self._finalize_current_record(status="stopped" if not self.is_complete else "completed")
+            self.current_record_id = None
+            self.current_record_name = ""
+
         self.actual = 0
         self.last_payload = False
+        self.last_numeric_val = None
         self.start_time = None
         self.is_complete = False
         self.current_rate_per_minute = 0.0
+        self.peak_rate_per_minute = 0.0
         self.eta_seconds = None
-        
+        self._recent_events.clear()
+        self._last_rate_calc_ts = None
+        self._last_activity_ts = None
+        self._last_update_ts = time.time()
+        self._last_point_ts = 0.0
+        self._last_record_sync_ts = 0.0
+        self._save_persisted_state()
+
         if self.router.metadata_callback:
             self.router.metadata_callback({
                 "type": "target_tracker_update",
                 "node_id": self.node_id,
                 "target": self.target,
-                "actual": self.actual,
+                "actual": 0,
                 "progress_percent": 0.0,
                 "current_rate_per_minute": 0.0,
                 "eta_seconds": None,
-                "is_complete": False
+                "is_complete": False,
+                "over_target": 0,
+                "just_completed": False,
+                "is_idle": True,
+                "record_id": None,
+                "record_name": ""
             })
 
+
 class UnitThroughputNode(PipelineNode):
-    def __init__(self, node_id, data, router):
+    def __init__(self, node_id: str, data: dict, router):
         super().__init__(node_id, data, router, node_type="unitThroughputNode")
-        from ai_engine.centroid_tracker import CentroidTracker
+        from collections import deque
 
         self.start_trigger = data.get("startTrigger", "first_object")
         self.pause_trigger = data.get("pauseTrigger", "timeout")
         self.pause_timeout_seconds = float(data.get("pauseTimeoutSeconds", 60.0))
         self.rate_unit = data.get("rateUnit", "minute")
+        rate_units = data.get("rateUnits")
+        if isinstance(rate_units, list) and len(rate_units) > 0:
+            self.rate_units = [u for u in rate_units if u in ["second", "minute", "hour"]]
+            if not self.rate_units:
+                self.rate_units = [self.rate_unit]
+        else:
+            self.rate_units = [self.rate_unit]
+        if self.rate_unit not in self.rate_units:
+            self.rate_units.append(self.rate_unit)
+
         self.decimal_places = int(data.get("decimalPlaces", 2))
-        
-        self.tracker = CentroidTracker(
-            max_disappeared=20,
-            max_distance=0.15
-        )
+
+        # Window configuration (time-based or count-based)
+        self.window_mode = data.get("windowMode", "time")  # "time" | "count"
+        self.window_seconds = float(data.get("windowSeconds", 60.0))
+        self.window_samples = max(int(data.get("windowSamples", 10)), 2)
+
+        # Scheduled Time configurations
+        self.start_time_config = str(data.get("startTimeConfig", "08:00")).strip()
+        self.pause_time_config = str(data.get("pauseTimeConfig", "17:00")).strip()
+        self.auto_reset_daily = bool(data.get("autoResetDaily", False))
+        self.retain_count_on_restart = bool(data.get("retainCountOnRestart", True))
+        self._last_state_save_ts = 0.0
+        self._last_schedule_date = None
         
         self.is_running = False
-        self.start_time = None
+        self.start_time = None          # Overall initial start timestamp
+        self.session_start_time = None  # Timestamp when current active running session began
+        self.accumulated_run_time = 0.0 # Total active operating duration in seconds across all past sessions
         self.current_count = 0
         self.last_object_time = None
         self.throughput = 0.0
+        self.current_rate = 0.0
+        self.average_rate = 0.0
+
+        # Dedicated rates for each standard unit
+        self.current_rate_per_sec = 0.0
+        self.average_rate_per_sec = 0.0
+        self.current_rate_per_min = 0.0
+        self.average_rate_per_min = 0.0
+        self.current_rate_per_hour = 0.0
+        self.average_rate_per_hour = 0.0
+        
+        # Sliding window history of (timestamp, count_increment)
+        self._history = deque(maxlen=500)
+        self._last_rate_calc_ts = None
         
         # Used for manual API toggling
         self.manual_state = False
 
-    def reset_counts(self):
+        # Load persisted count across restarts if enabled
+        if self.retain_count_on_restart:
+            self._load_persisted_state()
+
+    _STATE_FILE = Path(__file__).resolve().parent.parent / "db" / "node_states.json"
+
+    def _get_state_key(self) -> str:
+        project_id = getattr(self.router, "project_id", "default") or "default"
+        return f"{project_id}_{self.node_id}"
+
+    def _load_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            if not self._STATE_FILE.exists():
+                return
+            with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                all_states = json.load(f)
+            key = self._get_state_key()
+            if key in all_states:
+                state = all_states[key]
+                today_str = datetime.date.today().isoformat()
+                saved_date = state.get("date")
+                
+                # Check auto-reset daily
+                if self.auto_reset_daily and saved_date and saved_date != today_str:
+                    logger.info(f"UnitThroughputNode [{self.node_id}] persistent count expired ({saved_date} != {today_str}), resetting count to 0")
+                    self.current_count = 0
+                    self.accumulated_run_time = 0.0
+                    self._save_persisted_state()
+                else:
+                    self.current_count = int(state.get("current_count", 0))
+                    self.accumulated_run_time = float(state.get("accumulated_run_time", 0.0))
+                    logger.info(f"UnitThroughputNode [{self.node_id}] restored count {self.current_count} from persistent state")
+        except Exception as e:
+            logger.warning(f"UnitThroughputNode [{self.node_id}] failed to load persisted state: {e}")
+
+    def _save_persisted_state(self) -> None:
+        if not self.retain_count_on_restart:
+            return
+        try:
+            self._STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            all_states = {}
+            if self._STATE_FILE.exists():
+                try:
+                    with open(self._STATE_FILE, "r", encoding="utf-8") as f:
+                        all_states = json.load(f)
+                except Exception:
+                    all_states = {}
+            key = self._get_state_key()
+            all_states[key] = {
+                "current_count": self.current_count,
+                "accumulated_run_time": self.accumulated_run_time,
+                "date": datetime.date.today().isoformat(),
+                "updated_at": time.time()
+            }
+            temp_file = self._STATE_FILE.with_suffix(".tmp")
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(all_states, f, indent=2)
+            temp_file.replace(self._STATE_FILE)
+        except Exception as e:
+            logger.warning(f"UnitThroughputNode [{self.node_id}] failed to save persisted state: {e}")
+
+    def cleanup(self) -> None:
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
+
+    @staticmethod
+    def _parse_time(time_str: str):
+        """Parse HH:MM or HH:MM:SS safely into a datetime.time object."""
+        if not time_str:
+            return None
+        try:
+            parts = [int(p) for p in time_str.split(":")]
+            import datetime
+            if len(parts) == 2:
+                return datetime.time(parts[0], parts[1])
+            elif len(parts) >= 3:
+                return datetime.time(parts[0], parts[1], parts[2])
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _is_time_in_range(current_time, start_t, end_t) -> bool:
+        """Evaluate if current_time falls inside schedule, supporting overnight shifts."""
+        if start_t is None or end_t is None:
+            return False
+        if start_t <= end_t:
+            # Daytime shift (e.g. 08:00 to 17:00)
+            return start_t <= current_time < end_t
+        else:
+            # Overnight shift (e.g. 22:00 to 06:00)
+            return current_time >= start_t or current_time < end_t
+
+    def reset_counts(self) -> None:
         self.is_running = False
         self.start_time = None
+        self.session_start_time = None
+        self.accumulated_run_time = 0.0
         self.current_count = 0
         self.last_object_time = None
         self.throughput = 0.0
+        self.current_rate = 0.0
+        self.average_rate = 0.0
+        self.current_rate_per_sec = 0.0
+        self.average_rate_per_sec = 0.0
+        self.current_rate_per_min = 0.0
+        self.average_rate_per_min = 0.0
+        self.current_rate_per_hour = 0.0
+        self.average_rate_per_hour = 0.0
+        self._history.clear()
+        self._last_rate_calc_ts = None
+        self._last_numeric_payload = None
+        self._last_bool_payload = False
         self.manual_state = False
-        self.tracker = __import__('ai_engine.centroid_tracker', fromlist=['CentroidTracker']).CentroidTracker(max_disappeared=20, max_distance=0.15)
+        self._last_schedule_date = None
         
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
+
         self._emit_telemetry()
 
-    def set_manual_state(self, state: bool):
-        import time
-        self.manual_state = state
-        self.is_running = state
-        if state and self.start_time is None:
-            self.start_time = time.time()
-        self._emit_telemetry()
+    def _trigger_pause(self, now: float, reason: str = "timeout") -> None:
+        if not self.is_running:
+            return
+        self.is_running = False
+        self.current_rate = 0.0
+        self.throughput = 0.0
+        self.current_rate_per_sec = 0.0
+        self.current_rate_per_min = 0.0
+        self.current_rate_per_hour = 0.0
+        self._history.clear()
+        
+        # Accumulate active duration of this session
+        if self.session_start_time is not None:
+            if reason == "timeout" and self.last_object_time:
+                session_end = max(self.last_object_time, self.session_start_time)
+            else:
+                session_end = now
+            active_duration = max(session_end - self.session_start_time, 0.0)
+            self.accumulated_run_time += active_duration
+            self.session_start_time = None
 
-    def process(self, msg: dict):
+        if self.retain_count_on_restart:
+            self._save_persisted_state()
+
+    def set_manual_state(self, state: bool) -> None:
         import time
         now = time.time()
+        self.manual_state = state
+        if state:
+            self.is_running = True
+            self.session_start_time = now
+            if self.start_time is None:
+                self.start_time = now
+            self._last_rate_calc_ts = now
+        else:
+            self._trigger_pause(now, reason="manual")
+        self._emit_telemetry()
+
+    def process(self, msg: dict) -> dict:
+        import time
+        import datetime
+        now = time.time()
+        now_dt = datetime.datetime.now()
+        now_time = now_dt.time()
+        today_date = now_dt.date()
         
         payload = msg.get("payload", {})
         detections = []
@@ -578,39 +1239,137 @@ class UnitThroughputNode(PipelineNode):
             if self.start_trigger == "first_object":
                 if newly_counted > 0:
                     self.is_running = True
-                    self.start_time = now
+                    self.session_start_time = now
+                    if self.start_time is None:
+                        self.start_time = now
+                    self._last_rate_calc_ts = now
+            elif self.start_trigger == "time":
+                start_t = self._parse_time(self.start_time_config)
+                if self.pause_trigger == "time":
+                    pause_t = self._parse_time(self.pause_time_config)
+                    is_active = self._is_time_in_range(now_time, start_t, pause_t)
+                else:
+                    is_active = (now_time >= start_t) if start_t else False
+                
+                if is_active:
+                    # Auto-reset on new shift day if enabled
+                    if self.auto_reset_daily and self._last_schedule_date != today_date:
+                        if self._last_schedule_date is not None:
+                            self.reset_counts()
+                    self._last_schedule_date = today_date
+                    self.is_running = True
+                    self.session_start_time = now
+                    if self.start_time is None:
+                        self.start_time = now
+                    self._last_rate_calc_ts = now
             elif self.start_trigger == "manual":
                 if self.manual_state:
                     self.is_running = True
+                    self.session_start_time = now
                     if self.start_time is None:
                         self.start_time = now
+                    self._last_rate_calc_ts = now
             
         # Evaluate Pause Trigger
         if self.is_running:
             if self.pause_trigger == "timeout":
                 if self.last_object_time and (now - self.last_object_time) > self.pause_timeout_seconds:
-                    self.is_running = False
+                    self._trigger_pause(now, reason="timeout")
+            elif self.pause_trigger == "time":
+                start_t = self._parse_time(self.start_time_config)
+                pause_t = self._parse_time(self.pause_time_config)
+                if self.start_trigger == "time" and start_t and pause_t:
+                    if not self._is_time_in_range(now_time, start_t, pause_t):
+                        self._trigger_pause(now, reason="scheduled_time")
+                elif pause_t:
+                    if now_time >= pause_t:
+                        self._trigger_pause(now, reason="scheduled_time")
             elif self.pause_trigger == "manual":
                 if not self.manual_state:
-                    self.is_running = False
+                    self._trigger_pause(now, reason="manual")
 
-        # Update Counts
+        # Update Counts & Sliding Window History
         if self.is_running and newly_counted > 0:
             self.current_count += newly_counted
+            self._history.append((now, newly_counted))
+            if self.retain_count_on_restart and (now - getattr(self, "_last_state_save_ts", 0.0) >= 1.0):
+                self._save_persisted_state()
+                self._last_state_save_ts = now
+
+        # Prune old history based on window_mode
+        if self.window_mode == "count":
+            while len(self._history) > self.window_samples:
+                self._history.popleft()
+        else:
+            # Time-based window: prune entries older than window_seconds (min 5.0s)
+            window_cutoff = now - max(self.window_seconds, 5.0)
+            while self._history and self._history[0][0] < window_cutoff:
+                self._history.popleft()
             
-        # Calculate Throughput
+        # Calculate Dual Throughput Rates (Current Rolling Window + Cumulative Average)
         if self.is_running and self.start_time:
-            elapsed = now - self.start_time
-            if elapsed > 0:
-                if now - getattr(self, '_last_rate_calc_ts', 0) > 1.0:
-                    rate_per_sec = self.current_count / elapsed
-                    if self.rate_unit == "minute":
-                        self.throughput = round(rate_per_sec * 60, self.decimal_places)
-                    elif self.rate_unit == "hour":
-                        self.throughput = round(rate_per_sec * 3600, self.decimal_places)
+            # Throttle rate recalculation to 0.5s to prevent jitter and CPU load
+            if self._last_rate_calc_ts is None or (now - self._last_rate_calc_ts >= 0.5):
+                # 1. Current Rate (Rolling Window with Idle Decay)
+                units_in_window = sum(item[1] for item in self._history)
+                idle_since_last = (now - self.last_object_time) if self.last_object_time else 0.0
+
+                if units_in_window < 2 or len(self._history) < 2:
+                    current_rate_per_sec = 0.0
+                else:
+                    t_first = self._history[0][0]
+                    t_last = self._history[-1][0]
+                    t_span = t_last - t_first
+                    completed_intervals = units_in_window - 1
+
+                    if completed_intervals > 0 and t_span > 0:
+                        avg_interval = t_span / completed_intervals
                     else:
-                        self.throughput = round(rate_per_sec, self.decimal_places)
-                    self._last_rate_calc_ts = now
+                        avg_interval = 1.0
+
+                    # Idle Decay: if current idle exceeds expected interval, decay smoothly
+                    if idle_since_last > avg_interval:
+                        effective_dt = t_span + (idle_since_last - avg_interval)
+                    else:
+                        effective_dt = max(t_span, 0.5)
+
+                    current_rate_per_sec = completed_intervals / max(effective_dt, 0.5)
+
+                # 2. Average Rate (Cumulative active operating time across all running sessions)
+                current_session_dur = (now - self.session_start_time) if (self.is_running and self.session_start_time) else 0.0
+                total_active_elapsed = self.accumulated_run_time + current_session_dur
+
+                if self.current_count < 2 or total_active_elapsed <= 0.5:
+                    avg_rate_per_sec = 0.0
+                else:
+                    if self.start_trigger == "first_object":
+                        avg_rate_per_sec = (self.current_count - 1) / total_active_elapsed
+                    else:
+                        avg_rate_per_sec = self.current_count / total_active_elapsed
+
+                # Multiplier for Rate Unit
+                self.current_rate_per_sec = round(current_rate_per_sec, self.decimal_places)
+                self.average_rate_per_sec = round(avg_rate_per_sec, self.decimal_places)
+
+                self.current_rate_per_min = round(current_rate_per_sec * 60.0, self.decimal_places)
+                self.average_rate_per_min = round(avg_rate_per_sec * 60.0, self.decimal_places)
+
+                self.current_rate_per_hour = round(current_rate_per_sec * 3600.0, self.decimal_places)
+                self.average_rate_per_hour = round(avg_rate_per_sec * 3600.0, self.decimal_places)
+
+                # Primary rate follows self.rate_unit
+                if self.rate_unit == "second":
+                    self.current_rate = self.current_rate_per_sec
+                    self.average_rate = self.average_rate_per_sec
+                elif self.rate_unit == "hour":
+                    self.current_rate = self.current_rate_per_hour
+                    self.average_rate = self.average_rate_per_hour
+                else:
+                    self.current_rate = self.current_rate_per_min
+                    self.average_rate = self.average_rate_per_min
+
+                self.throughput = self.current_rate
+                self._last_rate_calc_ts = now
             
         # Emit telemetry throttled (e.g. 0.5s) to avoid UI blurring and excessive React re-renders
         should_broadcast = False
@@ -625,45 +1384,68 @@ class UnitThroughputNode(PipelineNode):
             self._last_broadcast_time = now
             self._last_is_running = self.is_running
             self._emit_telemetry(msg)
-        
-        rate_per_min = self.throughput
-        if self.rate_unit == "second":
-            rate_per_min = round(self.throughput * 60, self.decimal_places)
-        elif self.rate_unit == "hour":
-            rate_per_min = round(self.throughput / 60, self.decimal_places)
 
         msg["payload"] = {
             "current_unit": self.current_count,
             "total_units": self.current_count,
             "throughput": self.throughput,
-            "current_rate_per_minute": rate_per_min,
+            "current_rate": self.current_rate,
+            "average_rate": self.average_rate,
+            
+            # Dedicated rate keys for multi-unit selection & widgets
+            "current_rate_per_sec": self.current_rate_per_sec,
+            "average_rate_per_sec": self.average_rate_per_sec,
+            "current_rate_per_min": self.current_rate_per_min,
+            "average_rate_per_min": self.average_rate_per_min,
+            "current_rate_per_minute": self.current_rate_per_min,
+            "average_rate_per_minute": self.average_rate_per_min,
+            "current_rate_per_hour": self.current_rate_per_hour,
+            "average_rate_per_hour": self.average_rate_per_hour,
+
             "is_running": self.is_running,
-            "rate_unit": self.rate_unit
+            "rate_unit": self.rate_unit,
+            "rate_units": self.rate_units,
+            "retain_count_on_restart": self.retain_count_on_restart,
+            "window_mode": self.window_mode,
+            "window_seconds": self.window_seconds,
+            "window_samples": self.window_samples,
+            "start_trigger": self.start_trigger,
+            "pause_trigger": self.pause_trigger
         }
         
         return msg
 
-    def _emit_telemetry(self, msg=None):
+    def _emit_telemetry(self, msg: dict = None) -> None:
         if self.router.metadata_callback:
             camera_id = msg.get("camera_id") if msg else "default"
             if not camera_id and msg:
                 camera_id = msg.get("metadata", {}).get("camera_id", "default")
                 
-            rate_per_min = self.throughput
-            if self.rate_unit == "second":
-                rate_per_min = round(self.throughput * 60, self.decimal_places)
-            elif self.rate_unit == "hour":
-                rate_per_min = round(self.throughput / 60, self.decimal_places)
-
             self.router.metadata_callback({
                 "type": "unit_throughput_update",
                 "node_id": self.node_id,
                 "current_unit": self.current_count,
                 "total_units": self.current_count,
                 "throughput": self.throughput,
-                "current_rate_per_minute": rate_per_min,
+                "current_rate": self.current_rate,
+                "average_rate": self.average_rate,
+                "current_rate_per_sec": self.current_rate_per_sec,
+                "average_rate_per_sec": self.average_rate_per_sec,
+                "current_rate_per_min": self.current_rate_per_min,
+                "average_rate_per_min": self.average_rate_per_min,
+                "current_rate_per_minute": self.current_rate_per_min,
+                "average_rate_per_minute": self.average_rate_per_min,
+                "current_rate_per_hour": self.current_rate_per_hour,
+                "average_rate_per_hour": self.average_rate_per_hour,
                 "is_running": self.is_running,
                 "rate_unit": self.rate_unit,
+                "rate_units": self.rate_units,
+                "retain_count_on_restart": self.retain_count_on_restart,
+                "window_mode": self.window_mode,
+                "window_seconds": self.window_seconds,
+                "window_samples": self.window_samples,
+                "start_trigger": self.start_trigger,
+                "pause_trigger": self.pause_trigger,
                 "camera_id": camera_id,
                 "msg": msg
             })
@@ -693,7 +1475,13 @@ class ActionNode(PipelineNode):
         super().__init__(node_id, data, router, node_type="actionNode")
 
     def process(self, msg: dict):
-        val = bool(msg.get("payload"))
+        raw_payload = msg.get("payload")
+        if isinstance(raw_payload, dict) and ("just_completed" in raw_payload or "is_complete" in raw_payload):
+            val = bool(raw_payload.get("value", raw_payload.get("just_completed", raw_payload.get("is_complete", False))))
+        elif isinstance(raw_payload, dict) and "value" in raw_payload:
+            val = bool(raw_payload["value"])
+        else:
+            val = bool(raw_payload)
         trigger_on = str(self.data.get("triggerOn", "true")).lower() == "true"
         
         if val == trigger_on:
@@ -712,6 +1500,8 @@ class DashboardOutputNode(PipelineNode):
             source_path = self.data.get("sourcePath", "msg.payload")
             
             def get_nested(d, path):
+                if not path:
+                    return None
                 import re
                 # Convert array notation [0] to dot notation .0
                 clean_path = re.sub(r'\[(\d+)\]', r'.\1', path)
@@ -721,6 +1511,10 @@ class DashboardOutputNode(PipelineNode):
                     keys = keys[1:]
                 
                 val = d
+                # Support direct property access without "payload." or "msg.payload." prefix
+                if keys and keys[0] != "payload" and isinstance(val, dict) and "payload" in val and isinstance(val["payload"], dict) and keys[0] in val["payload"]:
+                    val = val["payload"]
+
                 for k in keys:
                     if isinstance(val, dict) and k in val:
                         val = val[k]
@@ -742,6 +1536,10 @@ class DashboardOutputNode(PipelineNode):
                 return val
 
             val = get_nested(msg, source_path)
+            if val is None and source_path in ("value", "msg.value", "msg.payload.value"):
+                val = msg.get("value", msg.get("payload"))
+                if isinstance(val, dict) and "value" in val:
+                    val = val["value"]
 
             import time
             current_time = time.time()
@@ -767,21 +1565,212 @@ class DashboardOutputNode(PipelineNode):
             
         return msg
 
+
+class DashboardLogNode(PipelineNode):
+    def __init__(self, node_id: str, data: dict, router):
+        super().__init__(node_id, data, router, node_type="dashboardLogNode")
+        self.source_path: str = data.get("sourcePath", "msg.payload")
+        self.log_mode: str = data.get("logMode", "custom" if data.get("messageTemplate") else "property")
+        self.message_template: str = data.get("messageTemplate", "")
+        self.trigger_condition: str = data.get("triggerCondition", "on_true")
+        self.cooldown_seconds: float = float(data.get("cooldownSeconds", 1.0))
+        self.log_color: str = data.get("logColor", "indigo")
+        self.label: str = data.get("label", "Dashboard Log")
+        self.save_to_db: bool = data.get("saveToDb", True)
+        self.last_val = None
+        self.last_emit_time: float = 0.0
+
+    def process(self, msg: dict) -> dict:
+        if not self.router.metadata_callback:
+            return msg
+
+        import time
+        import re
+
+        def get_nested(d, path: str):
+            if not path:
+                return None
+            clean_path = re.sub(r'\[(\d+)\]', r'.\1', path)
+            keys = clean_path.split('.')
+            if keys and keys[0] == "msg":
+                keys = keys[1:]
+            val = d
+            if keys and keys[0] != "payload" and isinstance(val, dict) and "payload" in val and isinstance(val["payload"], dict) and keys[0] in val["payload"]:
+                val = val["payload"]
+
+            for k in keys:
+                if isinstance(val, dict) and k in val:
+                    val = val[k]
+                elif isinstance(val, list):
+                    if k == "length":
+                        val = len(val)
+                    elif k.isdigit() and int(k) < len(val):
+                        val = val[int(k)]
+                    else:
+                        return None
+                else:
+                    if k == "value" and isinstance(val, (bool, int, float, str)):
+                        return val
+                    return None
+            return val
+
+        val = get_nested(msg, self.source_path)
+        if val is None and self.source_path in ("value", "msg.value", "msg.payload.value"):
+            val = msg.get("value", msg.get("payload"))
+            if isinstance(val, dict) and "value" in val:
+                val = val["value"]
+
+        if val is None:
+            val = msg.get("payload")
+
+        current_time = time.time()
+
+        # Evaluate trigger condition
+        should_log = False
+        if self.trigger_condition == "on_true":
+            if isinstance(val, bool):
+                should_log = val
+            elif isinstance(val, (int, float)):
+                should_log = (val > 0)
+            elif isinstance(val, (list, dict, str)):
+                should_log = bool(val)
+            else:
+                should_log = bool(val)
+        elif self.trigger_condition == "on_change":
+            should_log = (val != self.last_val)
+        else:  # "all"
+            should_log = True
+
+        if not should_log:
+            self.last_val = val
+            return msg
+
+        # Apply cooldown / rate throttle
+        if self.cooldown_seconds > 0 and (current_time - self.last_emit_time < self.cooldown_seconds):
+            self.last_val = val
+            return msg
+
+        self.last_emit_time = current_time
+        self.last_val = val
+
+        # Check for attached snapshot evidence
+        # 1. Directly in message from upstream SnapshotNode
+        snapshot_path = msg.get("snapshot_path")
+        # 2. Check context from previous nodes in the same branch
+        if not snapshot_path and isinstance(msg.get("context"), dict):
+            for v in msg["context"].values():
+                if isinstance(v, dict) and v.get("snapshot_path"):
+                    snapshot_path = v["snapshot_path"]
+                    break
+        # 3. Check router recent snapshot (e.g. parallel edge from same trigger within 2s)
+        if not snapshot_path and hasattr(self.router, "last_snapshot") and self.router.last_snapshot:
+            last_snap = self.router.last_snapshot
+            if current_time - last_snap.get("time", 0) < 2.0:
+                snapshot_path = last_snap.get("path")
+
+        # Resolve camera ID
+        camera_id = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
+        if not camera_id and hasattr(self.router, "last_snapshot") and self.router.last_snapshot:
+            camera_id = self.router.last_snapshot.get("camera_id")
+
+        # Format message content
+        if self.log_mode == "custom" and self.message_template.strip():
+            rendered = self.message_template
+            count_val = get_nested(msg, "msg.payload.count") or get_nested(msg, "msg.payload.total") or ""
+            rendered = rendered.replace("{value}", str(val))
+            rendered = rendered.replace("{count}", str(count_val))
+            rendered = rendered.replace("{timestamp}", time.strftime("%H:%M:%S", time.localtime(current_time)))
+            rendered = rendered.replace("{snapshot_url}", snapshot_path or "")
+            rendered = rendered.replace("{snapshot}", snapshot_path or "")
+            log_entry_val = rendered
+        else:
+            log_entry_val = val
+
+        logger.info(f"DashboardLogNode {self.node_id}: Emitting log ({self.log_color}): {log_entry_val} [snapshot={snapshot_path}]")
+
+        self.router.metadata_callback({
+            "type": "dashboard_update",
+            "node_id": self.node_id,
+            "value": log_entry_val,
+            "color": self.log_color,
+            "source_label": self.label,
+            "is_log": True,
+            "timestamp": current_time,
+            "camera_id": camera_id,
+            "snapshot_path": snapshot_path
+        })
+
+        # Save to database if enabled
+        if self.save_to_db:
+            try:
+                from pathlib import Path
+                import sys
+                backend_dir = Path(__file__).resolve().parent.parent
+                if str(backend_dir) not in sys.path:
+                    sys.path.insert(0, str(backend_dir))
+                from db.database import db
+
+                # Inherit tags & snapshot label if this log is attached to a snapshot
+                tags = msg.get("snapshot_tags")
+                snapshot_label = msg.get("snapshot_label")
+                if not tags and hasattr(self.router, "last_snapshot") and self.router.last_snapshot:
+                    if current_time - self.router.last_snapshot.get("time", 0) < 2.0:
+                        tags = self.router.last_snapshot.get("tags")
+                        if not snapshot_label:
+                            snapshot_label = self.router.last_snapshot.get("label")
+                tags = tags or []
+                label = snapshot_label or self.label
+
+                event_type = "SNAPSHOT" if snapshot_path else "DASHBOARD_LOG"
+
+                db.log_event(
+                    node_id=self.node_id,
+                    project_id=self.router.project_id,
+                    event_type=event_type,
+                    payload={
+                        "label": label,
+                        "message": str(log_entry_val),
+                        "color": self.log_color,
+                        "source": self.label,
+                        "tags": tags,
+                        "node_id": self.node_id,
+                        "value": val if isinstance(val, (int, float, str, bool)) else None
+                    },
+                    camera_id=camera_id,
+                    snapshot_path=snapshot_path
+                )
+            except Exception as db_err:
+                logger.error(f"DashboardLogNode [{self.node_id}] db log error: {db_err}")
+
+        # Forward snapshot_path in msg for downstream nodes
+        if snapshot_path:
+            msg["snapshot_path"] = snapshot_path
+
+        return msg
+
+
 class HardwareOutputNode(PipelineNode):
     def __init__(self, node_id, data, router, hw_type="digital_output"):
         super().__init__(node_id, data, router, node_type=f"hardwareOutputNode_{hw_type}")
         self.hw_type = hw_type
-        self.pin = data.get("pin")
+        # Default pin if not provided
+        default_pin = "19" if hw_type == "buzzer" else "17"
+        self.pin = str(data.get("pin", default_pin)) if data.get("pin") is not None else default_pin
+        self.duration = float(data.get("duration", 1.0))
         self._last_is_active = None
         
     def process(self, msg: dict):
         payload = msg.get("payload")
-        if isinstance(payload, dict) and "newly_counted" in payload:
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            val = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
             val = payload["newly_counted"] > 0
         elif isinstance(payload, dict) and "detections" in payload:
             val = len(payload["detections"]) > 0
         elif isinstance(payload, list):
             val = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            val = bool(payload["value"])
         else:
             val = bool(payload)
             
@@ -791,21 +1780,68 @@ class HardwareOutputNode(PipelineNode):
         # Only log and set hardware if state changed
         if self._last_is_active != is_active:
             self._last_is_active = is_active
-            logger.info(f"HardwareOutputNode {self.node_id} (type: {self.hw_type}) state changed: active={is_active}")
+            logger.info(f"HardwareOutputNode {self.node_id} (type: {self.hw_type}, pin: {self.pin}) state changed: active={is_active}")
             try:
                 from hardware.gpio_manager import gpio_mgr
                 if self.hw_type == "led":
                     brightness = float(self.data.get("brightness", 100)) / 100.0 if is_active else 0.0
                     gpio_mgr.set_pwm(self.pin, brightness)
                 elif self.hw_type == "buzzer":
-                    gpio_mgr.set_output("BUZZER", is_active)
+                    if is_active:
+                        gpio_mgr.trigger_buzzer(self.pin, duration=self.duration)
+                    else:
+                        gpio_mgr.set_output(self.pin, False)
                 elif self.hw_type == "digital_output":
                     action = self.data.get("action", "on")
                     final_out = is_active if action == "on" else not is_active
                     gpio_mgr.set_output(self.pin, final_out)
             except Exception as e:
-                logger.error(f"Hardware output error: {e}")
+                logger.error(f"Hardware output error on node {self.node_id}: {e}")
             
+        return msg
+
+class RS485OutputNode(PipelineNode):
+    def __init__(self, node_id, data, router):
+        super().__init__(node_id, data, router, node_type="rs485Node")
+        self.port = str(data.get("port", "/dev/ttyUSB0"))
+        self.baudrate = int(data.get("baudrate", 9600))
+        self.hex_mode = bool(data.get("hex_mode", False))
+        self.payload_template = data.get("payload", "")
+        self.trigger_on = str(data.get("triggerOn", "true")).lower() == "true"
+        self._last_is_active = None
+
+    def process(self, msg: dict) -> dict:
+        payload = msg.get("payload")
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            val = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
+            val = payload["newly_counted"] > 0
+        elif isinstance(payload, dict) and "detections" in payload:
+            val = len(payload["detections"]) > 0
+        elif isinstance(payload, list):
+            val = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            val = bool(payload["value"])
+        else:
+            val = bool(payload)
+
+        is_active = (val == self.trigger_on)
+        if is_active and self._last_is_active != is_active:
+            try:
+                from hardware.rs485_manager import rs485_mgr
+                rs485_mgr.configure(port=self.port, baudrate=self.baudrate)
+                raw_payload = self.payload_template if self.payload_template else str(payload)
+                if self.hex_mode:
+                    hex_clean = raw_payload.replace(" ", "").replace("0x", "").replace(",", "")
+                    data_bytes = bytes.fromhex(hex_clean)
+                else:
+                    data_bytes = raw_payload.encode("utf-8")
+                rs485_mgr.send_data(data_bytes)
+                logger.info(f"RS485OutputNode {self.node_id}: Sent {len(data_bytes)} bytes to {self.port}")
+            except Exception as e:
+                logger.error(f"RS485 output error on node {self.node_id}: {e}")
+
+        self._last_is_active = is_active
         return msg
 
 class SnapshotNode(PipelineNode):
@@ -859,6 +1895,7 @@ class SnapshotNode(PipelineNode):
             cid = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
             if cid:
                 stream_id = str(cid)
+                raw_camera_id = str(cid)
         if not stream_id and self.camera_id:
             stream_id = str(self.camera_id)
 
@@ -880,13 +1917,12 @@ class SnapshotNode(PipelineNode):
                         ntype = getattr(src_node, 'node_type', '') or src_node.data.get("type", "")
                         if ntype == 'aiNode' and not ai_node:
                             ai_node = src_node
-                        elif ntype == 'inputNode' and not input_node:
-                            input_node = src_node
-                            
-                        # If node has explicit cameraId or entityId
-                        scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId") or src_node.data.get("entityId")
-                        if scid and not raw_camera_id:
-                            raw_camera_id = str(scid)
+                        elif ntype == 'inputNode':
+                            if not input_node:
+                                input_node = src_node
+                            scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId") or src_node.data.get("entityId")
+                            if scid and not raw_camera_id:
+                                raw_camera_id = str(scid)
                             
                     queue.append(src_id)
 
@@ -916,15 +1952,23 @@ class SnapshotNode(PipelineNode):
         bbox_draw_mode = self._get_bbox_draw_mode(msg, stream_id)
         
         # 6. Choose RTSP URL:
-        # In frontend draw mode, we pull from shared_{raw_camera_id} because it is the exact same clean,
-        # low-latency video stream that DebugNode uses (syncs with WebSocket/NPU metadata).
-        # In backend draw mode, we pull from {project_id}_{stream_id} because hailooverlay burned the boxes into that stream.
-        if bbox_draw_mode == "frontend" and raw_camera_id:
-            rtsp_url = f"rtsp://127.0.0.1:8554/shared_{raw_camera_id}"
-        elif stream_id:
-            rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{stream_id}"
-        else:
-            rtsp_url = None
+        rtsp_url = None
+        try:
+            from media_server.camera_manager import camera_mgr
+            for cid in [raw_camera_id, stream_id]:
+                if cid:
+                    url = camera_mgr.get_rtsp_url(cid)
+                    if url:
+                        rtsp_url = url
+                        break
+        except Exception:
+            pass
+
+        if not rtsp_url:
+            if bbox_draw_mode == "frontend" and raw_camera_id:
+                rtsp_url = f"rtsp://127.0.0.1:8554/shared_{raw_camera_id}"
+            elif stream_id:
+                rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{stream_id}"
 
         return stream_id, raw_camera_id, rtsp_url
 
@@ -1025,12 +2069,16 @@ class SnapshotNode(PipelineNode):
                 
     def process(self, msg: dict):
         payload = msg.get("payload")
-        if isinstance(payload, dict) and "newly_counted" in payload:
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            current_payload = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
             current_payload = payload["newly_counted"] > 0
         elif isinstance(payload, dict) and "detections" in payload:
             current_payload = len(payload["detections"]) > 0
         elif isinstance(payload, list):
             current_payload = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            current_payload = bool(payload["value"])
         else:
             current_payload = bool(payload)
         
@@ -1245,24 +2293,44 @@ class SnapshotNode(PipelineNode):
                             t.start()
                             self._threads.append(t)
                     
-                    # Log to DB
-                    import sys
-                    backend_dir = Path(__file__).resolve().parent.parent
-                    if str(backend_dir) not in sys.path:
-                        sys.path.insert(0, str(backend_dir))
-                    from db.database import db
-                    
-                    payload = msg.get("payload")
-                    db.log_event(
-                        node_id=self.node_id,
-                        project_id=self.router.project_id,
-                        event_type="SNAPSHOT",
-                        payload={"label": self.label, "trigger": payload, "tags": self.tags},
-                        camera_id=camera_id,
-                        snapshot_path=str(filepath)
-                    )
+                    # Populate snapshot metadata in msg and router
                     msg["snapshot_path"] = snapshot_url
                     msg["snapshot_tags"] = self.tags
+                    msg["snapshot_label"] = self.label
+                    self.router.last_snapshot = {
+                        "path": snapshot_url,
+                        "time": time.time(),
+                        "camera_id": camera_id,
+                        "tags": self.tags,
+                        "label": self.label
+                    }
+
+                    # Check if downstream contains a DashboardLogNode with save_to_db enabled
+                    has_downstream_db_logger = False
+                    for tgt in self.router.edges.get(self.node_id, []):
+                        tgt_id = tgt[0] if isinstance(tgt, tuple) else tgt
+                        tgt_node = self.router.nodes.get(tgt_id)
+                        if tgt_node and getattr(tgt_node, 'node_type', '') == 'dashboardLogNode' and getattr(tgt_node, 'save_to_db', True):
+                            has_downstream_db_logger = True
+                            break
+
+                    # If downstream DashboardLogNode will save to DB, skip here to prevent duplicate rows
+                    if not has_downstream_db_logger:
+                        import sys
+                        backend_dir = Path(__file__).resolve().parent.parent
+                        if str(backend_dir) not in sys.path:
+                            sys.path.insert(0, str(backend_dir))
+                        from db.database import db
+                        
+                        payload = msg.get("payload")
+                        db.log_event(
+                            node_id=self.node_id,
+                            project_id=self.router.project_id,
+                            event_type="SNAPSHOT",
+                            payload={"label": self.label, "trigger": payload, "tags": self.tags},
+                            camera_id=camera_id,
+                            snapshot_path=snapshot_url
+                        )
                 except Exception as e:
                     logger.error(f"Snapshot error: {e}")
                     
@@ -1316,6 +2384,8 @@ class DatabaseWriterNode(PipelineNode):
                 keys = keys[1:]
             
             target = msg
+            if keys and keys[0] != "payload" and isinstance(target, dict) and "payload" in target and isinstance(target["payload"], dict) and keys[0] in target["payload"]:
+                target = target["payload"]
             for k in keys:
                 if isinstance(target, dict) and k in target:
                     target = target[k]
@@ -1415,6 +2485,13 @@ class DatabaseWriterNode(PipelineNode):
             self.last_written_time = now
             self.last_payload = write_value
             
+        # Attach written metric so downstream nodes (like Chart/Output) can easily read it
+        msg["value"] = write_value
+        if isinstance(msg.get("payload"), dict):
+            msg["payload"]["value"] = write_value
+            if self.variable_name:
+                msg["payload"][self.variable_name] = write_value
+
         # Emit real-time value for dashboard, but throttle to prevent React state thrashing
         import time
         now = time.time()
@@ -1438,11 +2515,24 @@ class DatabaseWriterNode(PipelineNode):
         if should_broadcast_dash and self.router.metadata_callback and self.last_written_value is not None:
             self._last_dash_time = now
             self._last_dash_val = self.last_written_value
+            
+            # Broadcast database_writer_update for Pipeline Studio / Debug inspection
+            self.router.metadata_callback({
+                "type": "database_writer_update",
+                "node_id": self.node_id,
+                "value": self.last_written_value,
+                "variable_name": self.variable_name,
+                "property_path": self.property_path,
+                "msg": msg
+            })
+            
+            # Broadcast dashboard_update for Live Dashboard widgets
             self.router.metadata_callback({
                 "type": "dashboard_update",
                 "node_id": self.node_id,
                 "value": self.last_written_value,
-                "variable_name": self.variable_name
+                "variable_name": self.variable_name,
+                "msg": msg
             })
             
         return msg
@@ -1605,9 +2695,35 @@ class MessageRouter:
                         new_node.current_count = old_node.current_count
                         new_node.is_running = getattr(old_node, 'is_running', False)
                         new_node.start_time = getattr(old_node, 'start_time', None)
-                        new_node.throughput = getattr(old_node, 'throughput', 0.0)
-                        if hasattr(old_node, 'tracker') and hasattr(new_node, 'tracker'):
-                            new_node.tracker = old_node.tracker
+                        new_node.session_start_time = getattr(old_node, 'session_start_time', None)
+                        new_node.accumulated_run_time = getattr(old_node, 'accumulated_run_time', 0.0)
+                        new_node.last_object_time = getattr(old_node, 'last_object_time', None)
+                        new_node._history = getattr(old_node, '_history', deque(maxlen=500))
+                        new_node._last_schedule_date = getattr(old_node, '_last_schedule_date', None)
+                        if getattr(new_node, 'window_mode', 'time') == 'count':
+                            while len(new_node._history) > getattr(new_node, 'window_samples', 10):
+                                new_node._history.popleft()
+
+                        # If rate_unit changed, convert the existing rate and force fresh recalculation
+                        old_unit = getattr(old_node, 'rate_unit', 'minute')
+                        new_unit = getattr(new_node, 'rate_unit', 'minute')
+                        if old_unit != new_unit:
+                            new_node._last_rate_calc_ts = None
+                            conv = 1.0
+                            if old_unit == "second":
+                                conv = 60.0 if new_unit == "minute" else (3600.0 if new_unit == "hour" else 1.0)
+                            elif old_unit == "minute":
+                                conv = (1.0 / 60.0) if new_unit == "second" else (60.0 if new_unit == "hour" else 1.0)
+                            elif old_unit == "hour":
+                                conv = (1.0 / 3600.0) if new_unit == "second" else ((1.0 / 60.0) if new_unit == "minute" else 1.0)
+                            new_node.throughput = round(getattr(old_node, 'throughput', 0.0) * conv, new_node.decimal_places)
+                            new_node.current_rate = round(getattr(old_node, 'current_rate', 0.0) * conv, new_node.decimal_places)
+                            new_node.average_rate = round(getattr(old_node, 'average_rate', 0.0) * conv, new_node.decimal_places)
+                        else:
+                            new_node.throughput = getattr(old_node, 'throughput', 0.0)
+                            new_node.current_rate = getattr(old_node, 'current_rate', 0.0)
+                            new_node.average_rate = getattr(old_node, 'average_rate', 0.0)
+                            new_node._last_rate_calc_ts = getattr(old_node, '_last_rate_calc_ts', None)
 
             # Update nodes' router reference
             for node in new_nodes.values():

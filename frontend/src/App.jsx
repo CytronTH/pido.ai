@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Activity, Server, LayoutDashboard, GitMerge, Settings as SettingsIcon, ChevronLeft, Home, Sun, Moon, Monitor, Power, RefreshCw, BookOpen, Menu, X, Database, Users, LogOut, Play, Square } from 'lucide-react';
+import { Server, LayoutDashboard, GitMerge, Settings as SettingsIcon, ChevronLeft, Home, Sun, Moon, Monitor, Power, RefreshCw, BookOpen, Menu, X, Database, DatabaseZap, Users, LogOut, Play, Square } from 'lucide-react';
 import LiveDashboard from './components/LiveDashboard';
 import PipelineBuilder from './components/PipelineBuilder/PipelineBuilder';
 import Settings from './components/Settings/Settings';
@@ -16,6 +16,7 @@ import UserManagement from './components/users/UserManagement';
 import useAuthStore from './store/useAuthStore';
 import useThemeStore from './store/useThemeStore';
 import usePipelineStore from './store/usePipelineStore';
+import usePermissions from './utils/usePermissions';
 import logoImg from './assets/logo-menu.svg';
 import logoDarkImg from './assets/logo-menu-dark.svg';
 import SystemClock from './components/SystemClock';
@@ -23,6 +24,7 @@ import SystemClock from './components/SystemClock';
 function AppContent() {
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
+  const { isAdmin, canStartStop } = usePermissions();
   const [activeProject, setActiveProject] = useState(null);
   const [projectStatus, setProjectStatus] = useState(null);
   const [metadata, setMetadata] = useState(null);
@@ -191,7 +193,8 @@ function AppContent() {
                 const history = prevNodeData?.history || [];
                 
                 let newHistory = history;
-                if (history.length === 0 || history[0].value !== data.value) {
+                const isLogEvent = Boolean(data.is_log);
+                if (isLogEvent || history.length === 0 || history[0].value !== data.value) {
                     let ts = new Date().toLocaleTimeString();
                     if (data.msg && data.msg.metadata && data.msg.metadata.timestamp) {
                        ts = new Date(data.msg.metadata.timestamp * 1000).toLocaleTimeString();
@@ -207,7 +210,18 @@ function AppContent() {
                        delete safeMsg.detections;
                     }
 
-                    const newItem = { timestamp: ts, value: data.value, msg: safeMsg };
+                    const rawTime = (data.msg?.metadata?.timestamp ? data.msg.metadata.timestamp * 1000 : (data.timestamp ? data.timestamp * 1000 : Date.now()));
+                    const newItem = { 
+                       id: `${data.node_id}_${rawTime}_${Math.random()}`,
+                       timestamp: ts, 
+                       raw_time: rawTime,
+                       value: data.value, 
+                       color: data.color || 'indigo',
+                       source: data.source_label || '',
+                       node_id: data.node_id,
+                       snapshot_path: data.snapshot_path || null,
+                       msg: safeMsg 
+                    };
                     newHistory = [newItem, ...history].slice(0, 50);
                 }
                 
@@ -361,10 +375,10 @@ function AppContent() {
                 ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                 : 'text-fg-muted hover:text-fg hover:bg-surface-2'
             }`}
-            title={!isSidebarOpen ? "Database" : ""}
+            title={!isSidebarOpen ? "Database System" : ""}
           >
-            <Database size={18} className="shrink-0" />
-            {(isSidebarOpen || isMobileDrawerOpen) && <span>Database</span>}
+            <DatabaseZap size={18} className="shrink-0" />
+            {(isSidebarOpen || isMobileDrawerOpen) && <span>Database System</span>}
           </button>
           
           {user?.role === 'admin' && (
@@ -439,18 +453,18 @@ function AppContent() {
               </button>
               <button
                 onClick={() => {
-                  navigate(`/project/${activeProject.id}/logs`);
+                  navigate(`/project/${activeProject.id}/database`);
                   setIsMobileDrawerOpen(false);
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${!isSidebarOpen && 'md:justify-center md:w-12 md:h-12'} ${
-                  activeTab === 'logs' 
+                  (activeTab === 'database' || activeTab === 'logs')
                     ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' 
                     : 'text-fg-muted hover:text-fg hover:bg-surface-2'
                 }`}
-                title={!isSidebarOpen ? "Database Logs" : ""}
+                title={!isSidebarOpen ? "Project Database" : ""}
               >
-                <Server size={18} className="shrink-0" />
-                {(isSidebarOpen || isMobileDrawerOpen) && <span>Database Logs</span>}
+                <Database size={18} className="shrink-0" />
+                {(isSidebarOpen || isMobileDrawerOpen) && <span>Project Database</span>}
               </button>
               <button
                 onClick={() => {
@@ -508,7 +522,7 @@ function AppContent() {
                  <span className="font-medium truncate max-w-[100px] sm:max-w-[200px] text-fg-secondary" title={activeProject.name}>{activeProject.name}</span>
                  <span className="text-fg-faint">/</span>
                  <span className="text-blue-600 dark:text-blue-400 font-medium truncate">
-                   {activeTab === 'dashboard' ? 'Live Dashboard' : activeTab === 'pipeline' ? 'Pipeline Builder' : activeTab === 'wiki' ? 'Node Wiki' : 'Database Logs'}
+                   {activeTab === 'dashboard' ? 'Live Dashboard' : activeTab === 'pipeline' ? 'Pipeline Builder' : activeTab === 'wiki' ? 'Node Wiki' : 'Project Database'}
                  </span>
                </>
              )}
@@ -518,13 +532,25 @@ function AppContent() {
                   <span className="text-blue-600 dark:text-blue-400 font-medium">Global Settings</span>
                 </>
              )}
+             {!activeProject && activeTab === 'database' && (
+                <>
+                  <span className="hidden sm:inline text-fg-faint">/</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">Database System</span>
+                </>
+             )}
+             {!activeProject && activeTab === 'users' && (
+                <>
+                  <span className="hidden sm:inline text-fg-faint">/</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">User Management</span>
+                </>
+             )}
              {!activeProject && activeTab === 'home' && (
                <span className="text-blue-600 dark:text-blue-400 font-medium sm:hidden">Projects</span>
              )}
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-             {activeProject && projectStatus && (
+             {activeProject && projectStatus && canStartStop && (
                <div className="mr-1 sm:mr-2">
                   {projectStatus.status === 'running' ? (
                      <button 
@@ -558,20 +584,38 @@ function AppContent() {
                 {themeMode === 'dark' && <Moon size={16} className="sm:w-[18px] sm:h-[18px]" />}
                 {themeMode === 'system' && <Monitor size={16} className="sm:w-[18px] sm:h-[18px]" />}
               </button>
-              <button
-                onClick={() => handleSystemAction('restart')}
-                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
-                title="Restart System"
-              >
-                <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-              <button
-                onClick={() => handleSystemAction('shutdown')}
-                className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-red-600 dark:hover:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
-                title="Shutdown System"
-              >
-                <Power size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => handleSystemAction('restart')}
+                    className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
+                    title="Restart System"
+                  >
+                    <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                  <button
+                    onClick={() => handleSystemAction('shutdown')}
+                    className="p-2 rounded-lg bg-surface-2 border border-line-strong hover:text-red-600 dark:hover:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/20 transition-colors shadow-sm flex items-center justify-center active:scale-95 text-fg-muted"
+                    title="Shutdown System"
+                  >
+                    <Power size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                </>
+              )}
+              {user && (
+                <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 border border-line-strong text-xs">
+                  <span className="font-semibold text-fg">{user.username}</span>
+                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                    user.role === 'admin' 
+                      ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' 
+                      : user.role === 'editor' 
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                  }`}>
+                    {user.role}
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => {
                   logout();
@@ -603,14 +647,16 @@ function AppContent() {
                </div>
             } />
             <Route path="/database" element={
-               <div className="flex-1 overflow-y-auto">
+               <div className="flex-1 overflow-y-auto bg-canvas">
                  <DatabaseMonitoring />
                </div>
             } />
             <Route path="/users" element={
-               <div className="flex-1 overflow-y-auto">
-                 <UserManagement />
-               </div>
+               <ProtectedRoute allowedRoles={['admin']}>
+                 <div className="flex-1 overflow-y-auto">
+                   <UserManagement />
+                 </div>
+               </ProtectedRoute>
             } />
             <Route path="/project/:projectId/dashboard" element={
                activeProject ? (
@@ -637,6 +683,13 @@ function AppContent() {
                activeProject ? (
                  <div className="h-full bg-canvas">
                    <NodeWiki initialNode={wikiNode} />
+                 </div>
+               ) : null
+            } />
+            <Route path="/project/:projectId/database" element={
+               activeProject ? (
+                 <div className="h-full bg-canvas">
+                   <ProjectDatabase projectId={activeProject.id} />
                  </div>
                ) : null
             } />
@@ -678,11 +731,11 @@ function AppContent() {
                 <span className="text-[10px]">Pipeline</span>
               </button>
               <button 
-                onClick={() => navigate(`/project/${activeProject.id}/logs`)}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'logs' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
+                onClick={() => navigate(`/project/${activeProject.id}/database`)}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'database' || activeTab === 'logs' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
               >
-                <Server size={18} />
-                <span className="text-[10px]">Logs</span>
+                <Database size={18} />
+                <span className="text-[10px]">Database</span>
               </button>
               <button 
                 onClick={() => { setWikiNode(null); navigate(`/project/${activeProject.id}/wiki`); }}

@@ -81,35 +81,53 @@ class HailoPipelineWorker:
             return
 
         # Initialize Hardware using Router Nodes
-        from hardware.gpio_manager import PIN_MAP
+        from hardware.gpio_manager import parse_pin
         if self.config and hasattr(self.config, 'router'):
+            do_configs = {
+                d.get("pin"): d.get("active_high", True)
+                for d in getattr(self.config, "digital_outputs", [])
+                if isinstance(d, dict)
+            }
             for node_id, node in self.config.router.nodes.items():
                 if hasattr(node, 'hw_type'):
                     pin_str = getattr(node, 'pin', None)
                     if pin_str:
-                        pin_num = PIN_MAP.get(pin_str)
-                        if pin_num:
+                        pin_num = parse_pin(pin_str)
+                        if pin_num is not None:
                             if node.hw_type == "digital_output":
-                                gpio_mgr.setup_output(pin_str, pin_num)
+                                active_high = do_configs.get(pin_str, True)
+                                gpio_mgr.setup_output(str(pin_str), pin_num, active_high=active_high)
                             elif node.hw_type == "led":
-                                gpio_mgr.setup_pwm(pin_str, pin_num)
+                                gpio_mgr.setup_pwm(str(pin_str), pin_num)
                     if getattr(node, 'hw_type') == "buzzer":
-                        gpio_mgr.setup_buzzer("BUZZER", PIN_MAP.get("BUZZER", 19))
+                        buzzer_pin = getattr(node, 'pin', "19")
+                        buzzer_pin_num = parse_pin(buzzer_pin)
+                        if buzzer_pin_num is not None:
+                            gpio_mgr.setup_buzzer(str(buzzer_pin), buzzer_pin_num)
                         
         if self.config and hasattr(self.config, 'digital_inputs'):
             for di in self.config.digital_inputs:
                 node_id = di["id"]
                 pin_str = di["pin"]
-                pin_num = PIN_MAP.get(pin_str)
-                if pin_num:
-                    gpio_mgr.setup_input(pin_str, pin_num)
-                    def make_callback(nid, val):
+                pin_num = parse_pin(pin_str)
+                pull_resistor = di.get("pull_resistor", "up")
+                bounce_time = float(di.get("bounce_time", 0.1))
+                active_low = bool(di.get("active_low", False))
+                if pin_num is not None:
+                    gpio_mgr.setup_input(
+                        str(pin_str),
+                        pin_num,
+                        bounce_time=bounce_time,
+                        pull_resistor=pull_resistor,
+                    )
+                    def make_callback(nid, val, invert=active_low):
+                        final_val = not val if invert else val
                         def cb():
                             if hasattr(self.config, 'router') and self.config.router:
-                                self.config.router.inject_message(nid, {"payload": val, "metadata": {"source": "gpio"}})
+                                self.config.router.inject_message(nid, {"payload": final_val, "metadata": {"source": "gpio"}})
                         return cb
                     
-                    device = gpio_mgr.devices.get(pin_str)
+                    device = gpio_mgr.devices.get(str(pin_str))
                     if device:
                         device.when_activated = make_callback(node_id, True)
                         device.when_deactivated = make_callback(node_id, False)
@@ -398,6 +416,10 @@ class HailoPipelineWorker:
             if "x264enc" in pipeline_str and not Gst.ElementFactory.find("x264enc"):
                 logger.error("GStreamer element 'x264enc' is missing! Please install: sudo apt-get install -y gstreamer1.0-plugins-ugly")
                 raise RuntimeError("GStreamer element 'x264enc' is missing. Please run: sudo apt-get install -y gstreamer1.0-plugins-ugly")
+
+            if "rtspclientsink" in pipeline_str and not Gst.ElementFactory.find("rtspclientsink"):
+                logger.error("GStreamer element 'rtspclientsink' is missing! Please install: sudo apt-get install -y gstreamer1.0-rtsp")
+                raise RuntimeError("GStreamer element 'rtspclientsink' is missing. Please run: sudo apt-get install -y gstreamer1.0-rtsp")
 
             try:
                 pipeline = Gst.parse_launch(pipeline_str)
@@ -804,6 +826,7 @@ class HailoPipelineWorker:
                         "timestamp": time.time(),
                         "ai_task": ai_task,
                         "fps": current_fps,
+                        "roi": getattr(stream_cfg, 'roi', None) if stream_cfg else None,
                         "bbox_draw_mode": getattr(stream_cfg, 'bbox_draw_mode', 'frontend') if stream_cfg else 'frontend',
                         "bbox_line_thickness": getattr(stream_cfg, 'bbox_line_thickness', 2) if stream_cfg else 2,
                         "bbox_font_thickness": getattr(stream_cfg, 'bbox_font_thickness', 1) if stream_cfg else 1
@@ -1039,6 +1062,15 @@ class HailoPipelineWorker:
                         stream_cfg.class_filter = list(v) if v else None
                     elif k == "bboxDrawMode":
                         stream_cfg.bbox_draw_mode = str(v)
+                    elif k == "bboxEnabled":
+                        if not bool(v):
+                            stream_cfg.bbox_draw_mode = "none"
+                    elif k == "confidenceThresholdEnabled":
+                        if not bool(v):
+                            stream_cfg.confidence_threshold = 0.0
+                    elif k == "classFilterEnabled":
+                        if not bool(v):
+                            stream_cfg.class_filter = None
                     elif k == "bboxLineThickness":
                         stream_cfg.bbox_line_thickness = int(v)
                     elif k == "bboxFontThickness":

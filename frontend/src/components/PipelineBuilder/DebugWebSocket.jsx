@@ -25,7 +25,8 @@ export default function DebugWebSocket() {
         n.type === 'forkliftZoneNode' ||
         n.type === 'counterNode' ||
         n.type === 'unitThroughputNode' ||
-        n.type === 'targetTrackerNode'
+        n.type === 'targetTrackerNode' ||
+        n.type === 'logicNode'
       ) {
         const list = logics.get(n.id) || [];
         list.push(n.id);
@@ -51,7 +52,8 @@ export default function DebugWebSocket() {
           sourceNode.type === 'shelfSlotMonitorNode' ||
           sourceNode.type === 'forkliftZoneNode' ||
           sourceNode.type === 'unitThroughputNode' ||
-          sourceNode.type === 'targetTrackerNode'
+          sourceNode.type === 'targetTrackerNode' ||
+          sourceNode.type === 'databaseWriterNode'
         ) {
           const list = logics.get(sourceNode.id) || [];
           list.push(debugNode.id);
@@ -148,12 +150,17 @@ export default function DebugWebSocket() {
             data.type === 'counter_update' ||
             data.type === 'snapshot_capture' ||
             data.type === 'unit_throughput_update' ||
-            data.type === 'target_tracker_update'
+            data.type === 'target_tracker_update' ||
+            data.type === 'database_writer_update' ||
+            data.type === 'dashboard_update'
           ) {
+            // Keep node state updated in Zustand store for Payload Explorer & inspector
+            if (data.node_id && setDebugData) {
+              setDebugData(data.node_id, data);
+            }
             if (data.node_id && (logics.has(data.node_id) || advancedDebugMode || data.type === 'snapshot_capture')) {
               isMonitored = true;
               sourceDebugNodeIds = logics.get(data.node_id) || [];
-              if (setDebugData) setDebugData(data.node_id, data);
             }
           } else if (data.type === 'system' && data.eos) {
             if (setDebugData) {

@@ -5,7 +5,7 @@ import bcrypt
 import jwt
 
 # Secret key for JWT. In production, use environment variables.
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev_secret_key_pido_vision_studio_2026")
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev_secret_key_pido_ai_platform_2026")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 

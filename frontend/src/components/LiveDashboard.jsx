@@ -30,8 +30,9 @@ import {
   Video, Gauge, CircleDot, Target, Hash, 
   Type, ListOrdered, LineChart, BarChart2, 
   Play, Image, Flame, Zap, LayoutGrid, ArrowUpToLine, Move, History, Undo2, Check,
-  AlertTriangle 
+  AlertTriangle, Clock, Eye 
 } from 'lucide-react';
+import usePermissions from '../utils/usePermissions';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -107,6 +108,14 @@ const WIDGET_CATEGORIES = [
 ];
 
 // Widget minimum sizes above are written in legacy (v1) units; convert once for the v2 grid.
+const TIMEFRAME_PRESETS = [
+  { id: '5m', label: '5m', desc: '5 นาทีล่าสุด (Live 1s)' },
+  { id: '15m', label: '15m', desc: '15 นาทีล่าสุด' },
+  { id: '1h', label: '1h', desc: '1 ชั่วโมงล่าสุด (เฉลี่ยทุก 1m)' },
+  { id: '24h', label: '24h', desc: '24 ชั่วโมงล่าสุด (เฉลี่ยทุก 10m)' },
+  { id: '7d', label: '7d', desc: '7 วันล่าสุด (เฉลี่ยทุก 1h)' },
+];
+
 const WIDGET_TYPES = WIDGET_CATEGORIES.flatMap(c => c.widgets).map(w => ({
   ...w,
   minW: w.minW * V1_TO_V2_COL,
@@ -281,7 +290,39 @@ const checkWidgetPipelineAlert = (item, metadata, dataSources, dataSourcesLoaded
     return { hasAlert: false };
   }
 
-  // Case: Single-value widgets (metric, gauge, capacityBar, radialDonut, trafficLight, targetTracker, text, textFeed)
+  // Case: textFeed (supports multi-source aggregation via dataPaths)
+  if (type === 'textFeed') {
+    const paths = config.dataPaths && config.dataPaths.length > 0 
+      ? config.dataPaths 
+      : (config.dataPath ? [config.dataPath] : []);
+    
+    if (paths.length === 0) {
+      return {
+        hasAlert: true,
+        statusType: 'unbound',
+        statusLabel: 'ยังไม่ได้เลือก Data Source',
+        reason: 'ยังไม่ได้ผูกข้อมูลกับ Node ใน Pipeline Builder',
+        detail: 'Widget Log Feed นี้ต้องผูกอย่างน้อย 1 Data Source จาก Pipeline Builder',
+        suggestion: 'คลิกปุ่ม "เปิดการตั้งค่า Widget" ด้านล่างเพื่อเลือก Dashboard Log Node',
+        dataPath: 'ไม่ได้ระบุ (None)'
+      };
+    }
+    const hasAnyMatch = paths.some(p => dataSources.some(ds => ds.id === p));
+    if (dataSourcesLoaded && !hasAnyMatch) {
+      return {
+        hasAlert: true,
+        statusType: 'dangling',
+        statusLabel: 'Data Source ไม่พบใน Pipeline',
+        reason: 'ไม่พบ Data Source ที่เลือกไว้ใน Pipeline ปัจจุบัน',
+        detail: `Data paths (${paths.join(', ')}) ไม่มีอยู่ใน Pipeline Builder ที่กำลังรันอยู่`,
+        suggestion: 'ตรวจสอบการเชื่อมโยง Node ในหน้า Pipeline Builder หรือเลือก Data Source ใหม่ในการตั้งค่า Widget',
+        dataPath: paths.join(', ')
+      };
+    }
+    return { hasAlert: false };
+  }
+
+  // Case: Single-value widgets (metric, gauge, capacityBar, radialDonut, trafficLight, targetTracker, text)
   const dataPath = config.dataPath;
   if (!dataPath || dataPath.trim() === '') {
     return {
@@ -361,6 +402,7 @@ const diffSnapshots = (saved, current) => {
 };
 
 export default function LiveDashboard({ metadata, connected, projectId }) {
+  const { canEdit, isViewer } = usePermissions();
   const [layouts, setLayouts] = useState({ lg: [] }); // start empty instead of defaultLayout to prevent flashing
   const [compactMode, setCompactMode] = useState('free'); // 'vertical' = Auto-arrange, 'free' = Free placement (default)
   const [isEditMode, setIsEditMode] = useState(false);
@@ -379,6 +421,37 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   const [saveError, setSaveError] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  // Global Timeframe state (Home Assistant Style)
+  const [globalTimeframe, setGlobalTimeframe] = useState(() => {
+    try {
+      return localStorage.getItem('pido_global_timeframe') || '15m';
+    } catch {
+      return '15m';
+    }
+  });
+
+  const handleGlobalTimeframeChange = (tf) => {
+    setGlobalTimeframe(tf);
+    try {
+      localStorage.setItem('pido_global_timeframe', tf);
+    } catch {}
+  };
+
+  // Initial event logs from database to prevent empty feed on reload
+  const [initialDbLogs, setInitialDbLogs] = useState([]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`/api/logs?project_id=${projectId}&limit=50`)
+      .then(res => res.json())
+      .then(result => {
+        if (result?.status === 'success' && Array.isArray(result.data)) {
+          setInitialDbLogs(result.data);
+        }
+      })
+      .catch(err => console.error("Failed to fetch initial event logs", err));
+  }, [projectId]);
   // RGL normalises (compacts) the layout on first render; adopt that result as the clean baseline.
   const adoptBaselineRef = useRef(false);
   const adoptTimerRef = useRef(null);
@@ -588,20 +661,46 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
   return (
     <div className="animate-in fade-in duration-500 flex flex-col h-full relative">
       
-      {/* Floating Toolbar */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 flex gap-2">
+      {/* Dedicated Top Control Bar (Home Assistant Style Timeframe + Action Toolbar) */}
+      <div className="shrink-0 mb-3 flex flex-wrap items-center justify-between gap-2.5 z-20">
+        {/* Left: Global Timeframe Selector (Home Assistant Style) */}
+        <div className="flex items-center bg-surface-2/90 backdrop-blur-md border border-line-strong rounded-xl p-1 shadow-sm text-xs" role="group" aria-label="Global Timeframe">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 text-fg-subtle">
+            <Clock size={13} className="text-teal-500 shrink-0" />
+            <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-fg-muted">Timeframe</span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            {TIMEFRAME_PRESETS.map(preset => (
+              <button
+                key={preset.id}
+                onClick={() => handleGlobalTimeframeChange(preset.id)}
+                className={`px-2 sm:px-2.5 py-1 rounded-lg font-medium transition-all text-[11px] sm:text-xs cursor-pointer ${
+                  globalTimeframe === preset.id
+                    ? 'bg-teal-600 text-white shadow-sm font-semibold'
+                    : 'text-fg-secondary hover:text-fg hover:bg-surface-3'
+                }`}
+                title={preset.desc}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: Existing Actions Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap">
         {isEditMode && (
-          <div className="flex items-center bg-surface-2/90 backdrop-blur-sm border border-line-strong rounded-lg p-0.5 shadow-lg text-xs sm:text-sm" role="group" aria-label="Layout mode">
+          <div className="flex items-center bg-surface-2/90 backdrop-blur-sm border border-line-strong rounded-xl p-1 shadow-sm text-xs sm:text-sm" role="group" aria-label="Layout mode">
             <button
               onClick={() => setCompactMode('vertical')}
-              className={`px-2.5 py-1 sm:py-1.5 rounded-md flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'vertical' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'vertical' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
               title="Auto-arrange: widget จะไหลขึ้นไปชิดด้านบนอัตโนมัติ"
             >
               <ArrowUpToLine size={14} /> <span className="hidden sm:inline">Auto-arrange</span>
             </button>
             <button
               onClick={() => setCompactMode('free')}
-              className={`px-2.5 py-1 sm:py-1.5 rounded-md flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'free' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
+              className={`px-2.5 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition-colors ${compactMode === 'free' ? 'bg-blue-600 text-white shadow' : 'text-fg-secondary hover:bg-surface-3'}`}
               title="Free placement: วางตรงไหนก็อยู่ตรงนั้น เว้นช่องว่างได้"
             >
               <Move size={14} /> <span className="hidden sm:inline">Free placement</span>
@@ -609,55 +708,63 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
           </div>
         )}
         {isDirty && (
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg backdrop-blur-sm" title="มีการแก้ไขที่ยังไม่ได้บันทึกเป็นเวอร์ชัน">
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-sm" title="มีการแก้ไขที่ยังไม่ได้บันทึกเป็นเวอร์ชัน">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> ยังไม่ได้บันทึก
           </div>
         )}
         <button
           onClick={() => setHistoryOpen(o => !o)}
-          className={`backdrop-blur-sm px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border shadow-lg active:scale-95 ${historyOpen ? 'bg-blue-600 text-white border-blue-600' : 'bg-surface-2/90 hover:bg-surface-3 text-fg-secondary border-line-strong'}`}
+          className={`backdrop-blur-sm px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border shadow-sm active:scale-95 ${historyOpen ? 'bg-blue-600 text-white border-blue-600' : 'bg-surface-2/90 hover:bg-surface-3 text-fg-secondary border-line-strong'}`}
           title="Version History"
         >
           <History size={15} />
           <span className="hidden sm:inline">{currentVersion ? `v${currentVersion}` : 'History'}</span>
         </button>
-        {isEditMode ? (
-          <>
-            <button
-              onClick={handleDiscard}
-              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-lg active:scale-95"
-              title={isDirty ? 'ยกเลิกการแก้ไขที่ยังไม่ได้บันทึก' : 'ออกจากโหมดแก้ไข'}
+        {canEdit ? (
+          isEditMode ? (
+            <>
+              <button
+                onClick={handleDiscard}
+                className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors border border-line-strong shadow-sm active:scale-95"
+                title={isDirty ? 'ยกเลิกการแก้ไขที่ยังไม่ได้บันทึก' : 'ออกจากโหมดแก้ไข'}
+              >
+                <Undo2 size={15} /> <span className="hidden sm:inline">{isDirty ? 'Discard' : 'Cancel'}</span>
+              </button>
+              {isDirty || currentVersion === null ? (
+                <button 
+                  onClick={openSaveModal}
+                  className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
+                >
+                  <Save size={15} /> <span>Save Version</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setIsEditMode(false)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-sm active:scale-95"
+                  title="ไม่มีการเปลี่ยนแปลง"
+                >
+                  <Check size={15} /> <span>Done</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <button 
+              onClick={() => setIsEditMode(true)}
+              className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors border border-line-strong shadow-sm active:scale-95"
             >
-              <Undo2 size={15} /> <span className="hidden sm:inline">{isDirty ? 'Discard' : 'Cancel'}</span>
+              <Unlock size={15} /> <span>Edit Layout</span>
             </button>
-            {isDirty || currentVersion === null ? (
-              <button 
-                onClick={openSaveModal}
-                className="bg-green-600 hover:bg-green-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
-              >
-                <Save size={15} /> <span>Save Version</span>
-              </button>
-            ) : (
-              <button 
-                onClick={() => setIsEditMode(false)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors shadow-lg active:scale-95"
-                title="ไม่มีการเปลี่ยนแปลง"
-              >
-                <Check size={15} /> <span>Done</span>
-              </button>
-            )}
-          </>
+          )
         ) : (
-          <button 
-            onClick={() => setIsEditMode(true)}
-            className="bg-surface-2/90 hover:bg-surface-3 backdrop-blur-sm text-fg-secondary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors border border-line-strong shadow-lg active:scale-95"
-          >
-            <Unlock size={15} /> <span>Edit Layout</span>
-          </button>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-xs font-semibold">
+            <Eye size={14} />
+            <span>Live Monitor</span>
+          </div>
         )}
+        </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-canvas rounded-xl">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
@@ -682,8 +789,8 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
             cols={GRID_COLS}
             rowHeight={GRID_ROW_HEIGHT}
             onLayoutChange={onLayoutChange}
-            isDraggable={isEditMode}
-            isResizable={isEditMode}
+            isDraggable={canEdit && isEditMode}
+            isResizable={canEdit && isEditMode}
             margin={[GRID_MARGIN, GRID_MARGIN]}
             compactType={compactMode === 'free' ? null : 'vertical'}
             preventCollision={false}
@@ -832,13 +939,73 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                     projectId={projectId} 
                   />
                 )}
-                {type === 'textFeed' && (
-                  <TextFeedWidget 
-                    title={config.title} 
-                    feedData={getNestedValue(metadata, config.dataPath) || []} 
-                    config={config}
-                  />
-                )}
+                {type === 'textFeed' && (() => {
+                  const paths = config.dataPaths && config.dataPaths.length > 0 
+                    ? config.dataPaths 
+                    : (config.dataPath ? [config.dataPath] : []);
+                  
+                  let mergedFeed = [];
+                  const targetNodeIds = [];
+                  paths.forEach(p => {
+                    const match = p.match(/^dashboard\.(.+?)\.(?:value|history)$/);
+                    if (match) targetNodeIds.push(match[1]);
+                    const items = getNestedValue(metadata, p);
+                    if (Array.isArray(items)) {
+                      mergedFeed = mergedFeed.concat(items);
+                    }
+                  });
+
+                  // Format historical logs from database
+                  const formattedDbLogs = (initialDbLogs || [])
+                    .filter(log => targetNodeIds.length === 0 || targetNodeIds.includes(log.node_id))
+                    .map(log => {
+                      const rawTime = log.timestamp ? new Date(log.timestamp).getTime() : 0;
+                      const ts = log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '';
+                      const payload = (typeof log.payload === 'object' && log.payload !== null) ? log.payload : {};
+                      const snap = log.snapshot_path ? (
+                        log.snapshot_path.startsWith('/api/snapshots/') 
+                          ? log.snapshot_path 
+                          : `/api/snapshots/${log.snapshot_path.split('/').pop()}`
+                      ) : null;
+                      return {
+                        id: `db_${log.id}`,
+                        timestamp: ts,
+                        raw_time: rawTime,
+                        value: payload.message || payload.value || 'Event Log',
+                        color: payload.color || 'indigo',
+                        source: payload.source || '',
+                        node_id: log.node_id,
+                        snapshot_path: snap,
+                        is_db: true
+                      };
+                    });
+
+                  // Merge live feed with historical DB logs (deduplicate within 1.5s window)
+                  const combined = [...mergedFeed];
+                  formattedDbLogs.forEach(dbItem => {
+                    const exists = combined.some(liveItem => 
+                      Math.abs((liveItem.raw_time || 0) - dbItem.raw_time) < 1500 && liveItem.node_id === dbItem.node_id
+                    );
+                    if (!exists) {
+                      combined.push(dbItem);
+                    }
+                  });
+
+                  // Sort newest first by raw_time / timestamp
+                  combined.sort((a, b) => {
+                    const tA = a?.raw_time || 0;
+                    const tB = b?.raw_time || 0;
+                    return tB - tA;
+                  });
+
+                  return (
+                    <TextFeedWidget 
+                      title={config.title} 
+                      feedData={combined.slice(0, 50)} 
+                      config={config}
+                    />
+                  );
+                })()}
                 {type === 'chart' && (
                   (() => {
                     const paths = config.dataPaths || (config.dataPath ? [config.dataPath] : []);
@@ -863,6 +1030,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                         config={config}
                         paths={paths}
                         metadata={metadata}
+                        globalTimeframe={globalTimeframe}
                       />
                     );
                   })()
@@ -871,6 +1039,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
                   <HistoricalChartWidget 
                     projectId={projectId} 
                     config={config} 
+                    globalTimeframe={globalTimeframe}
                   />
                 )}
               </div>
@@ -883,7 +1052,7 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         <div 
           className={`absolute top-0 right-0 h-full w-80 bg-surface/95 backdrop-blur-md border-l border-line p-4 shrink-0 flex flex-col gap-4 overflow-y-auto custom-scrollbar transition-transform duration-300 z-30 shadow-2xl ${isEditMode ? 'translate-x-0' : 'translate-x-full'}`}
         >
-          <div className="mt-14 shrink-0">
+          <div className="shrink-0">
             <div className="flex items-center gap-2 text-fg font-bold text-sm tracking-wide">
               <LayoutGrid size={17} className="text-blue-500" />
               <span>Available Widgets</span>
@@ -955,6 +1124,8 @@ export default function LiveDashboard({ metadata, connected, projectId }) {
         isDirty={isDirty}
         onRestored={handleRestored}
         refreshKey={historyRefreshKey}
+        dataSources={dataSources}
+        dataSourcesLoaded={dataSourcesLoaded}
       />
 
       <SaveVersionModal

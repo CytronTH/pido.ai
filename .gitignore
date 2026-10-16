@@ -14,7 +14,12 @@ snapshots/
 backups/
 *.tar.gz
 *.zip
+*.db
+*.sqlite*
 backend/db/*.sqlite*
+backend/db/node_states.json
+*.backup
+gstshark_*
 
 # Video files are never committed (uploaded sources, wiki demo clips, etc.)
 *.mp4

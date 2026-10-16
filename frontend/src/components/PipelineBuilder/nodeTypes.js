@@ -7,6 +7,8 @@ import DashboardVideoNode from './nodes/DashboardVideoNode';
 import DashboardMetricNode from './nodes/DashboardMetricNode';
 import DashboardTextNode from './nodes/DashboardTextNode';
 import DashboardChartNode from './nodes/DashboardChartNode';
+import DashboardLogNode from './nodes/DashboardLogNode';
+import ActionNode from './nodes/ActionNode';
 import DebugNode from './nodes/DebugNode';
 import DebugOutputNode from './nodes/DebugOutputNode';
 import FunctionNode from './nodes/FunctionNode';
@@ -17,6 +19,12 @@ import TargetTrackerNode from './nodes/TargetTrackerNode';
 import DatabaseWriterNode from './nodes/DatabaseWriterNode';
 import CollectionWriterNode from './nodes/CollectionWriterNode';
 import UnitThroughputNode from './nodes/UnitThroughputNode';
+import DigitalInputNode from './nodes/DigitalInputNode';
+import DigitalOutputNode from './nodes/DigitalOutputNode';
+import LEDNode from './nodes/LEDNode';
+import BuzzerNode from './nodes/BuzzerNode';
+import RS485Node from './nodes/RS485Node';
+import CommentNode from './nodes/CommentNode';
 import ButtonEdge from './edges/ButtonEdge';
 
 export const DEFAULT_NODE_NAMES = {
@@ -46,8 +54,9 @@ export const DEFAULT_NODE_NAMES = {
   digitalInputNode: 'Digital Input',
   digitalOutputNode: 'Digital Output',
   buzzerNode: 'Active Buzzer',
-  ledNode: 'LED Driver',
+  ledNode: 'LED / PWM Driver',
   rs485Node: 'RS485 Modbus',
+  commentNode: 'Comment / Note',
 };
 
 export const edgeTypes = {
@@ -62,6 +71,8 @@ export const nodeTypes = {
   dashboardMetricNode: memo(DashboardMetricNode),
   dashboardTextNode: memo(DashboardTextNode),
   dashboardChartNode: memo(DashboardChartNode),
+  dashboardLogNode: memo(DashboardLogNode),
+  actionNode: memo(ActionNode),
   debugNode: memo(DebugNode),
   debugOutputNode: memo(DebugOutputNode),
   functionNode: memo(FunctionNode),
@@ -73,5 +84,11 @@ export const nodeTypes = {
   databaseWriterNode: memo(DatabaseWriterNode),
   collectionWriterNode: memo(CollectionWriterNode),
   unitThroughputNode: memo(UnitThroughputNode),
+  digitalInputNode: memo(DigitalInputNode),
+  digitalOutputNode: memo(DigitalOutputNode),
+  ledNode: memo(LEDNode),
+  buzzerNode: memo(BuzzerNode),
+  rs485Node: memo(RS485Node),
+  commentNode: memo(CommentNode),
 };
 

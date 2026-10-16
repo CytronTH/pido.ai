@@ -15,6 +15,7 @@ ROUTER_NODE_TYPES = {
     "digitalOutputNode",
     "ledNode",
     "buzzerNode",
+    "rs485Node",
     "dashboardMetricNode",
     "dashboardTextNode",
     "dashboardLogNode",
@@ -34,11 +35,17 @@ STREAM_NODE_TYPES = {
 
 AI_DYNAMIC_PARAMS = {
     "confidenceThreshold",
+    "confidenceThresholdEnabled",
     "classConfidences",
     "roi",
     "roiEnabled",
     "showRoi",
     "classFilter",
+    "classFilterEnabled",
+    "bboxEnabled",
+    "bboxDrawMode",
+    "bboxLineThickness",
+    "bboxFontThickness",
     "backendResolution",
 }
 
@@ -227,7 +234,18 @@ def diff_pipelines(
         result.action = "ai_params_only"
         result.summary = "Hot-updating AI confidence/ROI filters with zero video downtime."
     else:
-        result.action = "router_only"
-        result.summary = "Hot-reloading graph connections."
+        # Check if changes were purely visual/annotation nodes (e.g. commentNode)
+        annotation_types = {"commentNode"}
+        changed_nids = set(result.added_nodes + result.removed_nodes + result.modified_nodes)
+        all_annotation = bool(changed_nids) and all(
+            (new_map.get(nid) or old_map.get(nid, {})).get("type") in annotation_types
+            for nid in changed_nids
+        )
+        if all_annotation and not edges_changed:
+            result.action = "none"
+            result.summary = "Annotation/comment changes only. Pipeline runtime unaffected."
+        else:
+            result.action = "router_only"
+            result.summary = "Hot-reloading graph connections."
 
     return result

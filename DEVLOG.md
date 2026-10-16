@@ -25,6 +25,134 @@
 - 
 -->
 
+## [2026-10-15] - ระบบ Pipeline Version History และ Cross-System Compatibility Check
+
+### 🎯 เป้าหมาย (Goals)
+- [x] จัดการระบบ History ระหว่าง Pipeline Builder และ Live Dashboard ให้เป็นไปตามหลัก Decoupled Architecture (ไม่ผูกประวัติรวมกันเป็นก้อนเดียว แต่แยกอิสระระดับ Micro)
+- [x] พัฒนาระบบ Pipeline Version History ที่ทำงานได้จริง (บันทึกเวอร์ชันอัตโนมัติเมื่อ Deploy + สร้าง Checkpoint กำหนดชื่อเองได้)
+- [x] สร้างระบบ Cross-System Compatibility Check ตรวจสอบความเข้ากันได้ระหว่าง Node ใน Pipeline กับ Widget บน Dashboard ทั้งสองทิศทาง
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Backend**:
+  - `backend/db/models.py`: เพิ่มโมเดล `PipelineVersion` พร้อม `version_number`, `note`, `pipeline_json`, `node_count`, `edge_count`, `changes_json`, `restored_from_version`
+  - `backend/ai_engine/pipeline_settings_differ.py`: พัฒนา Engine ตรวจจับและเปรียบเทียบการตั้งค่าของแต่ละโหนดแบบเจาะลึก (Field-by-Field: ค่าเดิม -> ค่าใหม่ พร้อมชื่อฟิลด์ภาษาไทย เช่น ค่าความมั่นใจ, พิน GPIO, ROI Box, เป้าหมายการนับ)
+  - `backend/web_server/routers/pipeline_versions.py`: เพิ่ม Endpoint ตรวจสอบ Diff (`/{vid}/diff`) และพรีวิวการเปลี่ยนแปลง (`/preview-diff`) บันทึก `changes_json` อัตโนมัติในทุกเวอร์ชัน
+  - `backend/web_server/main.py`: เชื่อมโยง Router, เพิ่มระบบ Auto-snapshot บันทึกเวอร์ชันของไปป์ไลน์อัตโนมัติทุกครั้งที่ Deploy สำเร็จ และเพิ่ม Backward-compatibility alias สำหรับ `/revisions`
+- **Frontend**:
+  - `frontend/src/components/PipelineVersions/pipelineVersionsApi.js`: เพิ่มฟังก์ชัน `getVersionDiff` และ `previewPipelineDiff`
+  - `frontend/src/components/ProjectRevisionsModal.jsx`: 
+    - เพิ่มแผง **Expandable Diff Inspector** ในแต่ละเวอร์ชัน แสดงตารางเปรียบเทียบค่าพารามิเตอร์เดิม $\rightarrow$ ค่าใหม่ (Highlight สีเขียว/แดง)
+    - แสดงป้ายกำกับจำนวนโหนดที่แก้ไข/เพิ่ม/ลบ
+    - เพิ่มระบบ Smart Diff Preview ในกล่อง Manual Checkpoint พร้อมปุ่ม **"ใช้เป็น Note" (Magic Wand)** เพื่อดึงสรุปการเปลี่ยนแปลงมาเป็นชื่อบันทึกได้ทันที
+  - `frontend/src/components/PipelineBuilder/PipelineBuilder.jsx`: อัปเดตการกู้คืน Pipeline ให้โหลดเข้า Store โดยตรง ไม่ต้องรีโหลดเบราว์เซอร์
+  - `frontend/src/components/DashboardVersions/VersionHistoryPanel.jsx` & `LiveDashboard.jsx`: เพิ่มระบบตรวจสอบก่อนกู้คืน Dashboard ว่ามี Widget ตัวใดอ้างอิงโหนดที่ไม่มีใน Pipeline ปัจจุบันหรือไม่
+- **Testing & Verification**:
+  - สร้างชุดทดสอบ `backend/test_pipeline_versions.py` ทดสอบการเปรียบเทียบ Parameter รายฟิลด์และ Cascade Delete (ผ่าน 100%)
+  - รัน `npm run build` ใน Frontend ผ่าน 100%
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ไม่รวมประวัติ Pipeline และ Dashboard เข้าด้วยกัน แต่ใช้ระบบ Two-Tier History (แยกอิสระต่อกัน และเตือนความเข้ากันได้เมื่อกู้คืน)
+- **เหตุผล:** ป้องกันผลกระทบด้านความปลอดภัย (Blast Radius) ของระบบ Edge AI — การจัดหน้าจอ Dashboard ไม่ควรทำให้ Hailo NPU/กล้องรีสตาร์ท และการย้อน Flow ไปป์ไลน์ไม่ควรไปทำลาย Layout หน้าจอของผู้ใช้งาน
+- **เรื่องที่ตัดสินใจ:** พัฒนาตัวกรอง Ignored UI Keys (ตัด `positions`, `dragging`, `selected` ออกจากการเปรียบเทียบ Data)
+- **เหตุผล:** เพื่อให้ระบบโฟกัสเฉพาะ Logic และ Parameter สำคัญจริง ๆ ของผู้ใช้เท่านั้น ไม่นำการลากเลื่อนพิกัดบน Canvas มานับเป็นการเปลี่ยน Setting
+
+## [2026-10-15] - ปรับปรุง Hardware I/O Nodes ให้รองรับ Raspberry Pi 5 มาตรฐานแบบเต็มรูปแบบ (ยกเลิก IRIV EdgeAI Legacy)
+
+### 🎯 เป้าหมาย (Goals)
+- [x] ย้ายระบบควบคุม Hardware I/O ทั้งหมดจาก Cytron IRIV EdgeAI carrier board มาเป็น Raspberry Pi 5 รุ่นมาตรฐาน (40-Pin Header)
+- [x] นำ Pin Map และชื่อขั้วต่ออุตสาหกรรมเดิม (`DI0`, `DO0`, `L0`, `L1`, `BUZZER`, `USER_BTN`) ออกทั้งหมด 100%
+- [x] ออกแบบให้รองรับการเลือก BCM GPIO 0-27 บนชิป RP1 ของ Raspberry Pi 5 ได้อย่างอิสระ
+- [x] พัฒนาอินเทอร์เฟซผู้ใช้ (UI) สำหรับตั้งค่าฮาร์ดแวร์โดยเฉพาะ พร้อมแผนผัง 40-Pin Header แบบอินเทอร์แอคทีฟ
+- [x] เชื่อมต่อโหนดฮาร์ดแวร์ทั้งหมด (รวมถึง RS485 และ Buzzer Auto-Off Timer) เข้ากับ Pipeline Message Router และระบบ Hot-Reload
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **Backend**:
+  - `backend/hardware/gpio_manager.py`: ปรับ `parse_pin` ให้รับเฉพาะ BCM GPIO 0-27, รองรับ `pull_resistor="up"|"down"|"none"`, รองรับ `active_high=False` (Active-low Relay), เพิ่มระบบ Auto-shutoff Timer สำหรับ Buzzer
+  - `backend/hardware/rs485_manager.py`: เปลี่ยนค่าเริ่มต้นเป็น `/dev/ttyUSB0` (USB Dongle ทั่วไปบน RPi 5) พร้อม Auto-fallback และ Dynamic Configuration
+  - `backend/ai_engine/pipeline_parser.py`: เพิ่มการ Parse โหนด `rs485Node` และส่งต่อพารามิเตอร์ของ `digitalOutputNode`, `digitalInputNode`
+  - `backend/ai_engine/message_router.py`: เพิ่มคลาส `RS485OutputNode` สำหรับส่งข้อมูล Text/Hex ทาง Serial และอัปเกรด `HardwareOutputNode`
+  - `backend/ai_engine/pipeline_differ.py`: เพิ่ม `rs485Node` ใน `ROUTER_NODE_TYPES` สำหรับการอัปเดตแบบไร้รอยต่อ (Hot-reload)
+- **Frontend**:
+  - `frontend/src/components/PipelineBuilder/settings/RPi5PinoutHeader.jsx`: สร้าง Component แผนผังพิน 1-40 ของ Raspberry Pi 5 แยกโค้ดสี 3.3V, 5V, GND, GPIO, Hardware PWM พร้อมระบบคลิกเลือกพินได้ทันที
+  - `frontend/src/components/PipelineBuilder/settings/*`: สร้างแผงตั้งค่าเฉพาะ `DigitalInputNodeSettings`, `DigitalOutputNodeSettings`, `LEDNodeSettings`, `BuzzerNodeSettings`, `RS485NodeSettings`
+  - `frontend/src/components/PipelineBuilder/NodeSettingsSidebar.jsx`: ลงทะเบียนแผงตั้งค่าฮาร์ดแวร์ทั้ง 5 โหนดเข้าสู่ Sidebar
+  - `frontend/src/components/PipelineBuilder/nodeTypes.js`: ลงทะเบียน Node Components ทั้งหมดใน React Flow
+  - `frontend/src/components/PipelineBuilder/Sidebar.jsx` & `NodeWiki.jsx`: ปรับแต่งคำอธิบายและหมวดหมู่เป็น `Hardware (RPi 5)`
+- **Testing & Verification**:
+  - สร้างชุดทดสอบ `backend/test_rpi5_hardware.py` ครอบคลุมการทำงานทั้ง 6 ฟังก์ชัน (Pass 100%)
+  - รัน Frontend Build (`vite build`) ผ่านสมบูรณ์ 100%
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** เปลี่ยนการควบคุม Output เป็นแบบ Duck Typing (`hasattr(device, 'on')`) แทน `isinstance` และรองรับ Active-Low สำหรับรีเลย์
+- **เหตุผล:** โมดูลรีเลย์ภายนอกที่ผู้ใช้ซื้อมาต่อกับ Raspberry Pi 5 ส่วนใหญ่ทำงานแบบ Active Low (ส่ง 0V เพื่อสั่งเปิด) หากไม่มีตัวเลือกนี้ ผู้ใช้จะต้องกลับ Logic เองใน LogicNode ซึ่งซับซ้อนและอาจเกิดปัญหาไฟกระพริบตอนบูต
+- **เรื่องที่ตัดสินใจ:** เพิ่มการแจ้งเตือนแรงดัน 3.3V LVTTL บน DigitalInputNode
+- **เหตุผล:** พินบน Raspberry Pi 5 ไม่ทนแรงดัน 5V หรือ 24V หากผู้ใช้นำเซนเซอร์อุตสาหกรรมมาต่อตรง ชิป RP1 จะเสียหายทันที จึงต้องมีคำเตือนชัดเจนใน UI
+
+---
+
+## [2026-10-14] - แก้ไขปัญหา Platform Updater Line 136 ล้มเหลวจาก Hardcoded Path
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ไขบั๊ก Platform Updater ล้มเหลวที่ Line 136 (`cd "$PROJECT_ROOT"`) บนเครื่องที่ติดตั้งผ่าน `install.sh` (`~/pido.ai`) หรือโฟลเดอร์อื่นที่ไม่ใช่ `/home/pi/pido-ai`
+- [x] ปรับให้สคริปต์ `updater.sh` ทำ Dynamic Path Resolution อัตโนมัติและรองรับอาร์กิวเมนต์ `--project-root` และ `--backup-dir`
+- [x] ส่งพารามิเตอร์ `--project-root` จาก Backend FastAPI (`main.py`) ไปยัง `updater.sh` ทั้งโหมด Online และ Offline
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **`backend/scripts/updater.sh`**:
+  - เปลี่ยนการกำหนด `PROJECT_ROOT` จากค่าคงที่ `/home/pi/pido-ai` เป็น Dynamic Path Resolution โดยอ้างอิงตำแหน่งของตัวสคริปต์เอง (`SCRIPT_DIR/../..`) และตัวแปร `PIDO_PROJECT_ROOT`
+  - ปรับ `USER_HOME` และ `BACKUP_BASE_DIR` ให้อ้างอิง `$HOME` ของผู้ใช้จริง
+  - เพิ่มการรองรับอาร์กิวเมนต์ `--project-root=*` และ `--backup-dir=*` ในการ Parse Arguments
+  - เพิ่ม Fallback `git reset --hard "origin/$TARGET_VERSION"` กรณีคำสั่ง `git pull` เกิดปัญหาบนอุปกรณ์ Edge
+- **`backend/web_server/main.py`**:
+  - ส่งพารามิเตอร์ `--project-root={str(project_root)}` ใน Endpoint `POST /api/system/update/start` (Online Mode)
+  - ส่งพารามิเตอร์ `--project-root={str(project_root)}` ใน Endpoint `POST /api/system/update/upload` (Offline Mode)
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** ใช้ Dynamic Path Resolution (`cd "$(dirname "${BASH_SOURCE[0]}")/../.."`) ร่วมกับการส่ง Flag จาก Backend
+- **เหตุผล:** ระบบต้องสามารถทำงานได้ไม่ว่าผู้ใช้จะติดตั้งโปรเจกต์ไว้ที่ชื่อโฟลเดอร์ใด (`~/pido.ai`, `~/pido-ai`, หรือ Custom Path อื่น) โดยไม่ต้องพึ่งพา Symbolic Link
+
+### 🚧 ปัญหาที่พบ/ยังไม่แก้ (Blockers / Known Issues)
+- บอร์ดทดสอบเดิมที่ยังใช้โค้ดเวอร์ชันเก่าก่อนหน้านี้ จะต้องสร้าง Symlink `ln -s /home/pi/pido.ai /home/pi/pido-ai` เพียงครั้งเดียวสำหรับการอัปเดตครั้งแรก เมื่ออัปเดตผ่านแล้วครั้งถัดไปจะรองรับ Dynamic Path อัตโนมัติ
+
+---
+
+## [2026-10-09] - ปรับปรุงและแก้ไขระบบ Platform Updater (OTA & Offline) ให้พร้อมใช้งานจริง 100%
+
+### 🎯 เป้าหมาย (Goals)
+- [x] แก้ไข Critical Bugs ในระบบ Platform Updater เพื่อให้ผู้ใช้งานสามารถกดอัปเดตระบบได้จริงทั้งแบบ Online (GitHub) และ Offline Air-Gapped (.tar.gz)
+- [x] แก้ไขปัญหา UI ค้างที่ 5% จากพาธไฟล์สถานะและ Lock ไม่ตรงกัน
+- [x] แก้ไขปัญหาหน้าเว็บไม่เปลี่ยนหลังอัปเดตด้วยการเพิ่มคำสั่ง `npm run build` ในกระบวนการ Updater
+- [x] ปรับตรรกะ Git Flow ใน `updater.sh` และ Backend ให้ดึงโค้ดล่าสุดตาม Branch ปัจจุบัน (`dev` หรือ `main`) ป้องกันการ Rollback ไป tag เก่า
+- [x] เพิ่มระบบเลือก **Release Channel (Stable main / Development dev)** ให้ผู้ใช้สามารถเลือกสลับช่องทางการรับอัปเดตได้ผ่านหน้าเว็บโดยตรง
+- [x] ปรับปรุง UI ให้แสดงสถานะเสร็จสิ้น/ล้มเหลวอย่างชัดเจน พร้อมปุ่ม Dismiss และสร้างสคริปต์ `create_update_package.sh` สำหรับแพ็กเกจ Offline
+
+### 🛠️ สิ่งที่ทำเสร็จแล้ว (Accomplished)
+- **`backend/scripts/updater.sh`**:
+  - เปลี่ยนพาธ `STATUS_FILE`, `LOG_FILE`, `LOCK_FILE` ให้ตรงกับ `/tmp/pido_update_*` ป้องกันการค้าง
+  - ปรับ Git update logic ให้ตรวจสอบ Branch ปัจจุบัน (`dev`, `main`) และทำ `git pull origin <branch>` อย่างถูกต้อง
+  - เพิ่มการตรวจสอบและสร้าง local tracking branch อัตโนมัติเมื่อสั่งสลับข้าม branch เช่น จาก `dev` ไป `main`
+  - เพิ่มขั้นตอนการคอมไพล์ Frontend `npm run build` ใน Step 3 ทำให้ production bundle (`frontend/dist`) อัปเดตเสมอ
+  - ปรับ Error Handling ในกรณี Offline package ไม่พบ ให้ลบ Lock file และแจ้งเตือนสถานะ failed อย่างถูกต้อง
+- **`backend/web_server/main.py`**:
+  - เพิ่มพารามิเตอร์ `channel` ใน `GET /api/system/update/check` เพื่อตรวจสอบอัปเดตตามช่องทางที่ผู้ใช้เลือก (Stable `main` หรือ Beta `dev`)
+  - ตรวจสอบ `is_channel_switch` เพื่อให้ผู้ใช้สามารถสั่งย้าย Channel ข้าม branch ได้อย่างปลอดภัย
+  - ปรับปรุงการระบุเป้าหมาย `target_version` ให้ตรงตาม branch ปัจจุบันโดยอัตโนมัติ
+  - เปลี่ยนชื่อพาธไฟล์อัปโหลดออฟไลน์เป็น `/tmp/pido_offline_update.tar.gz`
+- **`frontend/src/components/Settings/UpdateManager.jsx`**:
+  - เพิ่ม **Release Channel Selector** แบบ 2 ตัวเลือก: 🛡️ **Stable (`main`)** และ ⚡ **Development (`dev`)** พร้อมป้ายบอกช่องทางปัจจุบัน
+  - เพิ่มระบบตรวจจับการสลับ Channel พร้อมปุ่มสลับสายอัปเดตที่เปลี่ยนสีและข้อความให้เห็นชัดเจน
+  - อัปเดต Branding ทั้งหมดจาก `IRIV Vision Studio` เป็น `PiDo.AI Platform`
+  - ปรับพาธโฟลเดอร์ Backup ให้แสดงตรงกับความจริง (`/home/pi/pido-ai-backups/`)
+  - ปรับปรุงการ์ดแสดงผลความคืบหน้าให้รองรับสถานะ `completed` (ไอคอนสีเขียว) และ `failed` (ไอคอนสีแดง) พร้อมปุ่ม Dismiss
+- **`backend/scripts/create_update_package.sh`**:
+  - สร้างสคริปต์ตัวช่วยสร้างไฟล์แพ็กเกจ Offline `.tar.gz` แบบอัตโนมัติ พร้อม build frontend bundle ให้พร้อมนำไปใช้บนเครื่องที่ไม่มีอินเทอร์เน็ต
+
+### 🧠 การตัดสินใจทางเทคนิค (Decisions & Context)
+- **เรื่องที่ตัดสินใจ:** เพิ่ม Release Channel Selector ให้ผู้ใช้เลือกได้ว่าจะรับโค้ดสาย `main` (Stable) หรือ `dev` (Beta)
+- **เหตุผล:** ผู้ใช้และทีมงานต้องการความยืดหยุ่น โดยสามารถทดสอบฟีเจอร์ใหม่บน `dev` ได้ และเมื่อต้องการเสถียรภาพก็สามารถคลิกเดียวเพื่อสลับกลับมาใช้ `main` ได้ทันที
+
+---
+
 ## [2026-10-05] - แก้บั๊ก Pipeline Builder crash (`isCompact is not defined` ใน SnapshotNode)
 
 ### 🐛 สาเหตุ & การแก้ไข

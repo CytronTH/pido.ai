@@ -1,10 +1,11 @@
 import React from 'react';
-import { RotateCcw, Activity, Clock, Timer, Settings2 } from 'lucide-react';
+import { RotateCcw, Activity, Clock, Timer, Settings2, HelpCircle, Info } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 
 export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isSidebar }) {
   const debugState = usePipelineStore((state) => state.debugData?.[nodeId]) || {};
   const liveRate = debugState?.throughput ?? debugState?.current_rate_per_minute ?? data?.throughput ?? 0;
+  const liveAvgRate = debugState?.average_rate ?? debugState?.average_rate_per_minute ?? 0;
   const liveCount = debugState?.current_unit ?? debugState?.total_units ?? data?.current_unit ?? 0;
   const isRunning = debugState?.is_running ?? data?.is_running ?? false;
 
@@ -13,10 +14,35 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
 
   const handleReset = async () => {
     try {
+      const pid = usePipelineStore.getState().projectId || 'default';
       await fetch('/api/analytics/throughput/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: 'default', node_id: nodeId })
+        body: JSON.stringify({ project_id: pid, node_id: nodeId })
+      });
+      const setDebugData = usePipelineStore.getState().setDebugData;
+      if (setDebugData) {
+        setDebugData(nodeId, {
+          ...debugState,
+          current_unit: 0,
+          total_units: 0,
+          throughput: 0,
+          current_rate: 0,
+          average_rate: 0,
+          current_rate_per_sec: 0,
+          average_rate_per_sec: 0,
+          current_rate_per_min: 0,
+          average_rate_per_min: 0,
+          current_rate_per_hour: 0,
+          average_rate_per_hour: 0
+        });
+      }
+      usePipelineStore.getState().updateNodeData(nodeId, {
+        current_unit: 0,
+        total_units: 0,
+        throughput: 0,
+        current_rate: 0,
+        average_rate: 0
       });
     } catch (err) {
       console.error("Failed to reset throughput counter:", err);
@@ -37,7 +63,16 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
 
   return (
     <div className="flex flex-col gap-4">
-      
+      {/* Concept Info Card */}
+      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-2.5 text-xs text-fg-muted flex flex-col gap-1">
+        <span className="font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+          <Info size={13} /> Machine Throughput & OEE
+        </span>
+        <span className="leading-relaxed text-[11px]">
+          คำนวณกำลังการผลิตจริงของเครื่องจักร โดยมี <b>Current Rate</b> (พร้อมระบบ Idle Decay ค่อย ๆ ลดความเร็วเมื่อของมาช้า) และ <b>Avg Rate</b> (คิดจากเวลาเดินเครื่องจริงสะสม โดยหักช่วงหยุดพักเครื่องออกให้)
+        </span>
+      </div>
+
       {/* Settings section */}
       <div className="flex flex-col gap-3">
         {/* Start Trigger */}
@@ -49,28 +84,32 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
             onChange={(e) => onChange({ startTrigger: e.target.value })}
           >
             <option value="first_object">1st Object Detected</option>
-            <option value="manual">Human Trigger (Manual)</option>
             <option value="time">Scheduled Time</option>
-            <option value="sensor">Hardware Sensor</option>
+            <option value="manual" disabled>Human Trigger (Coming Soon)</option>
+            <option value="sensor" disabled>Hardware Sensor (Coming Soon)</option>
           </select>
           
           {startTrigger === 'time' && (
-            <input 
-              type="time" 
-              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
-              value={data?.startTimeConfig || ''}
-              onChange={(e) => onChange({ startTimeConfig: e.target.value })}
-              placeholder="08:00"
-            />
-          )}
-          {startTrigger === 'sensor' && (
-            <input 
-              type="text" 
-              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
-              value={data?.startSensorId || ''}
-              onChange={(e) => onChange({ startSensorId: e.target.value })}
-              placeholder="e.g. GPIO_4_IN"
-            />
+            <div className="flex flex-col gap-2 mt-1 bg-surface-2/60 p-2.5 rounded-md border border-line">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-fg-muted font-medium">Shift Start Time:</span>
+                <input 
+                  type="time" 
+                  className="bg-surface border border-line-strong rounded px-2 py-1 text-sm focus:border-indigo-500 text-fg"
+                  value={data?.startTimeConfig || '08:00'}
+                  onChange={(e) => onChange({ startTimeConfig: e.target.value })}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer hover:text-fg">
+                <input 
+                  type="checkbox"
+                  className="rounded border-line-strong text-indigo-600 focus:ring-indigo-500"
+                  checked={data?.autoResetDaily ?? false}
+                  onChange={(e) => onChange({ autoResetDaily: e.target.checked })}
+                />
+                <span>Auto-reset count daily on shift start</span>
+              </label>
+            </div>
           )}
         </div>
 
@@ -83,9 +122,9 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
             onChange={(e) => onChange({ pauseTrigger: e.target.value })}
           >
             <option value="timeout">Time After Last Object (Timeout)</option>
-            <option value="manual">Human Trigger (Manual)</option>
             <option value="time">Scheduled Time</option>
-            <option value="sensor">Hardware Sensor</option>
+            <option value="manual" disabled>Human Trigger (Coming Soon)</option>
+            <option value="sensor" disabled>Hardware Sensor (Coming Soon)</option>
           </select>
           
           {pauseTrigger === 'timeout' && (
@@ -97,41 +136,141 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
                 value={data?.pauseTimeoutSeconds ?? 60}
                 onChange={(e) => onChange({ pauseTimeoutSeconds: parseInt(e.target.value, 10) || 1 })}
               />
-              <span className="text-xs text-fg-muted">seconds</span>
+              <span className="text-xs text-fg-muted">seconds of inactivity</span>
             </div>
           )}
           {pauseTrigger === 'time' && (
-            <input 
-              type="time" 
-              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
-              value={data?.pauseTimeConfig || ''}
-              onChange={(e) => onChange({ pauseTimeConfig: e.target.value })}
-              placeholder="17:00"
-            />
+            <div className="flex items-center justify-between mt-1 bg-surface-2/60 p-2.5 rounded-md border border-line">
+              <span className="text-xs text-fg-muted font-medium">Shift Pause Time:</span>
+              <input 
+                type="time" 
+                className="bg-surface border border-line-strong rounded px-2 py-1 text-sm focus:border-indigo-500 text-fg"
+                value={data?.pauseTimeConfig || '17:00'}
+                onChange={(e) => onChange({ pauseTimeConfig: e.target.value })}
+              />
+            </div>
           )}
-          {pauseTrigger === 'sensor' && (
-            <input 
-              type="text" 
-              className="mt-1 bg-surface border border-line-strong rounded-md p-2 text-sm focus:border-indigo-500 text-fg"
-              value={data?.pauseSensorId || ''}
-              onChange={(e) => onChange({ pauseSensorId: e.target.value })}
-              placeholder="e.g. GPIO_5_IN"
-            />
+        </div>
+
+        {/* Sliding Window Mode & Duration/Samples */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-fg-secondary">Window Mode</label>
+          <select 
+            className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
+            value={data?.windowMode || 'time'}
+            onChange={(e) => onChange({ windowMode: e.target.value })}
+          >
+            <option value="time">Time-based Window (Seconds)</option>
+            <option value="count">Count-based Window (Recent Units)</option>
+          </select>
+
+          {data?.windowMode === 'count' ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input 
+                type="number" 
+                min="2"
+                max="500"
+                className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-24 text-fg"
+                value={data?.windowSamples ?? 10}
+                onChange={(e) => onChange({ windowSamples: parseInt(e.target.value, 10) || 10 })}
+              />
+              <span className="text-xs text-fg-muted">recent units (for Slow Cycle Lines)</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mt-1">
+              <input 
+                type="number" 
+                min="5"
+                max="3600"
+                className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-24 text-fg"
+                value={data?.windowSeconds ?? 60}
+                onChange={(e) => onChange({ windowSeconds: parseInt(e.target.value, 10) || 60 })}
+              />
+              <span className="text-xs text-fg-muted">sec (for Current Rate)</span>
+            </div>
           )}
         </div>
         
-        {/* Mode Selector for rate calculation */}
-        <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-fg-secondary">Rate Unit</label>
-            <select 
-              className="bg-surface-2 border border-line-strong rounded-md p-2 text-sm focus:outline-none focus:border-indigo-500 w-full text-fg"
+        {/* Rate Units to Export (Multi-unit selection) */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold text-fg-secondary">Rate Units to Export</label>
+            <span className="text-[10px] text-fg-muted font-normal">(Select 1 or more)</span>
+          </div>
+
+          {/* Unit Pill Checkboxes */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { id: 'second', label: '/sec', desc: 'Per Second' },
+              { id: 'minute', label: '/min', desc: 'Per Minute' },
+              { id: 'hour', label: '/hr', desc: 'Per Hour' }
+            ].map(unit => {
+              const activeUnits = Array.isArray(data?.rateUnits) && data.rateUnits.length > 0
+                ? data.rateUnits
+                : [data?.rateUnit || 'minute'];
+              const isChecked = activeUnits.includes(unit.id);
+              const isPrimary = (data?.rateUnit || 'minute') === unit.id;
+
+              return (
+                <button
+                  key={unit.id}
+                  type="button"
+                  onClick={() => {
+                    let nextUnits = isChecked
+                      ? activeUnits.filter(u => u !== unit.id)
+                      : [...activeUnits, unit.id];
+                    if (nextUnits.length === 0) nextUnits = [unit.id];
+
+                    let nextPrimary = data?.rateUnit || 'minute';
+                    if (!nextUnits.includes(nextPrimary)) {
+                      nextPrimary = nextUnits[0];
+                    }
+                    onChange({ rateUnits: nextUnits, rateUnit: nextPrimary });
+                  }}
+                  className={`p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
+                    isChecked
+                      ? 'bg-indigo-500/15 border-indigo-500 text-fg shadow-sm'
+                      : 'bg-surface-2 border-line text-fg-muted hover:border-line-strong'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold font-mono">{unit.label}</span>
+                    <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] border ${
+                      isChecked ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-line-strong'
+                    }`}>
+                      {isChecked ? '✓' : ''}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-fg-subtle">{unit.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Primary Display Unit Selector */}
+          <div className="flex items-center justify-between mt-0.5 bg-surface-2/60 p-2 rounded-md border border-line">
+            <span className="text-xs text-fg-muted font-medium">Primary Unit (Card):</span>
+            <select
+              className="bg-surface border border-line-strong rounded px-2 py-1 text-xs focus:border-indigo-500 text-fg"
               value={data?.rateUnit || 'minute'}
-              onChange={(e) => onChange({ rateUnit: e.target.value })}
+              onChange={(e) => {
+                const newPrimary = e.target.value;
+                const activeUnits = Array.isArray(data?.rateUnits) && data.rateUnits.length > 0
+                  ? data.rateUnits
+                  : [data?.rateUnit || 'minute'];
+                const nextUnits = activeUnits.includes(newPrimary) ? activeUnits : [...activeUnits, newPrimary];
+                onChange({ rateUnit: newPrimary, rateUnits: nextUnits });
+              }}
             >
-              <option value="second">Units / Second</option>
-              <option value="minute">Units / Minute</option>
-              <option value="hour">Units / Hour</option>
+              {[
+                { id: 'second', label: 'Units / Second (/sec)' },
+                { id: 'minute', label: 'Units / Minute (/min)' },
+                { id: 'hour', label: 'Units / Hour (/hr)' }
+              ].map(u => (
+                <option key={u.id} value={u.id}>{u.label}</option>
+              ))}
             </select>
+          </div>
         </div>
         
         {/* Decimal Places */}
@@ -145,6 +284,24 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
               value={data?.decimalPlaces ?? 2}
               onChange={(e) => onChange({ decimalPlaces: parseInt(e.target.value, 10) || 0 })}
             />
+        </div>
+
+        {/* Retain Count Across Restarts (Option B) */}
+        <div className="bg-surface-2/60 p-3 rounded-lg border border-line flex flex-col gap-1.5">
+          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <input 
+              type="checkbox"
+              className="mt-0.5 rounded border-line-strong text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+              checked={data?.retainCountOnRestart ?? true}
+              onChange={(e) => onChange({ retainCountOnRestart: e.target.checked })}
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-fg-secondary">Retain count across restarts</span>
+              <span className="text-xs text-fg-muted leading-relaxed">
+                จำค่านับเดิมเมื่อระบบหรือ Pipeline มีการรีสตาร์ต (นับต่อจากเดิม ไม่รีเซ็ตเป็น 0)
+              </span>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -175,31 +332,52 @@ export default function UnitThroughputNodeSettings({ nodeId, data, onChange, isS
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div 
+            className="flex items-center gap-1.5 cursor-help group"
+            title="Current Rate: อัตราความเร็วช่วงสั้น (Window) พร้อมระบบ Idle Decay ค่อย ๆ ลดระดับความเร็วเมื่อชิ้นงานมาช้า"
+          >
             <Activity size={16} className="text-emerald-600 dark:text-emerald-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Throughput:</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Current Rate:</span>
+            <HelpCircle size={11} className="text-fg-subtle group-hover:text-emerald-500 transition-colors" />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
-              {Number(liveRate).toFixed(data?.decimalPlaces ?? 2)} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit || 'min'}</span>
+              {Number(liveRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit === 'second' ? 'sec' : (data?.rateUnit === 'hour' ? 'hr' : 'min')}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div 
+            className="flex items-center gap-1.5 cursor-help group"
+            title="Avg Rate: อัตราผลิตเฉลี่ยสะสมตลอดเวลาเดินเครื่องจริง (หักเวลาที่หยุดพักหรือ Pause ออกให้ทั้งหมด)"
+          >
+            <Clock size={16} className="text-cyan-600 dark:text-cyan-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Avg Rate:</span>
+            <HelpCircle size={11} className="text-fg-subtle group-hover:text-cyan-500 transition-colors" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400">
+              {Number(liveAvgRate).toFixed(data?.decimalPlaces ?? (data?.rateUnit === 'second' ? 2 : 1))} <span className="text-xs font-sans font-normal text-fg-subtle">/{data?.rateUnit === 'second' ? 'sec' : (data?.rateUnit === 'hour' ? 'hr' : 'min')}</span>
             </span>
           </div>
         </div>
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-1 border-t border-line">
           <div className="flex items-center gap-2">
             <Settings2 size={16} className="text-blue-600 dark:text-blue-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Total Units:</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <span className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">{liveCount}</span>
             <button
               type="button"
               onClick={handleReset}
-              className="hover:text-red-600 dark:hover:text-red-400 p-1 rounded transition-colors text-fg-muted"
-              title="Reset Counter"
+              className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 active:scale-95 text-red-600 dark:text-red-400 border border-red-500/30 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+              title="Reset Counter to 0"
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={12} />
+              <span>Reset</span>
             </button>
           </div>
         </div>

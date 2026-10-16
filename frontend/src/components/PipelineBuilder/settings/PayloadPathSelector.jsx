@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Check, MousePointerClick } from 'lucide-react';
+import { ChevronRight, ChevronDown, Check, MousePointerClick, Lock } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 
-export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) => {
+export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect, isLocked = false }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const isObject = typeof value === 'object' && value !== null;
-  const isSelected = selectedPath === path;
+  const isSelected = selectedPath === path || 
+    (Boolean(selectedPath) && Boolean(path) && (
+      path === `msg.payload.${selectedPath}` || 
+      path === `msg.${selectedPath}` ||
+      selectedPath === `msg.payload.${path}` ||
+      selectedPath === `msg.${path}`
+    ));
 
   return (
     <div className="font-mono text-[11px] leading-tight">
       <div 
-        className={`group flex items-center py-1 hover:bg-surface-2/50 rounded px-1 -ml-1 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-800/50' : 'border border-transparent'}`}
+        className={`group flex items-center py-1 hover:bg-surface-2/50 rounded px-1 -ml-1 transition-colors ${isSelected ? (isLocked ? 'bg-teal-100 dark:bg-teal-900/30 border border-teal-800/50' : 'bg-blue-100 dark:bg-blue-900/30 border border-blue-800/50') : 'border border-transparent'}`}
       >
         <div className="flex items-center gap-1 flex-1 cursor-pointer select-none" onClick={() => isObject && setIsExpanded(!isExpanded)}>
           {isObject ? (
@@ -31,12 +37,19 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
         {!isObject && (
           <button 
             type="button"
-            onClick={(e) => { e.stopPropagation(); onSelect(path); }}
-            className={`opacity-0 group-hover:opacity-100 flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] transition-all
-              ${isSelected ? 'opacity-100 bg-blue-600 text-white' : 'bg-surface-3 text-fg-faint hover:bg-blue-600 hover:text-fg-secondary'}`}
+            disabled={isLocked}
+            onClick={(e) => { 
+              if (isLocked) return;
+              e.stopPropagation(); 
+              onSelect(path); 
+            }}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] transition-all
+              ${isSelected 
+                ? (isLocked ? 'opacity-100 bg-teal-600 text-white cursor-default' : 'opacity-100 bg-blue-600 text-white') 
+                : (isLocked ? 'opacity-0 cursor-not-allowed' : 'opacity-0 group-hover:opacity-100 bg-surface-3 text-fg-faint hover:bg-blue-600 hover:text-fg-secondary')}`}
           >
-            {isSelected ? <Check size={10} /> : <MousePointerClick size={10} />}
-            {isSelected ? 'Selected' : 'Select'}
+            {isSelected ? (isLocked ? <Lock size={10} /> : <Check size={10} />) : <MousePointerClick size={10} />}
+            {isSelected ? (isLocked ? 'Locked' : 'Selected') : 'Select'}
           </button>
         )}
       </div>
@@ -51,6 +64,7 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
               path={path ? `${path}.${k}` : k} 
               selectedPath={selectedPath}
               onSelect={onSelect} 
+              isLocked={isLocked}
             />
           ))}
         </div>
@@ -59,7 +73,7 @@ export const JsonTreeNode = ({ nodeKey, value, path, selectedPath, onSelect }) =
   );
 };
 
-export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, maxHeight = '250px' }) {
+export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, maxHeight = '250px', isLocked = false }) {
   const edges = usePipelineStore(state => state.edges);
   const debugData = usePipelineStore(state => state.debugData);
   
@@ -80,7 +94,11 @@ export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, ma
       <div className="flex items-center justify-between mt-1">
         <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-fg-muted">
           Realtime Data Mapping
-          {sourcePayload ? (
+          {isLocked ? (
+            <span className="text-[9px] bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+              <Lock size={10} /> Locked by Database Writer
+            </span>
+          ) : sourcePayload ? (
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -104,6 +122,7 @@ export default function PayloadPathSelector({ nodeId, selectedPath, onSelect, ma
               path={k}
               selectedPath={selectedPath}
               onSelect={onSelect} 
+              isLocked={isLocked}
             />
           ))
         ) : (

@@ -209,7 +209,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
                 <input 
                   ref={fileInputRef}
                   type="file"
-                  accept=".irivproj,.zip,.json"
+                  accept=".pidoproj,.irivproj,.zip,.json"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -229,7 +229,7 @@ export default function ImportProjectModal({ isOpen, onClose, onImportSuccess, o
                       Drop your project package here, or <span className="text-blue-600 dark:text-blue-400 hover:underline">browse</span>
                     </h4>
                     <p className="text-xs text-fg-subtle max-w-sm">
-                      Supports <span className="text-fg-secondary font-mono">.irivproj</span> (Full Deployment Bundle with AI models) or <span className="text-fg-secondary font-mono">.json</span> configuration files.
+                      Supports <span className="text-fg-secondary font-mono">.pidoproj</span> (Full Deployment Bundle with AI models) or <span className="text-fg-secondary font-mono">.json</span> configuration files.
                     </p>
                   </>
                 )}

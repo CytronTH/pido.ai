@@ -68,6 +68,10 @@ def on_metadata_received(project_id, metadata):
             asyncio.get_event_loop().call_later(0.1, lambda: threading.Thread(target=_trigger_restart, daemon=True).start())
             return
             
+        # Optimization: Skip scheduling thread-safe tasks if no clients are connected to this project's room
+        if not manager.has_clients(project_id):
+            return
+
         if main_loop and main_loop.is_running():
             asyncio.run_coroutine_threadsafe(manager.broadcast_json(metadata, project_id), main_loop)
     except Exception as e:
@@ -194,11 +198,15 @@ app.include_router(project_backup_router)
 from .routers.auth import router as auth_router
 from .routers.users import router as users_router
 from .routers.dashboard_versions import router as dashboard_versions_router
+from .routers.pipeline_versions import router as pipeline_versions_router
 from .routers.project_data import router as project_data_router
+from .routers.target_tracker import router as target_tracker_router
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(dashboard_versions_router)
+app.include_router(pipeline_versions_router)
 app.include_router(project_data_router)
+app.include_router(target_tracker_router)
 
 
 @app.get("/", response_model=None)
@@ -1167,6 +1175,7 @@ class PipelinePayload(BaseModel):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
     deploy_mode: Optional[str] = "modified_nodes"  # "modified_nodes" | "modified_flows" | "full"
+    version_note: Optional[str] = None
 
 @app.post("/api/wiki/sandbox/deploy")
 async def deploy_wiki_sandbox(payload: PipelinePayload):
@@ -1275,6 +1284,7 @@ async def deploy_pipeline(payload: PipelinePayload):
                     })
 
                 await asyncio.to_thread(write_projects, projects)
+                await asyncio.to_thread(_record_deploy_pipeline_version, project_id, payload.nodes, payload.edges, diff.action, payload.version_note)
 
                 return {
                     "status": "success",
@@ -1317,6 +1327,7 @@ async def deploy_pipeline(payload: PipelinePayload):
             })
 
         await asyncio.to_thread(write_projects, projects)
+        await asyncio.to_thread(_record_deploy_pipeline_version, project_id, payload.nodes, payload.edges, "full_restart", payload.version_note)
             
         return {
             "status": "success",
@@ -1327,6 +1338,64 @@ async def deploy_pipeline(payload: PipelinePayload):
     except Exception as e:
         logger.error(f"Failed to deploy pipeline for {project_id}: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
+
+def _record_deploy_pipeline_version(project_id: str, nodes: list, edges: list, deploy_mode: str, note: Optional[str] = None):
+    try:
+        from sqlmodel import Session
+        from db.database import db
+        from db.models import Project
+        from .routers.pipeline_versions import create_pipeline_version
+        with Session(db.engine) as session:
+            project = session.get(Project, project_id)
+            if project:
+                version_note = note or f"Deploy ({deploy_mode})"
+                create_pipeline_version(session, project, {"nodes": nodes, "edges": edges}, version_note)
+                session.commit()
+    except Exception as e:
+        logger.warning(f"Failed to auto-save pipeline version on deploy: {e}")
+
+# --- Legacy Project Revisions Endpoints ---
+@app.get("/api/projects/{project_id}/revisions")
+async def get_project_revisions_legacy(project_id: str):
+    from .routers.pipeline_versions import list_versions
+    versions = await list_versions(project_id)
+    return [
+        {
+            "id": v.id,
+            "name": f"v{v.version_number}: {v.note}",
+            "version_number": v.version_number,
+            "note": v.note,
+            "node_count": v.node_count,
+            "created_at": v.created_at.isoformat()
+        }
+        for v in versions
+    ]
+
+@app.post("/api/projects/{project_id}/revisions")
+async def save_project_revision_legacy(project_id: str, payload: Dict[str, Any]):
+    from .routers.pipeline_versions import save_version, PipelineVersionCreate
+    note = str(payload.get("name") or payload.get("note") or "Manual Checkpoint").strip()
+    pipeline = payload.get("pipeline")
+    if not pipeline:
+        projects = read_projects()
+        target = next((p for p in projects if p["id"] == project_id), None)
+        pipeline = target.get("pipeline", {"nodes": [], "edges": []}) if target else {"nodes": [], "edges": []}
+    return await save_version(project_id, PipelineVersionCreate(note=note, pipeline=pipeline))
+
+@app.post("/api/projects/{project_id}/restore/{revision_id}")
+async def restore_project_revision_legacy(project_id: str, revision_id: str):
+    from .routers.pipeline_versions import restore_version, PipelineVersionRestore
+    res = await restore_version(project_id, revision_id, PipelineVersionRestore())
+    try:
+        projects = read_projects()
+        for p in projects:
+            if p["id"] == project_id:
+                p["pipeline"] = res.version.pipeline
+                break
+        write_projects(projects)
+    except Exception as e:
+        logger.warning(f"Failed to sync restored pipeline to projects.json: {e}")
+    return res
 
 @app.post("/api/pipeline/stop/{project_id}")
 async def stop_pipeline(project_id: str):
@@ -1604,14 +1673,39 @@ class ThroughputTogglePayload(BaseModel):
 async def reset_throughput(payload: CounterResetPayload = CounterResetPayload()):
     try:
         global active_workers
-        worker = active_workers.get(payload.project_id)
-        if worker and hasattr(worker, 'config') and getattr(worker.config, 'router', None):
-            router = worker.config.router
-            for nid, node in router.nodes.items():
-                if getattr(node, 'node_type', None) == 'unitThroughputNode' and hasattr(node, 'reset_counts'):
-                    if payload.node_id is None or payload.node_id == nid:
-                        node.reset_counts()
-        return {"status": "success", "message": "Throughput reset successfully"}
+        found = False
+        workers = [active_workers[payload.project_id]] if payload.project_id in active_workers else list(active_workers.values())
+        for worker in workers:
+            if hasattr(worker, 'config') and getattr(worker.config, 'router', None):
+                router = worker.config.router
+                for nid, node in router.nodes.items():
+                    if getattr(node, 'node_type', None) == 'unitThroughputNode' and hasattr(node, 'reset_counts'):
+                        if payload.node_id is None or payload.node_id == nid:
+                            node.reset_counts()
+                            found = True
+
+        # Also reset persisted state in db/node_states.json
+        try:
+            state_file = Path(__file__).resolve().parent.parent / "db" / "node_states.json"
+            if state_file.exists():
+                with open(state_file, "r", encoding="utf-8") as f:
+                    all_states = json.load(f)
+                updated = False
+                for k in list(all_states.keys()):
+                    if payload.node_id is None or k.endswith(f"_{payload.node_id}") or k == payload.node_id:
+                        all_states[k]["current_count"] = 0
+                        all_states[k]["accumulated_run_time"] = 0.0
+                        all_states[k]["updated_at"] = time.time()
+                        updated = True
+                if updated:
+                    temp_file = state_file.with_suffix(".tmp")
+                    with open(temp_file, "w", encoding="utf-8") as f:
+                        json.dump(all_states, f, indent=2)
+                    temp_file.replace(state_file)
+        except Exception as se:
+            logger.warning(f"Error resetting persisted state for throughput node {payload.node_id}: {se}")
+
+        return {"status": "success", "message": "Throughput reset successfully", "found": found}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -1619,13 +1713,14 @@ async def reset_throughput(payload: CounterResetPayload = CounterResetPayload())
 async def toggle_throughput(payload: ThroughputTogglePayload):
     try:
         global active_workers
-        worker = active_workers.get(payload.project_id)
-        if worker and hasattr(worker, 'config') and getattr(worker.config, 'router', None):
-            router = worker.config.router
-            node = router.nodes.get(payload.node_id)
-            if node and hasattr(node, 'set_manual_state'):
-                node.set_manual_state(payload.state)
-                return {"status": "success", "message": f"Throughput state toggled to {payload.state}"}
+        workers = [active_workers[payload.project_id]] if payload.project_id in active_workers else list(active_workers.values())
+        for worker in workers:
+            if hasattr(worker, 'config') and getattr(worker.config, 'router', None):
+                router = worker.config.router
+                node = router.nodes.get(payload.node_id)
+                if node and hasattr(node, 'set_manual_state'):
+                    node.set_manual_state(payload.state)
+                    return {"status": "success", "message": f"Throughput state toggled to {payload.state}"}
         return {"status": "error", "message": "Node not found or unsupported"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1640,11 +1735,13 @@ async def set_target_tracker(payload: TargetTrackerSetPayload):
     try:
         global active_workers
         worker = active_workers.get(payload.project_id)
+        found = False
         if worker and hasattr(worker, 'config') and getattr(worker.config, 'router', None):
             router = worker.config.router
             node = router.nodes.get(payload.node_id)
             if node and hasattr(node, 'target'):
                 node.target = payload.target
+                found = True
                 
                 # Immediately emit update so UI refreshes
                 if hasattr(node, 'actual') and hasattr(node, 'is_complete'):
@@ -1654,7 +1751,10 @@ async def set_target_tracker(payload: TargetTrackerSetPayload):
                         node.is_complete = False
                         
                     progress = (node.actual / node.target) * 100.0 if node.target > 0 else 100.0
-                    if progress > 100.0: progress = 100.0
+                    if not getattr(node, 'allow_over_target', True) and progress > 100.0:
+                        progress = 100.0
+                    progress = round(progress, 1)
+                    over_target = max(0, node.actual - node.target)
                     
                     if router.metadata_callback:
                         router.metadata_callback({
@@ -1665,9 +1765,59 @@ async def set_target_tracker(payload: TargetTrackerSetPayload):
                             "progress_percent": progress,
                             "current_rate_per_minute": getattr(node, 'current_rate_per_minute', 0.0),
                             "eta_seconds": getattr(node, 'eta_seconds', None),
-                            "is_complete": node.is_complete
+                            "is_complete": node.is_complete,
+                            "over_target": over_target,
+                            "just_completed": False,
+                            "is_idle": getattr(node, 'is_idle', False)
                         })
-                return {"status": "success", "message": f"Target updated to {payload.target}"}
+
+                if hasattr(node, '_save_persisted_state'):
+                    node._save_persisted_state()
+
+                if getattr(node, 'current_record_id', None) is not None:
+                    try:
+                        from db.database import db
+                        rec = db.get_target_tracker_record(node.current_record_id)
+                        if rec and rec.status == "running":
+                            rec.target = payload.target
+                            rec.progress_percent = progress
+                            rec.over_target = over_target
+                            from sqlmodel import Session
+                            with Session(db.engine_telemetry) as s:
+                                s.add(rec)
+                                s.commit()
+                    except Exception as re:
+                        logger.warning(f"Failed to update active record target in DB: {re}")
+
+        # Persist updated target into the project's pipeline_json in DB for two-way sync
+        try:
+            from db.database import db
+            from db.models import Project
+            from sqlmodel import Session, select
+            with Session(db.engine) as session:
+                project = session.exec(select(Project).where(Project.id == payload.project_id)).first()
+                if project and project.pipeline_json:
+                    pdata = json.loads(project.pipeline_json)
+                    nodes = pdata.get("nodes", [])
+                    modified = False
+                    for n in nodes:
+                        if n.get("id") == payload.node_id:
+                            if "data" not in n:
+                                n["data"] = {}
+                            n["data"]["targetCount"] = payload.target
+                            modified = True
+                            break
+                    if modified:
+                        project.pipeline_json = json.dumps(pdata)
+                        session.add(project)
+                        session.commit()
+                        logger.info(f"TargetTracker [{payload.node_id}] target synced to Project [{payload.project_id}] pipeline_json: {payload.target}")
+                        found = True
+        except Exception as dbe:
+            logger.warning(f"Failed to persist TargetTracker target to DB: {dbe}")
+
+        if found:
+            return {"status": "success", "message": f"Target updated to {payload.target}"}
         return {"status": "error", "message": "Node not found or unsupported"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1688,7 +1838,7 @@ class MaintenancePayload(BaseModel):
     delete_files: Optional[bool] = True
 
 @app.post("/api/database/maintenance/cleanup")
-async def cleanup_database(payload: MaintenancePayload = MaintenancePayload()):
+async def cleanup_database(payload: MaintenancePayload = MaintenancePayload()) -> Dict[str, Any]:
     try:
         from db.database import db
         result = db.purge_old_logs(
@@ -1698,6 +1848,37 @@ async def cleanup_database(payload: MaintenancePayload = MaintenancePayload()):
         )
         return {"status": "success", "result": result}
     except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class DatabaseQueryPayload(BaseModel):
+    query: str
+    db_name: Optional[str] = "telemetry"
+
+@app.post("/api/database/query")
+async def run_database_query(payload: DatabaseQueryPayload) -> Dict[str, Any]:
+    try:
+        from db.database import db
+        return db.execute_raw_query(payload.query, db_name=payload.db_name or "telemetry")
+    except Exception as e:
+        logger.error(f"Error in database query API: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/database/maintenance/vacuum")
+async def vacuum_database() -> Dict[str, Any]:
+    try:
+        from db.database import db
+        return db.vacuum_database()
+    except Exception as e:
+        logger.error(f"Error in database vacuum API: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/database/maintenance/rollup")
+async def rollup_database() -> Dict[str, Any]:
+    try:
+        from db.database import db
+        return db.rollup_metrics()
+    except Exception as e:
+        logger.error(f"Error in database rollup API: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/system/shutdown")
@@ -1775,8 +1956,8 @@ def get_system_version():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/system/update/check")
-async def check_for_updates():
-    """Check remote repository for updates, release tags, and changelog"""
+async def check_for_updates(channel: Optional[str] = None) -> Dict[str, Any]:
+    """Check remote repository for updates, release tags, and changelog against target channel/branch"""
     try:
         project_root = Path(__file__).resolve().parent.parent.parent
         
@@ -1799,11 +1980,14 @@ async def check_for_updates():
         except Exception as e:
             return {"status": "error", "message": f"Failed to get git status: {e}"}
 
-        # Fetch remote updates with 8s timeout for air-gapped / slow connections
+        # Resolve target channel (default to current branch, e.g. dev or main)
+        target_branch = channel.strip() if (channel and channel.strip()) else current_branch
+
+        # Fetch remote updates for target branch and tags with 8s timeout
         git_env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
         try:
             subprocess.run(
-                ["git", "fetch", "origin", current_branch, "--tags"],
+                ["git", "fetch", "origin", target_branch, "--tags"],
                 cwd=str(project_root),
                 timeout=8,
                 capture_output=True,
@@ -1816,7 +2000,13 @@ async def check_for_updates():
                 "message": "Connection timed out. System might be offline or cannot reach remote repository.",
                 "current_version": current_tag,
                 "current_commit": current_commit,
-                "has_update": False
+                "has_update": False,
+                "branch": current_branch,
+                "target_branch": target_branch,
+                "available_channels": [
+                    {"id": "main", "name": "Stable (main)", "desc": "Production-ready, tested official releases"},
+                    {"id": "dev", "name": "Development (dev)", "desc": "Latest features and rapid updates"}
+                ]
             }
         except Exception as e:
             return {
@@ -1824,16 +2014,40 @@ async def check_for_updates():
                 "message": f"Fetch failed: {e}",
                 "current_version": current_tag,
                 "current_commit": current_commit,
-                "has_update": False
+                "has_update": False,
+                "branch": current_branch,
+                "target_branch": target_branch,
+                "available_channels": [
+                    {"id": "main", "name": "Stable (main)", "desc": "Production-ready, tested official releases"},
+                    {"id": "dev", "name": "Development (dev)", "desc": "Latest features and rapid updates"}
+                ]
             }
 
-        # Check how many commits behind origin/<current_branch>
-        behind_output = subprocess.check_output(
-            ["git", "rev-list", "--count", f"HEAD..origin/{current_branch}"],
-            cwd=str(project_root),
-            timeout=5
-        ).decode().strip()
-        behind_count = int(behind_output) if behind_output.isdigit() else 0
+        # Check if origin/<target_branch> exists
+        has_remote_branch = False
+        try:
+            subprocess.check_output(
+                ["git", "rev-parse", "--verify", f"origin/{target_branch}"],
+                cwd=str(project_root),
+                timeout=3,
+                stderr=subprocess.DEVNULL
+            )
+            has_remote_branch = True
+        except Exception:
+            has_remote_branch = False
+
+        behind_count = 0
+        if has_remote_branch:
+            try:
+                behind_output = subprocess.check_output(
+                    ["git", "rev-list", "--count", f"HEAD..origin/{target_branch}"],
+                    cwd=str(project_root),
+                    timeout=5,
+                    stderr=subprocess.DEVNULL
+                ).decode().strip()
+                behind_count = int(behind_output) if behind_output.isdigit() else 0
+            except Exception:
+                behind_count = 0
 
         # Latest tag on repository
         try:
@@ -1843,42 +2057,65 @@ async def check_for_updates():
                 timeout=5
             ).decode().split()
             latest_tag = tags_raw[0] if tags_raw else current_tag
-        except:
+        except Exception:
             latest_tag = current_tag
 
         changelog = []
-        if behind_count > 0:
-            lines = subprocess.check_output(
-                ["git", "log", f"HEAD..origin/{current_branch}", "--oneline", "-n", "15"],
-                cwd=str(project_root),
-                timeout=5
-            ).decode().strip().split("\n")
-            for line in lines:
-                parts = line.split(" ", 1)
-                if len(parts) == 2:
-                    changelog.append({"hash": parts[0], "message": parts[1]})
+        if behind_count > 0 and has_remote_branch:
+            try:
+                lines = subprocess.check_output(
+                    ["git", "log", f"HEAD..origin/{target_branch}", "--oneline", "-n", "15"],
+                    cwd=str(project_root),
+                    timeout=5,
+                    stderr=subprocess.DEVNULL
+                ).decode().strip().split("\n")
+                for line in lines:
+                    parts = line.split(" ", 1)
+                    if len(parts) == 2:
+                        changelog.append({"hash": parts[0], "message": parts[1]})
+            except Exception:
+                pass
 
-        has_update = behind_count > 0
+        is_channel_switch = (current_branch != target_branch)
+        has_update = (behind_count > 0) or is_channel_switch
+
+        latest_version_label = current_tag
+        if has_remote_branch:
+            try:
+                latest_remote_commit = subprocess.check_output(
+                    ["git", "rev-parse", "--short", f"origin/{target_branch}"],
+                    cwd=str(project_root),
+                    timeout=3
+                ).decode().strip()
+                latest_version_label = f"{target_branch}@{latest_remote_commit}"
+            except Exception:
+                latest_version_label = f"{target_branch} (latest)"
 
         return {
             "status": "success",
             "has_update": has_update,
             "current_version": current_tag,
             "current_commit": current_commit,
-            "latest_version": latest_tag if has_update else current_tag,
+            "latest_version": latest_version_label,
             "commits_behind": behind_count,
             "changelog": changelog,
-            "branch": current_branch
+            "branch": current_branch,
+            "target_branch": target_branch,
+            "is_channel_switch": is_channel_switch,
+            "available_channels": [
+                {"id": "main", "name": "Stable (main)", "desc": "Production-ready, tested official releases"},
+                {"id": "dev", "name": "Development (dev)", "desc": "Latest features and rapid updates"}
+            ]
         }
     except Exception as e:
         logger.error(f"Error checking update: {e}")
         return {"status": "error", "message": str(e)}
 
 class UpdateApplyPayload(BaseModel):
-    target_version: Optional[str] = "main"
+    target_version: Optional[str] = None
 
 @app.post("/api/system/update/apply")
-async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()):
+async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()) -> Dict[str, Any]:
     """Trigger background detached update runner"""
     try:
         lock_file = Path("/tmp/pido_update.lock")
@@ -1906,9 +2143,26 @@ async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()):
         }
         status_file.write_text(json.dumps(init_status))
 
-        target_ver = payload.target_version or "main"
+        project_root = Path(__file__).resolve().parent.parent.parent
+        target_ver = payload.target_version
+        if not target_ver:
+            try:
+                target_ver = subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    cwd=str(project_root),
+                    timeout=3
+                ).decode().strip()
+            except Exception:
+                target_ver = "dev"
+
         subprocess.Popen(
-            ["/bin/bash", str(updater_script), "--mode=online", f"--target-version={target_ver}"],
+            [
+                "/bin/bash",
+                str(updater_script),
+                "--mode=online",
+                f"--target-version={target_ver}",
+                f"--project-root={str(project_root)}"
+            ],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
@@ -1923,13 +2177,13 @@ async def apply_update(payload: UpdateApplyPayload = UpdateApplyPayload()):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/system/update/upload")
-async def upload_offline_update(package: UploadFile = File(...)):
+async def upload_offline_update(package: UploadFile = File(...)) -> Dict[str, Any]:
     """Accept offline update tarball (.tar.gz) and trigger offline updater"""
     try:
         if not package.filename.endswith((".tar.gz", ".tgz")):
             return {"status": "error", "message": "Invalid file type. Please upload a .tar.gz archive."}
 
-        upload_path = Path("/tmp/iriv_offline_update.tar.gz")
+        upload_path = Path("/tmp/pido_offline_update.tar.gz")
         with open(upload_path, "wb") as f:
             while chunk := await package.read(1024 * 1024):  # 1MB chunks
                 f.write(chunk)
@@ -1938,6 +2192,7 @@ async def upload_offline_update(package: UploadFile = File(...)):
         if not updater_script.exists():
             return {"status": "error", "message": "Updater script not found"}
 
+        project_root = Path(__file__).resolve().parent.parent.parent
         status_file = Path("/tmp/pido_update_status.json")
         init_status = {
             "status": "running",
@@ -1950,7 +2205,13 @@ async def upload_offline_update(package: UploadFile = File(...)):
         status_file.write_text(json.dumps(init_status))
 
         subprocess.Popen(
-            ["/bin/bash", str(updater_script), "--mode=offline", f"--package-path={str(upload_path)}"],
+            [
+                "/bin/bash",
+                str(updater_script),
+                "--mode=offline",
+                f"--package-path={str(upload_path)}",
+                f"--project-root={str(project_root)}"
+            ],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
@@ -1965,7 +2226,7 @@ async def upload_offline_update(package: UploadFile = File(...)):
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/system/update/status")
-async def get_update_status():
+async def get_update_status() -> Dict[str, Any]:
     """Poll update progress, current step, and recent logs"""
     try:
         status_file = Path("/tmp/pido_update_status.json")
@@ -1986,11 +2247,23 @@ async def get_update_status():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/nodes/{node_id}/history")
-async def get_node_history(node_id: str, limit: int = 300, timeframe_min: int = None, aggregate_min: int = None):
+async def get_node_history(
+    node_id: str, 
+    limit: int = 300, 
+    timeframe_min: Optional[int] = None, 
+    aggregate_min: Optional[int] = None,
+    agg_func: str = "avg"
+):
     """Fetch time-series history for a specific node from telemetry_db"""
     try:
         from db.database import db
-        history = db.get_metric_history(node_id, limit=limit, timeframe_min=timeframe_min, aggregate_min=aggregate_min)
+        history = db.get_metric_history(
+            node_id, 
+            limit=limit, 
+            timeframe_min=timeframe_min, 
+            aggregate_min=aggregate_min,
+            agg_func=agg_func
+        )
         return {"status": "success", "data": history}
     except Exception as e:
         logger.error(f"Error fetching history for {node_id}: {e}")

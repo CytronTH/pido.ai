@@ -16,12 +16,24 @@ const CLASS_COLORS = [
   '#818cf8'  // indigo-400
 ];
 
-export default function HistoricalChartWidget({ projectId = 'default', config = {} }) {
+export default function HistoricalChartWidget({ projectId = 'default', config = {}, globalTimeframe }) {
   const [data, setData] = useState([]);
   const [classes, setClasses] = useState([]);
   const [interval, setInterval] = useState('hour'); // 'minute', 'hour', 'day'
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+
+  // Sync with Global Timeframe from Dashboard Header
+  useEffect(() => {
+    if (!globalTimeframe) return;
+    if (globalTimeframe === '5m' || globalTimeframe === '15m') {
+      setInterval('minute');
+    } else if (globalTimeframe === '1h' || globalTimeframe === '24h') {
+      setInterval('hour');
+    } else if (globalTimeframe === '7d') {
+      setInterval('day');
+    }
+  }, [globalTimeframe]);
 
   const title = config?.title || 'Historical Flow Activity';
 

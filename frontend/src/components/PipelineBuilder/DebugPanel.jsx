@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Terminal, Trash2, X, AlertCircle, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import usePipelineStore from '../../store/usePipelineStore';
 
@@ -19,6 +19,56 @@ const getNodeBadgeColors = (type) => {
   }
 };
 
+const DebugMessageCard = React.memo(function DebugMessageCard({
+  msg,
+  isExpanded,
+  isCopied,
+  onToggleExpand,
+  onCopy,
+  onMouseEnter,
+  onMouseLeave
+}) {
+  return (
+    <div 
+      className="bg-canvas border border-line rounded-md overflow-hidden shadow-sm hover:border-blue-500/50 transition-colors group flex flex-col shrink-0"
+      onMouseEnter={() => onMouseEnter(msg.nodeId)}
+      onMouseLeave={onMouseLeave}
+    >
+      <div 
+        className="bg-surface-2/40 hover:bg-surface-3/50 px-2 py-1.5 border-b border-line/80 flex items-center justify-between cursor-pointer transition-colors"
+        onClick={() => onToggleExpand(msg.msgId)}
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isExpanded ? <ChevronUp size={13} className="text-fg-muted shrink-0" /> : <ChevronDown size={13} className="text-fg-muted shrink-0" />}
+          <span className="text-[10px] font-mono text-fg-muted truncate">
+            {msg.timestamp}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={(e) => onCopy(e, msg)}
+            className="text-fg-subtle hover:text-fg-secondary transition-colors p-0.5 rounded flex items-center justify-center w-4 h-4"
+            title="Copy payload"
+          >
+            {isCopied ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
+          </button>
+          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border max-w-[85px] truncate ${getNodeBadgeColors(msg.sourceName)}`} title={`src: ${msg.sourceName}`}>
+            {msg.sourceName}
+          </span>
+        </div>
+      </div>
+      <div className={`relative px-2 py-1.5 overflow-x-auto custom-scrollbar transition-all duration-200 ${isExpanded ? 'max-h-[400px]' : 'max-h-12 overflow-hidden'}`}>
+        <pre className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 m-0 whitespace-pre-wrap break-all leading-tight">
+          {msg.formattedPayload || (typeof msg.payload === 'object' ? JSON.stringify(msg.payload, null, 2) : String(msg.payload))}
+        </pre>
+        {!isExpanded && (
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
+        )}
+      </div>
+    </div>
+  );
+});
+
 export default function DebugPanel({ isOpen, onClose }) {
   const debugData = usePipelineStore((state) => state.debugData || {});
   const nodes = usePipelineStore((state) => state.nodes || []);
@@ -31,9 +81,9 @@ export default function DebugPanel({ isOpen, onClose }) {
   const [copiedId, setCopiedId] = useState(null);
   const lastPayloadsRef = useRef({});
 
-  const toggleExpand = (msgId) => {
+  const toggleExpand = useCallback((msgId) => {
     setExpandedIds(prev => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
+  }, []);
 
   useEffect(() => {
     const currentInfo = [];
@@ -88,12 +138,14 @@ export default function DebugPanel({ isOpen, onClose }) {
       if (lastPayloadsRef.current[info.nodeId] !== stringified) {
         lastPayloadsRef.current[info.nodeId] = stringified;
         hasNewMessages = true;
+        const formattedPayload = typeof info.payload === 'object' ? JSON.stringify(info.payload, null, 2) : String(info.payload);
         newMessages.push({
           msgId: `${info.nodeId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           nodeId: info.nodeId,
           label: info.label,
           sourceName: info.sourceName,
           payload: info.payload,
+          formattedPayload,
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
         });
       }
@@ -107,25 +159,25 @@ export default function DebugPanel({ isOpen, onClose }) {
     }
   }, [debugData, nodes, edges]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setMessageHistory([]);
     lastPayloadsRef.current = {};
     if (setDebugData) {
       setDebugData({});
     }
-  };
+  }, [setDebugData]);
 
-  const handleMouseEnter = (nodeId) => {
+  const handleMouseEnter = useCallback((nodeId) => {
     if (setHighlightedNodeIds) setHighlightedNodeIds([nodeId]);
-  };
+  }, [setHighlightedNodeIds]);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     if (setHighlightedNodeIds) setHighlightedNodeIds([]);
-  };
+  }, [setHighlightedNodeIds]);
 
-  const handleCopy = (e, msg) => {
+  const handleCopy = useCallback((e, msg) => {
     e.stopPropagation();
-    const str = typeof msg.payload === 'object' ? JSON.stringify(msg.payload, null, 2) : String(msg.payload);
+    const str = msg.formattedPayload || (typeof msg.payload === 'object' ? JSON.stringify(msg.payload, null, 2) : String(msg.payload));
     
     if (!navigator.clipboard) {
       const textArea = document.createElement("textarea");
@@ -151,10 +203,15 @@ export default function DebugPanel({ isOpen, onClose }) {
       setCopiedId(msg.msgId);
       setTimeout(() => setCopiedId(null), 2000);
     }).catch(err => console.error('Copy failed', err));
-  };
+  }, []);
 
   return (
-    <aside className={`bg-surface border-l border-line flex flex-col h-full transition-all duration-300 ease-in-out shrink-0 overflow-hidden ${isOpen ? 'w-full md:w-[340px]' : 'w-0 border-l-0'}`}>
+    <aside 
+      className={`absolute top-0 right-0 h-full w-full md:w-[340px] bg-surface border-l border-line shadow-2xl z-40 flex flex-col transition-transform duration-250 ease-out overflow-hidden ${
+        isOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'
+      }`}
+      style={{ willChange: 'transform' }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-2.5 border-b border-line bg-canvas/50 shrink-0">
         <div className="flex items-center gap-2 text-fg">
@@ -172,7 +229,8 @@ export default function DebugPanel({ isOpen, onClose }) {
           {onClose && (
             <button 
               onClick={onClose}
-              className="p-1 rounded bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg transition-colors md:hidden"
+              className="p-1 rounded bg-surface-2 hover:bg-surface-3 text-fg-muted hover:text-fg transition-colors"
+              title="Close Debug Panel"
             >
               <X size={14} />
             </button>
@@ -191,52 +249,18 @@ export default function DebugPanel({ isOpen, onClose }) {
             </p>
           </div>
         ) : (
-          messageHistory.map((msg) => {
-            const isExpanded = expandedIds[msg.msgId];
-            
-            return (
-              <div 
-                key={msg.msgId} 
-                className="bg-canvas border border-line rounded-md overflow-hidden shadow-sm hover:border-blue-500/50 transition-colors group flex flex-col shrink-0"
-                onMouseEnter={() => handleMouseEnter(msg.nodeId)}
-                onMouseLeave={handleMouseLeave}
-              >
-                <div 
-                  className="bg-surface-2/40 hover:bg-surface-3/50 px-2 py-1.5 border-b border-line/80 flex items-center justify-between cursor-pointer transition-colors"
-                  onClick={() => toggleExpand(msg.msgId)}
-                >
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {isExpanded ? <ChevronUp size={13} className="text-fg-muted shrink-0" /> : <ChevronDown size={13} className="text-fg-muted shrink-0" />}
-                    <span className="text-[10px] font-mono text-fg-muted truncate">
-                      {msg.timestamp}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={(e) => handleCopy(e, msg)}
-                      className="text-fg-subtle hover:text-fg-secondary transition-colors p-0.5 rounded flex items-center justify-center w-4 h-4"
-                      title="Copy payload"
-                    >
-                      {copiedId === msg.msgId ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
-                    </button>
-                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border max-w-[85px] truncate ${getNodeBadgeColors(msg.sourceName)}`} title={`src: ${msg.sourceName}`}>
-                      {msg.sourceName}
-                    </span>
-                  </div>
-                </div>
-                <div className={`relative px-2 py-1.5 overflow-x-auto custom-scrollbar transition-all duration-200 ${isExpanded ? 'max-h-[400px]' : 'max-h-12 overflow-hidden'}`}>
-                  <pre className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 m-0 whitespace-pre-wrap break-all leading-tight">
-                    {typeof msg.payload === 'object' 
-                      ? JSON.stringify(msg.payload, null, 2) 
-                      : String(msg.payload)}
-                  </pre>
-                  {!isExpanded && (
-                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
-                  )}
-                </div>
-              </div>
-            );
-          })
+          messageHistory.map((msg) => (
+            <DebugMessageCard
+              key={msg.msgId}
+              msg={msg}
+              isExpanded={!!expandedIds[msg.msgId]}
+              isCopied={copiedId === msg.msgId}
+              onToggleExpand={toggleExpand}
+              onCopy={handleCopy}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            />
+          ))
         )}
       </div>
     </aside>

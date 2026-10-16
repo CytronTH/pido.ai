@@ -183,7 +183,7 @@ export default function BackupManager() {
             </div>
 
             <p className="text-xs text-fg-muted leading-relaxed pt-1">
-              Instantly stores an on-board backup in <code className="text-fg-secondary bg-canvas px-1 py-0.5 rounded text-[11px] font-mono">/home/pi/iriv-backups/projects/</code>. Perfect before trying experimental pipeline changes.
+              Instantly stores an on-board backup in <code className="text-fg-secondary bg-canvas px-1 py-0.5 rounded text-[11px] font-mono">/home/pi/pido-ai-backups/projects/</code>. Perfect before trying experimental pipeline changes.
             </p>
 
             <div className="pt-1">

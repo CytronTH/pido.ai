@@ -13,11 +13,15 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/users', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Failed to fetch users');
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || 'Failed to fetch users');
+      }
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -173,6 +177,12 @@ const UserManagement = () => {
                     <td colSpan="5" className="px-6 py-8 text-center text-fg-subtle">
                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                        Loading users...
+                    </td>
+                 </tr>
+              ) : error ? (
+                 <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-red-500 font-medium">
+                       {error}
                     </td>
                  </tr>
               ) : users.length === 0 ? (

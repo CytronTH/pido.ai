@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import timezone
 import json
 import logging
@@ -20,7 +21,16 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         if db_path is None:
             base_dir = Path(__file__).resolve().parent
-            db_path = str(base_dir / "vision_studio.sqlite")
+            legacy_db = base_dir / "vision_studio.sqlite"
+            new_db = base_dir / "pido_ai.sqlite"
+            # Migrate legacy database if new database does not exist yet
+            if legacy_db.exists() and not new_db.exists():
+                try:
+                    shutil.copy2(legacy_db, new_db)
+                    logger.info(f"Migrated legacy database {legacy_db} to {new_db}")
+                except Exception as e:
+                    logger.warning(f"Could not copy legacy db {legacy_db}: {e}")
+            db_path = str(new_db)
         
         self.db_path = db_path
         sqlite_url = f"sqlite:///{self.db_path}"
@@ -76,6 +86,8 @@ class DatabaseManager:
                 "CREATE INDEX IF NOT EXISTS idx_custom_metric_proj_time ON custom_metric_log(project_id, timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_custom_metric_full ON custom_metric_log(project_id, node_id, variable_name, timestamp DESC);",
                 "CREATE INDEX IF NOT EXISTS idx_custom_metric_var ON custom_metric_log(variable_name, timestamp DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_target_tracker_proj_node ON target_tracker_records(project_id, node_id, started_at DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_target_tracker_status ON target_tracker_records(status);",
             ]
             with self.engine_telemetry.connect() as conn:
                 for idx_sql in indexes:
@@ -103,6 +115,13 @@ class DatabaseManager:
                         conn.commit()
                     except Exception:
                         pass
+
+                # PipelineVersion schema migrations
+                try:
+                    conn.execute(text("ALTER TABLE pipeline_versions ADD COLUMN changes_json VARCHAR DEFAULT '{}';"))
+                    conn.commit()
+                except Exception:
+                    pass
                 
             from db.auth import get_password_hash
             from sqlmodel import Session, select
@@ -120,6 +139,64 @@ class DatabaseManager:
                     session.add(admin_user)
                     session.commit()
                     logger.info("Created default admin user (admin/admin).")
+
+                # Auto-seed bundled AI models if table is empty
+                existing_model = session.exec(select(AIModel)).first()
+                if not existing_model:
+                    default_models = [
+                        AIModel(
+                            id="model_001",
+                            name="YOLOv8s Default (Hailo-8)",
+                            type="model",
+                            hardware="hailo-8",
+                            hef_path="yolov8s.hef",
+                            so_path="libyolo_hailortpp_post.so",
+                            task="detection",
+                            tags_json=json.dumps(["object_detection", "yolo", "coco80"]),
+                            classes_json=json.dumps([]),
+                        ),
+                        AIModel(
+                            id="model_002",
+                            name="YOLOv8s (Hailo-8L)",
+                            type="model",
+                            hardware="hailo-8l",
+                            hef_path="yolov8s_h8l.hef",
+                            so_path="libyolo_hailortpp_post.so",
+                            task="detection",
+                            tags_json=json.dumps(["object_detection", "yolo", "coco80"]),
+                            classes_json=json.dumps([]),
+                        ),
+                        AIModel(
+                            id="model_003",
+                            name="YOLOv8s Pose (Hailo-8L)",
+                            type="model",
+                            hardware="hailo-8l",
+                            hef_path="yolov8s_pose_h8l_pi.hef",
+                            so_path="libyolov8pose_post.so",
+                            task="pose",
+                            tags_json=json.dumps(["pose_estimation", "keypoints"]),
+                            classes_json=json.dumps([]),
+                        ),
+                    ]
+                    for dm in default_models:
+                        session.add(dm)
+                    session.commit()
+                    logger.info(f"Seeded {len(default_models)} default AI models.")
+
+                # Auto-seed default project if table is empty
+                existing_project = session.exec(select(Project)).first()
+                if not existing_project:
+                    default_project = Project(
+                        id="proj_default",
+                        name="Default Project",
+                        description="Default AI Vision Project",
+                        pipeline_json=json.dumps({"nodes": [], "edges": []}),
+                        dashboard_layout_json=json.dumps([]),
+                        exposed_data_sources_json=json.dumps([]),
+                    )
+                    session.add(default_project)
+                    session.commit()
+                    logger.info("Created default project (Default Project).")
 
             logger.info(f"Database initialized successfully with indexes at {self.db_path}")
         except Exception as e:
@@ -222,8 +299,64 @@ class DatabaseManager:
                 
             with Session(self.engine_telemetry) as session:
                 try:
+                    # Pre-process entries to deduplicate and merge event_logs with matching snapshot_path
+                    merged_events = {}
+                    final_entries = []
                     for log_entry in entries:
+                        if log_entry.get('table') == 'event_logs' and log_entry.get('snapshot_path'):
+                            sp_key = str(log_entry.get('snapshot_path')).split('/')[-1]
+                            if sp_key in merged_events:
+                                existing = merged_events[sp_key]
+                                ex_p = existing.get('payload') or {}
+                                new_p = log_entry.get('payload') or {}
+                                merged_p = {**ex_p, **new_p}
+                                if ex_p.get('tags') and not new_p.get('tags'):
+                                    merged_p['tags'] = ex_p['tags']
+                                elif new_p.get('tags') and not ex_p.get('tags'):
+                                    merged_p['tags'] = new_p['tags']
+                                if new_p.get('message'):
+                                    merged_p['message'] = new_p['message']
+                                if new_p.get('color'):
+                                    merged_p['color'] = new_p['color']
+                                if log_entry.get('event_type') == 'SNAPSHOT' or existing.get('event_type') == 'SNAPSHOT':
+                                    existing['event_type'] = 'SNAPSHOT'
+                                existing['payload'] = merged_p
+                                continue
+                            else:
+                                merged_events[sp_key] = log_entry
+                                final_entries.append(log_entry)
+                        else:
+                            final_entries.append(log_entry)
+
+                    for log_entry in final_entries:
                         if log_entry['table'] == 'event_logs':
+                            sp = log_entry.get('snapshot_path')
+                            if sp:
+                                sp_key = str(sp).split('/')[-1]
+                                existing_event = session.exec(
+                                    select(EventLog)
+                                    .where(EventLog.snapshot_path.like(f"%{sp_key}"))
+                                    .order_by(EventLog.id.desc())
+                                ).first()
+                                if existing_event:
+                                    try:
+                                        old_p = json.loads(existing_event.payload) if existing_event.payload else {}
+                                    except Exception:
+                                        old_p = {}
+                                    new_p = log_entry.get('payload') or {}
+                                    merged_p = {**old_p, **new_p}
+                                    if new_p.get('message'):
+                                        merged_p['message'] = new_p['message']
+                                    if new_p.get('tags'):
+                                        merged_p['tags'] = new_p['tags']
+                                    if new_p.get('color'):
+                                        merged_p['color'] = new_p['color']
+                                    existing_event.payload = json.dumps(merged_p)
+                                    if log_entry.get('event_type') == 'SNAPSHOT':
+                                        existing_event.event_type = 'SNAPSHOT'
+                                    session.add(existing_event)
+                                    continue
+
                             event = EventLog(
                                 node_id=log_entry.get('node_id'),
                                 project_id=log_entry.get('project_id'),
@@ -292,102 +425,169 @@ class DatabaseManager:
             logger.warning("Database log_queue is full (max 10000). Dropping metric to prevent memory exhaustion.")
             
 
-    def get_metric_history(self, node_id: str, limit: int = 300, timeframe_min: int = None, aggregate_min: int = None):
-        from sqlmodel import Session, select
-        from .models import CustomMetricLog
-        from datetime import datetime, timezone
-        import time
+    def get_metric_history(
+        self, 
+        node_id: str, 
+        limit: int = 300, 
+        timeframe_min: Optional[int] = None, 
+        aggregate_min: Optional[int] = None,
+        agg_func: str = "avg"
+    ) -> List[Dict[str, Any]]:
+        """Fetch time-series history for a node/variable from telemetry database using SQL aggregation."""
+        from sqlalchemy import text
+        from datetime import datetime, timedelta, timezone
 
         try:
-            with Session(self.engine_telemetry) as session:
-                stmt = select(CustomMetricLog).where(CustomMetricLog.node_id == node_id).order_by(CustomMetricLog.timestamp.desc())
-                if timeframe_min:
-                    min_ts = datetime.fromtimestamp(time.time() - (timeframe_min * 60), timezone.utc)
-                    stmt = stmt.where(CustomMetricLog.timestamp >= min_ts)
-                    stmt = stmt.limit(50000)
-                else:
-                    stmt = stmt.limit(limit)
-                
-                rows = session.exec(stmt).all()
-                
-                history = []
-                for row in reversed(rows):
-                    ts = row.timestamp.timestamp()
-                    dt_str = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-                    history.append({
-                        "time": dt_str,
-                        "timestamp_unix": ts,
-                        "value": row.value,
-                        "variable_name": row.variable_name
-                    })
-                
-                if aggregate_min and len(history) > 0:
-                    aggr_history = []
-                    current_bucket = None
-                    bucket_vals = []
-                    bucket_ts = 0
-                    
-                    for item in history:
-                        bucket = int(item["timestamp_unix"] / (aggregate_min * 60))
-                        if current_bucket is None:
-                            current_bucket = bucket
-                        
-                        if bucket == current_bucket:
-                            bucket_vals.append(item["value"])
-                            bucket_ts = item["timestamp_unix"]
-                        else:
-                            max_val = max(bucket_vals) if bucket_vals else 0
-                            dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
-                            aggr_history.append({
-                                "time": dt_str,
-                                "timestamp_unix": bucket_ts,
-                                "value": max_val
-                            })
-                            current_bucket = bucket
-                            bucket_vals = [item["value"]]
-                            bucket_ts = item["timestamp_unix"]
-                    
-                    if bucket_vals:
-                        max_val = max(bucket_vals)
-                        dt_str = datetime.fromtimestamp(bucket_ts).strftime("%H:%M")
-                        aggr_history.append({
-                            "time": dt_str,
-                            "timestamp_unix": bucket_ts,
-                            "value": max_val
-                        })
-                    
-                    return aggr_history
+            with self.engine_telemetry.connect() as conn:
+                where_clauses = ["(node_id = :node_id OR variable_name = :node_id)"]
+                params: Dict[str, Any] = {"node_id": node_id, "limit": limit}
 
-                return history
+                if timeframe_min and timeframe_min > 0:
+                    cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeframe_min)
+                    cutoff_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+                    where_clauses.append("timestamp >= :cutoff")
+                    params["cutoff"] = cutoff_str
+
+                where_sql = " AND ".join(where_clauses)
+
+                if aggregate_min and aggregate_min > 0:
+                    bucket_sec = aggregate_min * 60
+                    agg_lower = (agg_func or "avg").lower()
+                    if agg_lower == "max":
+                        agg_expr = "MAX(value)"
+                        hourly_col = "value_max"
+                    elif agg_lower == "min":
+                        agg_expr = "MIN(value)"
+                        hourly_col = "value_min"
+                    elif agg_lower == "sum":
+                        agg_expr = "SUM(value)"
+                        hourly_col = "value_sum"
+                    else:
+                        agg_expr = "AVG(value)"
+                        hourly_col = "value_avg"
+
+                    query = text(f"""
+                        SELECT 
+                            (CAST(strftime('%s', timestamp) AS INTEGER) / {bucket_sec}) * {bucket_sec} AS bucket_ts,
+                            {agg_expr} AS agg_val,
+                            variable_name
+                        FROM (
+                            SELECT timestamp, value, variable_name, node_id FROM custom_metric_log
+                            UNION ALL
+                            SELECT time_bucket AS timestamp, {hourly_col} AS value, variable_name, node_id 
+                            FROM custom_metric_hourly
+                            WHERE time_bucket < (
+                                SELECT COALESCE(MIN(timestamp), '9999-12-31') 
+                                FROM custom_metric_log 
+                                WHERE (node_id = :node_id OR variable_name = :node_id)
+                            )
+                        )
+                        WHERE {where_sql}
+                        GROUP BY bucket_ts
+                        ORDER BY bucket_ts ASC
+                        LIMIT :limit
+                    """)
+                    result = conn.execute(query, params)
+                    history = []
+                    for row in result:
+                        bts = row[0]
+                        val = round(row[1], 2) if row[1] is not None else 0.0
+                        var_name = row[2] or ""
+                        if timeframe_min and timeframe_min > 1440:
+                            dt_str = datetime.fromtimestamp(bts).strftime("%d/%m %H:%M")
+                        else:
+                            dt_str = datetime.fromtimestamp(bts).strftime("%H:%M")
+                        history.append({
+                            "time": dt_str,
+                            "timestamp_unix": bts,
+                            "value": val,
+                            "variable_name": var_name
+                        })
+                    return history
+                else:
+                    query = text(f"""
+                        SELECT 
+                            CAST(strftime('%s', timestamp) AS INTEGER) AS ts_unix,
+                            value,
+                            variable_name
+                        FROM custom_metric_log
+                        WHERE {where_sql}
+                        ORDER BY timestamp DESC
+                        LIMIT :limit
+                    """)
+                    result = conn.execute(query, params)
+                    rows = result.fetchall()
+                    history = []
+                    for row in reversed(rows):
+                        ts = row[0]
+                        val = round(row[1], 2) if row[1] is not None else 0.0
+                        var_name = row[2] or ""
+                        dt_str = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+                        history.append({
+                            "time": dt_str,
+                            "timestamp_unix": ts,
+                            "value": val,
+                            "variable_name": var_name
+                        })
+                    return history
         except Exception as e:
             logger.error(f"Failed to fetch metric history for {node_id}: {e}")
             return []
 
     def run_hourly_rollup(self):
-        """Aggregates custom metrics into hourly buckets."""
+        """Aggregates raw custom metrics into hourly buckets in custom_metric_hourly."""
+        from sqlalchemy import text
+        from datetime import datetime, timezone
         try:
-            with Session(self.engine_telemetry) as session:
-                # Custom Metric Rollup
-                pass
+            now_hour = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+            with self.engine_telemetry.connect() as conn:
+                sql = text("""
+                    INSERT OR REPLACE INTO custom_metric_hourly (
+                        time_bucket, project_id, node_id, variable_name, 
+                        value_sum, value_avg, value_max, value_min, count
+                    )
+                    SELECT 
+                        strftime('%Y-%m-%d %H:00:00', timestamp) AS time_bucket,
+                        project_id,
+                        node_id,
+                        variable_name,
+                        ROUND(SUM(value), 4) AS value_sum,
+                        ROUND(AVG(value), 4) AS value_avg,
+                        ROUND(MAX(value), 4) AS value_max,
+                        ROUND(MIN(value), 4) AS value_min,
+                        COUNT(id) AS count
+                    FROM custom_metric_log
+                    WHERE timestamp < :now_hour
+                    GROUP BY strftime('%Y-%m-%d %H:00:00', timestamp), project_id, node_id, variable_name;
+                """)
+                res = conn.execute(sql, {"now_hour": now_hour})
+                conn.commit()
+                if res.rowcount and res.rowcount > 0:
+                    logger.info(f"Hourly rollup generated/updated {res.rowcount} hourly metric records.")
         except Exception as e:
             logger.error(f"Error running hourly rollup: {e}")
             
     def run_data_retention_cleanup(self):
         """Deletes raw data older than the retention period (default 7 days) to prevent disk bloat."""
-        from sqlmodel import Session, text
+        from sqlalchemy import text
         from datetime import datetime, timedelta, timezone
         import os
         
+        # 1. Rollup raw data to hourly buckets before purging
+        self.run_hourly_rollup()
+        
         retention_days = 7
+        hourly_retention_days = 90
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
         cutoff_str = cutoff_date.strftime("%Y-%m-%d %H:%M:%S")
+        hourly_cutoff_str = (datetime.now(timezone.utc) - timedelta(days=hourly_retention_days)).strftime("%Y-%m-%d %H:%M:%S")
         
         try:
-            with Session(self.engine_telemetry) as session:
+            with self.engine_telemetry.connect() as conn:
                 # 1. Find and delete physical snapshot files
-                # Using text() since we are running raw SQL execution
-                old_events = session.execute(
-                    text(f"SELECT snapshot_path FROM event_logs WHERE timestamp < '{cutoff_str}' AND snapshot_path IS NOT NULL")
+                old_events = conn.execute(
+                    text("SELECT snapshot_path FROM event_logs WHERE timestamp < :cutoff AND snapshot_path IS NOT NULL"),
+                    {"cutoff": cutoff_str}
                 ).fetchall()
                 
                 deleted_files_count = 0
@@ -400,16 +600,25 @@ class DatabaseManager:
                         except Exception as e:
                             logger.error(f"Failed to delete old snapshot file {snap_path}: {e}")
 
-                # 2. Clean up CustomMetricLog
-                res1 = session.execute(text(f"DELETE FROM custom_metric_log WHERE timestamp < '{cutoff_str}'"))
-                # 3. Clean up EventLog
-                res2 = session.execute(text(f"DELETE FROM event_logs WHERE timestamp < '{cutoff_str}'"))
-                # 4. Clean up SystemMetric
-                res3 = session.execute(text(f"DELETE FROM system_metrics WHERE timestamp < '{cutoff_str}'"))
+                # 2. Clean up raw CustomMetricLog (safely preserved in custom_metric_hourly)
+                res1 = conn.execute(text("DELETE FROM custom_metric_log WHERE timestamp < :cutoff"), {"cutoff": cutoff_str})
+                # 3. Clean up custom_metric_hourly older than 90 days
+                res_h = conn.execute(text("DELETE FROM custom_metric_hourly WHERE time_bucket < :hourly_cutoff"), {"hourly_cutoff": hourly_cutoff_str})
+                # 4. Clean up EventLog
+                res2 = conn.execute(text("DELETE FROM event_logs WHERE timestamp < :cutoff"), {"cutoff": cutoff_str})
+                # 5. Clean up SystemMetric
+                res3 = conn.execute(text("DELETE FROM system_metrics WHERE timestamp < :cutoff"), {"cutoff": cutoff_str})
                 
-                session.commit()
+                conn.commit()
                 
-                deleted_total = res1.rowcount + res2.rowcount + res3.rowcount
+                # 6. Optimize SQLite storage to prevent fragmentation on Raspberry Pi SD card
+                try:
+                    conn.execute(text("PRAGMA optimize;"))
+                    conn.commit()
+                except Exception:
+                    pass
+                
+                deleted_total = (res1.rowcount or 0) + (res2.rowcount or 0) + (res3.rowcount or 0) + (res_h.rowcount or 0)
                 if deleted_total > 0 or deleted_files_count > 0:
                     logger.info(f"Data retention cleanup completed. Deleted {deleted_total} old rows and {deleted_files_count} snapshot files.")
         except Exception as e:
@@ -467,7 +676,13 @@ class DatabaseManager:
                     except:
                         pass
                 if d.get('timestamp'):
-                    d['timestamp'] = d['timestamp'].isoformat()
+                    if hasattr(d['timestamp'], 'isoformat'):
+                        ts = d['timestamp']
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                        d['timestamp'] = ts.isoformat()
+                    elif isinstance(d['timestamp'], str):
+                        d['timestamp'] = d['timestamp']
                 out.append(d)
             return {"data": out, "total": total, "page": page, "limit": limit}
 
@@ -506,6 +721,12 @@ class DatabaseManager:
         2. If record count still exceeds `max_records`, trims oldest records to reach `max_records`.
         3. If `delete_files` is True, deletes matching snapshot image files from disk.
         """
+        # Also trigger telemetry downsampling & retention cleanup
+        try:
+            self.run_data_retention_cleanup()
+        except Exception as re_err:
+            logger.error(f"Failed to run telemetry retention cleanup in purge_old_logs: {re_err}")
+
         deleted_rows = 0
         deleted_files = 0
         errors = []
@@ -615,14 +836,14 @@ class DatabaseManager:
             with Session(self.engine_telemetry) as session:
                 if project_id:
                     stats["total_event_logs"] = session.exec(select(func.count(EventLog.id)).where(EventLog.project_id == project_id)).one()
-                    stats["total_metrics"] = session.exec(select(func.count(SystemMetric.id)).where(SystemMetric.project_id == project_id)).one()
-                    stats["total_class_counts"] = session.exec(select(func.count(ClassCountSummary.id)).where(ClassCountSummary.project_id == project_id)).one()
-                    stats["total_hourly_rollups"] = session.exec(select(func.count(ClassCountHourly.id)).where(ClassCountHourly.project_id == project_id)).one()
+                    stats["total_metrics"] = session.exec(select(func.count(SystemMetric.id))).one()
+                    stats["total_class_counts"] = session.exec(select(func.count(CustomMetricLog.id)).where(CustomMetricLog.project_id == project_id)).one()
+                    stats["total_hourly_rollups"] = session.exec(select(func.count(CustomMetricHourly.id)).where(CustomMetricHourly.project_id == project_id)).one()
                 else:
                     stats["total_event_logs"] = session.exec(select(func.count(EventLog.id))).one()
                     stats["total_metrics"] = session.exec(select(func.count(SystemMetric.id))).one()
-                    stats["total_class_counts"] = session.exec(select(func.count(ClassCountSummary.id))).one()
-                    stats["total_hourly_rollups"] = session.exec(select(func.count(ClassCountHourly.id))).one()
+                    stats["total_class_counts"] = session.exec(select(func.count(CustomMetricLog.id))).one()
+                    stats["total_hourly_rollups"] = session.exec(select(func.count(CustomMetricHourly.id))).one()
                     
             with Session(self.engine) as session:
                 if not project_id:
@@ -719,6 +940,192 @@ class DatabaseManager:
                     logger.error(f"Failed to delete snapshot file {spath}: {e}")
                     
         return {"status": "success", "deleted_rows": deleted_rows, "deleted_files": deleted_files}
+
+    def execute_raw_query(self, query: str, db_name: str = "telemetry", max_rows: int = 200) -> Dict[str, Any]:
+        """Safely execute a read-only SQL query against the selected SQLite database using read-only URI mode."""
+        cleaned = query.strip()
+        if not cleaned:
+            return {"status": "error", "message": "Query cannot be empty"}
+        
+        # Verify statement is read-only (SELECT, PRAGMA, EXPLAIN, WITH)
+        first_token = cleaned.split()[0].upper().rstrip(";")
+        if first_token not in ("SELECT", "PRAGMA", "EXPLAIN", "WITH"):
+            return {
+                "status": "error",
+                "message": "Only read-only queries (SELECT, PRAGMA, EXPLAIN, WITH) are permitted in SQL Explorer."
+            }
+        
+        target_file = self.db_path_telemetry if db_name == "telemetry" else self.db_path
+        target_path = Path(target_file).resolve().as_posix()
+        uri = f"file:{target_path}?mode=ro"
+        
+        try:
+            conn = sqlite3.connect(uri, uri=True, timeout=5.0)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(cleaned)
+            
+            if cursor.description:
+                columns = [col[0] for col in cursor.description]
+                fetched_rows = cursor.fetchmany(max_rows)
+                rows = [dict(row) for row in fetched_rows]
+                cursor.close()
+                conn.close()
+                return {
+                    "status": "success",
+                    "columns": columns,
+                    "rows": rows,
+                    "count": len(rows),
+                    "truncated": len(rows) >= max_rows
+                }
+            else:
+                cursor.close()
+                conn.close()
+                return {
+                    "status": "success",
+                    "columns": [],
+                    "rows": [],
+                    "count": 0,
+                    "message": "Query executed successfully."
+                }
+        except Exception as e:
+            logger.warning(f"SQL query error: {e} | Query: {cleaned}")
+            return {"status": "error", "message": str(e)}
+
+    def vacuum_database(self) -> Dict[str, Any]:
+        """Runs VACUUM on both config and telemetry databases to reclaim disk space."""
+        try:
+            with self.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                conn.execute(text("VACUUM;"))
+            with self.engine_telemetry.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                conn.execute(text("VACUUM;"))
+            logger.info("Databases successfully compacted via VACUUM.")
+            return {"status": "success", "message": "Databases vacuumed and compacted successfully"}
+        except Exception as e:
+            logger.error(f"Failed to vacuum database: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def rollup_metrics(self) -> Dict[str, Any]:
+        """Triggers manual hourly metric rollup."""
+        try:
+            self.run_hourly_rollup()
+            return {"status": "success", "message": "Hourly rollup completed successfully"}
+        except Exception as e:
+            logger.error(f"Failed to run rollup metrics: {e}")
+            return {"status": "error", "message": str(e)}
+
+    # --- Target Tracker Records CRUD ---
+    def create_target_tracker_record(
+        self,
+        project_id: str,
+        node_id: str,
+        target: int,
+        name: str = "",
+        unit: str = "items"
+    ) -> TargetTrackerRecord:
+        now = datetime.now(timezone.utc)
+        initial_history = json.dumps([{
+            "t_rel": 0.0,
+            "ts": now.isoformat(),
+            "actual": 0,
+            "target": target,
+            "rate": 0.0,
+            "progress": 0.0
+        }])
+        record = TargetTrackerRecord(
+            project_id=project_id,
+            node_id=node_id,
+            name=name or f"Run {now.strftime('%d/%m %H:%M')}",
+            target=target,
+            actual=0,
+            over_target=0,
+            progress_percent=0.0,
+            status="running",
+            started_at=now,
+            completed_at=None,
+            duration_seconds=0.0,
+            avg_rate_per_minute=0.0,
+            peak_rate_per_minute=0.0,
+            unit=unit,
+            history_json=initial_history
+        )
+        with Session(self.engine_telemetry) as session:
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
+
+    def update_target_tracker_record(
+        self,
+        record_id: int,
+        actual: int,
+        over_target: int,
+        progress_percent: float,
+        status: str,
+        duration_seconds: float,
+        avg_rate_per_minute: float,
+        peak_rate_per_minute: float,
+        history_point: Optional[Dict[str, Any]] = None,
+        completed_at: Optional[datetime] = None
+    ) -> Optional[TargetTrackerRecord]:
+        with Session(self.engine_telemetry) as session:
+            record = session.get(TargetTrackerRecord, record_id)
+            if not record:
+                return None
+            record.actual = actual
+            record.over_target = over_target
+            record.progress_percent = progress_percent
+            record.status = status
+            record.duration_seconds = duration_seconds
+            record.avg_rate_per_minute = avg_rate_per_minute
+            record.peak_rate_per_minute = max(record.peak_rate_per_minute, peak_rate_per_minute)
+            if completed_at:
+                record.completed_at = completed_at
+
+            if history_point:
+                try:
+                    history = json.loads(record.history_json or "[]")
+                    history.append(history_point)
+                    if len(history) > 400:
+                        step = max(2, len(history) // 300)
+                        history = [history[0]] + history[1:-1:step] + [history[-1]]
+                    record.history_json = json.dumps(history)
+                except Exception as e:
+                    logger.warning(f"Failed to append history_point: {e}")
+
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return record
+
+    def get_target_tracker_records(
+        self,
+        project_id: str,
+        node_id: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 50
+    ) -> List[TargetTrackerRecord]:
+        with Session(self.engine_telemetry) as session:
+            query = select(TargetTrackerRecord).where(TargetTrackerRecord.project_id == project_id)
+            if node_id:
+                query = query.where(TargetTrackerRecord.node_id == node_id)
+            if status:
+                query = query.where(TargetTrackerRecord.status == status)
+            query = query.order_by(TargetTrackerRecord.started_at.desc()).limit(limit)
+            return list(session.exec(query).all())
+
+    def get_target_tracker_record(self, record_id: int) -> Optional[TargetTrackerRecord]:
+        with Session(self.engine_telemetry) as session:
+            return session.get(TargetTrackerRecord, record_id)
+
+    def delete_target_tracker_record(self, record_id: int) -> bool:
+        with Session(self.engine_telemetry) as session:
+            record = session.get(TargetTrackerRecord, record_id)
+            if record:
+                session.delete(record)
+                session.commit()
+                return True
+            return False
 
     def stop(self):
         self.running = False

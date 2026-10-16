@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-from ai_engine.message_router import MessageRouter, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
+from ai_engine.message_router import MessageRouter, PipelineNode, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, RS485OutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
 
 class CameraStreamConfig:
     def __init__(self, stream_id: str):
@@ -81,8 +81,8 @@ class PipelineParser:
         raw_nodes = payload.get("nodes", [])
         raw_edges = payload.get("edges", [])
         
-        # Filter out disabled nodes
-        nodes = [n for n in raw_nodes if not n.get("data", {}).get("disabled", False)]
+        # Filter out disabled nodes and visual annotation nodes (e.g. commentNode)
+        nodes = [n for n in raw_nodes if not n.get("data", {}).get("disabled", False) and n.get("type") != "commentNode"]
         active_node_ids = {n["id"] for n in nodes}
         
         # Filter out edges connected to disabled nodes
@@ -120,12 +120,15 @@ class PipelineParser:
             logger.debug(f"Telemetry pre-registration error: {ex}")
         
         # 1. Create Router Nodes for Data Flow
+        router.node_configs = {n["id"]: n.get("data", {}) for n in nodes}
         for n in nodes:
             nid = n["id"]
             ntype = n.get("type")
             ndata = n.get("data", {})
             
-            if ntype == "logicNode":
+            if ntype == "aiNode":
+                router.add_node(nid, PipelineNode(nid, ndata, router, node_type="aiNode"))
+            elif ntype == "logicNode":
                 router.add_node(nid, LogicNode(nid, ndata, router))
             elif ntype == "counterNode":
                 router.add_node(nid, CounterNode(nid, ndata, router))
@@ -149,13 +152,24 @@ class PipelineParser:
                 router.add_node(nid, ActionNode(nid, merged_data, router))
             elif ntype == "digitalOutputNode":
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="digital_output"))
-                config.digital_outputs.append({"pin": ndata.get("pin", "DO0")}) # Keep for GPIO init
+                config.digital_outputs.append({
+                    "pin": ndata.get("pin", "17"),
+                    "active_high": str(ndata.get("activeState", "high")).lower() != "low"
+                })
             elif ntype == "ledNode":
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="led"))
             elif ntype == "buzzerNode":
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="buzzer"))
+            elif ntype == "rs485Node":
+                router.add_node(nid, RS485OutputNode(nid, ndata, router))
             elif ntype == "digitalInputNode":
-                config.digital_inputs.append({"id": nid, "pin": ndata.get("pin", "DI0")})
+                config.digital_inputs.append({
+                    "id": nid,
+                    "pin": ndata.get("pin", "17"),
+                    "pull_resistor": ndata.get("pullResistor", "up"),
+                    "bounce_time": float(ndata.get("bounceTime", 0.1)),
+                    "active_low": str(ndata.get("activeState", "high")).lower() == "low"
+                })
             elif ntype == "dashboardMetricNode":
                 router.add_node(nid, DashboardOutputNode(nid, ndata, router))
                 config.dashboard_nodes.append({
@@ -184,9 +198,10 @@ class PipelineParser:
                 from ai_engine.forklift_zone_monitor import ForkliftZoneNode
                 router.add_node(nid, ForkliftZoneNode(nid, ndata, router))
             elif ntype == "dashboardLogNode":
-                router.add_node(nid, DashboardOutputNode(nid, ndata, router))
+                from ai_engine.message_router import DashboardLogNode
+                router.add_node(nid, DashboardLogNode(nid, ndata, router))
                 config.dashboard_nodes.append({
-                    "id": f"dashboard.{nid}.history", "name": ndata.get("label", "Log"), "dataType": "array_text", "widgetType": "textFeed"
+                    "id": f"dashboard.{nid}.history", "name": ndata.get("label", "Dashboard Log"), "dataType": "array_text", "widgetType": "textFeed"
                 })
         for edge in edges:
             src = edge.get("source")
@@ -213,6 +228,12 @@ class PipelineParser:
                     pnode = next((n for n in nodes if n["id"] == pid), None)
                     if pnode and pnode.get("type") == "databaseWriterNode":
                         db_writer_id = pid
+                        # Lock chart widget runtime to the exact property configured in databaseWriterNode
+                        pdata = pnode.get("data", {})
+                        db_prop = pdata.get("propertyPath") or "value"
+                        chart_node = router.nodes.get(nid)
+                        if chart_node and hasattr(chart_node, "data"):
+                            chart_node.data["sourcePath"] = db_prop
                         break
                         
                 source_id = f"dashboard.{db_writer_id}.history" if db_writer_id else f"dashboard.{nid}.history"
@@ -335,16 +356,22 @@ class PipelineParser:
                     stream_config.roi = ai_data.get("roi", {"x": 0, "y": 0, "w": 1, "h": 1})
                     stream_config.roi_enabled = ai_data.get("roiEnabled", False)
                     stream_config.show_roi = ai_data.get("showRoi", False)
-                    stream_config.confidence_threshold = float(ai_data.get("confidenceThreshold", 0.5))
+                    conf_enabled = ai_data.get("confidenceThresholdEnabled", True)
+                    stream_config.confidence_threshold = float(ai_data.get("confidenceThreshold", 0.5)) if conf_enabled else 0.0
                     stream_config.class_confidences = ai_data.get("classConfidences", {})
                     
-                    stream_config.bbox_draw_mode = ai_data.get("bboxDrawMode", "frontend")
+                    bbox_enabled = ai_data.get("bboxEnabled", True)
+                    if not bbox_enabled or ai_data.get("bboxDrawMode") == "none":
+                        stream_config.bbox_draw_mode = "none"
+                    else:
+                        stream_config.bbox_draw_mode = ai_data.get("bboxDrawMode", "frontend")
                     stream_config.bbox_line_thickness = int(ai_data.get("bboxLineThickness", 2))
                     stream_config.bbox_font_thickness = int(ai_data.get("bboxFontThickness", 1))
                     stream_config.backend_resolution = ai_data.get("backendResolution", "auto")
                     
+                    class_filter_enabled = ai_data.get("classFilterEnabled", True)
                     raw_filter = ai_data.get("classFilter", None)
-                    stream_config.class_filter = raw_filter if raw_filter and isinstance(raw_filter, list) else None
+                    stream_config.class_filter = (raw_filter if raw_filter and isinstance(raw_filter, list) else None) if class_filter_enabled else None
                     
                     if model:
                         stream_config.ai_task = model.get("task", "detection")

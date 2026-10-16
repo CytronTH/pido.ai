@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { ReactFlow, Controls, Background, MiniMap, ReactFlowProvider } from '@xyflow/react';
-import { MousePointer2, Hand, Play, ChevronRight, ChevronLeft, Plus, Activity, ChevronDown, Zap, RefreshCw, Check, AlertTriangle, Loader2, Download, Trash2, Terminal, Network, History, Wand2 } from 'lucide-react';
+import { MousePointer2, Hand, Play, ChevronRight, ChevronLeft, Plus, Activity, ChevronDown, Zap, RefreshCw, Check, AlertTriangle, Loader2, Download, Trash2, Terminal, Network, History, Wand2, Eye, Lock } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import Sidebar from './Sidebar';
 import DebugPanel from './DebugPanel';
@@ -15,6 +15,7 @@ import SnapshotPreviewFloatingWindow from './SnapshotPreviewFloatingWindow';
 
 import { nodeTypes, edgeTypes, DEFAULT_NODE_NAMES } from './nodeTypes';
 import { useResolvedTheme } from '../../utils/theme';
+import usePermissions from '../../utils/usePermissions';
 
 let id = 0;
 const getId = () => `dndnode_${Date.now()}_${id++}`;
@@ -22,6 +23,7 @@ const getId = () => `dndnode_${Date.now()}_${id++}`;
 export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
   const reactFlowWrapper = useRef(null);
   const resolvedTheme = useResolvedTheme();
+  const { canDeploy, canEdit, isViewer } = usePermissions();
   const [reactFlowInstance, setReactFlowInstance] = React.useState(null);
   const [isSelectMode, setIsSelectMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -144,10 +146,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         position,
         data: { label: DEFAULT_NODE_NAMES[type] || `${type} node` },
       };
-      
-      if (type === 'debugOutputNode') {
-        newNode.style = { width: 320, height: 350 };
-      }
 
       addNode(newNode);
     },
@@ -196,10 +194,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
       data: { label: DEFAULT_NODE_NAMES[type] || `${type} node` },
     };
 
-    if (type === 'debugOutputNode') {
-      newNode.style = { width: 320, height: 350 };
-    }
-
     addNode(newNode);
 
     if (suggestionMenu.sourceNodeId) {
@@ -238,10 +232,6 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         position,
         data: { label: DEFAULT_NODE_NAMES[type] || `${type} node` },
       };
-
-      if (type === 'debugOutputNode') {
-        newNode.style = { width: 320, height: 350 };
-      }
 
       addNode(newNode);
       setIsMobilePaletteOpen(false);
@@ -446,9 +436,11 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
         setActiveSidebarNodeId(null);
       } else {
         setActiveSidebarNodeId(node.id);
+        setIsDebugPanelOpen(false);
       }
     } else if (node.type === 'debugNode') {
       setIsDebugPanelOpen(true);
+      setActiveSidebarNodeId(null);
     }
 
     // Ensure the double-clicked node is exclusively selected
@@ -702,14 +694,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             </button>
 
             {/* Auto-Layout (Beautify) */}
-            <button
-              onClick={beautifyPipeline}
-              className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
-              title="Auto-Layout Nodes (Beautify)"
-            >
-              <Wand2 size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
-              <span className="hidden md:inline">Beautify</span>
-            </button>
+            {canEdit && (
+              <button
+                onClick={beautifyPipeline}
+                className="p-1.5 sm:p-2 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-surface-2 border border-line-strong hover:text-fg hover:bg-surface-3 transition-all active:scale-95 text-fg-secondary"
+                title="Auto-Layout Nodes (Beautify)"
+              >
+                <Wand2 size={16} className="text-fuchsia-600 dark:text-fuchsia-400" />
+                <span className="hidden md:inline">Beautify</span>
+              </button>
+            )}
 
             {/* Export Project Quick Action */}
             <button
@@ -733,7 +727,21 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
             <div className="w-px h-6 sm:h-8 bg-surface-3"></div>
 
+            {/* Read-Only Badge for Viewers */}
+            {isViewer && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-xs font-semibold">
+                <Eye size={14} />
+                <span className="hidden sm:inline">View-Only</span>
+              </div>
+            )}
+
             {/* Split Deploy Button (Node-RED Style) */}
+            {!canDeploy ? (
+              <div className="flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-surface-2/60 text-fg-subtle border border-line-strong/60 cursor-not-allowed opacity-60" title="Deploying changes is restricted to Admin and Editors">
+                <Lock size={14} />
+                <span>Deploy Disabled</span>
+              </div>
+            ) : (
             <div className="relative flex items-stretch" ref={deployMenuRef}>
               <button 
                 onClick={() => handleDeploy()}
@@ -860,6 +868,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Floating multi-node selection pill with quick delete */}
@@ -867,18 +876,22 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-surface/95 border border-blue-500/70 text-blue-800 dark:text-blue-200 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
               <span><strong>{selectedNodesCount}</strong> nodes selected</span>
-              <span className="text-fg-faint">•</span>
-              <button
-                onClick={() => {
-                  const selectedIds = nodes.filter(n => n.selected && !n.data?.isTutorialMock).map(n => n.id);
-                  deleteNodes(selectedIds);
-                }}
-                className="flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-semibold cursor-pointer transition-colors hover:underline"
-                title="Delete selected nodes (Delete / Backspace)"
-              >
-                <Trash2 size={13} />
-                <span>Delete</span>
-              </button>
+              {canEdit && (
+                <>
+                  <span className="text-fg-faint">•</span>
+                  <button
+                    onClick={() => {
+                      const selectedIds = nodes.filter(n => n.selected && !n.data?.isTutorialMock).map(n => n.id);
+                      deleteNodes(selectedIds);
+                    }}
+                    className="flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-semibold cursor-pointer transition-colors hover:underline"
+                    title="Delete selected nodes (Delete / Backspace)"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -886,13 +899,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             colorMode={resolvedTheme}
             nodes={styledNodes}
             edges={mainEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            nodesDraggable={!isViewer}
+            nodesConnectable={!isViewer}
+            elementsSelectable={true}
+            onNodesChange={isViewer ? undefined : onNodesChange}
+            onEdgesChange={isViewer ? undefined : onEdgesChange}
             onNodeDragStop={() => syncCurrentPositions()}
             onSelectionDragStop={() => syncCurrentPositions()}
             isValidConnection={isValidConnection}
-            onConnect={handleConnect}
-            onConnectEnd={handleConnectEnd}
+            onConnect={isViewer ? undefined : handleConnect}
+            onConnectEnd={isViewer ? undefined : handleConnectEnd}
             onPaneClick={() => {
               setSuggestionMenu(null);
               setActiveSidebarNodeId(null);
@@ -900,13 +916,13 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             onNodeClick={handleNodeClick}
             onNodeDoubleClick={handleNodeDoubleClick}
             zoomOnDoubleClick={false}
-            onNodesDelete={(deleted) => {
+            onNodesDelete={isViewer ? undefined : (deleted) => {
               deleteNodes(deleted.map(n => n.id));
             }}
-            onEdgesDelete={(deleted) => {
+            onEdgesDelete={isViewer ? undefined : (deleted) => {
               deleted.forEach(e => deleteEdge(e.id));
             }}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={isViewer ? null : ['Backspace', 'Delete']}
             selectionKeyCode={['Shift']}
             multiSelectionKeyCode={['Control', 'Meta', 'Shift']}
             panOnDrag={isSelectMode ? [1, 2] : true}
@@ -914,8 +930,8 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             selectionOnDrag={isSelectMode}
             selectionMode="partial"
             onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
+            onDrop={isViewer ? undefined : onDrop}
+            onDragOver={isViewer ? undefined : onDragOver}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onlyRenderVisibleElements={false}
@@ -928,7 +944,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
             <MiniMap 
               nodeColor="#3b82f6" 
               maskColor="color-mix(in srgb, var(--canvas) 70%, transparent)"
-              className="hidden sm:block bg-surface-2 border-line-strong" 
+              className={`hidden sm:block bg-surface-2 border-line-strong transition-all duration-250 ease-out ${isDebugPanelOpen ? '!mr-[340px]' : ''}`} 
             />
           </ReactFlow>
           
@@ -946,7 +962,7 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
           {/* Conflict Nodes Floating Warning Banner (Bottom-Right of Canvas) */}
           {conflictConnections.length > 0 && (
-            <div className="absolute bottom-4 right-4 sm:bottom-32 sm:right-4 z-40 max-w-xs sm:max-w-sm bg-rose-950/90 text-rose-100 border border-rose-500/80 rounded-xl p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto">
+            <div className={`absolute bottom-4 sm:bottom-32 z-40 max-w-xs sm:max-w-sm bg-rose-950/90 text-rose-100 border border-rose-500/80 rounded-xl p-3 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto transition-all duration-250 ease-out ${isDebugPanelOpen ? 'right-[356px]' : 'right-4'}`}>
               <div className="flex items-start gap-2.5">
                 <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 shrink-0 mt-0.5 animate-pulse">
                   <AlertTriangle size={18} />
@@ -993,8 +1009,16 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
 
           {/* Desktop Debug Panel Toggle Button */}
           <button
-            onClick={() => setIsDebugPanelOpen(!isDebugPanelOpen)}
-            className="hidden md:flex absolute top-4 right-4 z-20 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-colors text-fg"
+            onClick={() => {
+              setIsDebugPanelOpen((prev) => {
+                const next = !prev;
+                if (next) setActiveSidebarNodeId(null);
+                return next;
+              });
+            }}
+            className={`hidden md:flex absolute top-4 z-30 bg-surface-2 border border-line-strong p-2 rounded-full shadow-lg hover:bg-surface-3 transition-all duration-250 ease-out text-fg ${
+              isDebugPanelOpen ? 'right-[356px]' : 'right-4'
+            }`}
             title="Toggle Debug Panel"
           >
             {isDebugPanelOpen ? <ChevronRight size={20} /> : <Terminal size={20} className={nodes.some(n => n.type === 'debugNode' && n.data?.outputType === 'text') ? 'text-purple-600 dark:text-purple-400' : ''} />}
@@ -1041,7 +1065,28 @@ export default React.memo(function PipelineBuilder({ projectId, onOpenWiki }) {
           isOpen={isRevisionsModalOpen}
           onClose={() => setIsRevisionsModalOpen(false)}
           projectId={currentProject?.id}
-          onRestoreSuccess={() => window.location.reload()}
+          currentNodes={nodes}
+          currentEdges={edges}
+          onRestoreSuccess={(restoredVersion, warnings) => {
+            if (restoredVersion?.pipeline?.nodes) {
+              setPipeline(restoredVersion.pipeline.nodes, restoredVersion.pipeline.edges || []);
+            } else {
+              window.location.reload();
+              return;
+            }
+            if (warnings && warnings.length > 0) {
+              setToastMessage({
+                type: 'warning',
+                text: `กู้คืน Pipeline v${restoredVersion?.version_number} สำเร็จ (${warnings.length} widget บน Dashboard อาจขาดการเชื่อมต่อ)`
+              });
+            } else {
+              setToastMessage({
+                type: 'success',
+                text: `กู้คืน Pipeline v${restoredVersion?.version_number || ''} สำเร็จ (พร้อม Deploy)`
+              });
+            }
+            setTimeout(() => setToastMessage(null), 5000);
+          }}
         />
       </ReactFlowProvider>
     </div>

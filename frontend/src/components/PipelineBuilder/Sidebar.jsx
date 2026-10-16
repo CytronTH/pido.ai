@@ -2,8 +2,8 @@ import React from 'react';
 import { 
   Camera, BrainCircuit, Filter, Timer, Code, Hash, ArrowRightLeft, Target, 
   Activity, Database, BookOpen, Image, Video, Type, LineChart, List, Bell, 
-  ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, Terminal, 
-  Info, X 
+  ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, 
+  Info, X, StickyNote 
 } from 'lucide-react';
 
 export const NODE_CATEGORIES = [
@@ -39,14 +39,14 @@ export const NODE_CATEGORIES = [
     ]
   },
   {
-    title: 'Hardware & I/O',
+    title: 'Hardware & I/O (RPi 5)',
     badgeColor: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20',
     items: [
-      { type: 'digitalInputNode', label: 'Digital Input', desc: 'Isolated DI (Max 50V)', icon: ToggleLeft, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
-      { type: 'digitalOutputNode', label: 'Digital Output', desc: 'Isolated DO (Max 50V)', icon: ToggleRight, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-      { type: 'buzzerNode', label: 'Active Buzzer', desc: 'GPIO19 Onboard alert', icon: BellRing, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
-      { type: 'ledNode', label: 'LED Driver', desc: 'PWM Output (Max 2A)', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' },
-      { type: 'rs485Node', label: 'RS485 Modbus', desc: 'Serial industrial comms', icon: Settings2, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
+      { type: 'digitalInputNode', label: 'Digital Input', desc: 'Standard 3.3V GPIO Input', icon: ToggleLeft, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
+      { type: 'digitalOutputNode', label: 'Digital Output', desc: 'Standard 3.3V GPIO / Relay', icon: ToggleRight, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+      { type: 'buzzerNode', label: 'Active Buzzer', desc: 'External Buzzer output', icon: BellRing, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
+      { type: 'ledNode', label: 'LED / PWM Driver', desc: 'Hardware PWM (3.3V)', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' },
+      { type: 'rs485Node', label: 'RS485 Modbus', desc: 'USB/Serial RS485 Modbus', icon: Settings2, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
     ]
   },
   {
@@ -61,11 +61,17 @@ export const NODE_CATEGORIES = [
     ]
   },
   {
+    title: 'Documentation & Notes',
+    badgeColor: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+    items: [
+      { type: 'commentNode', label: 'Comment / Note', desc: 'Sticky note & flow documentation', icon: StickyNote, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
+    ]
+  },
+  {
     title: 'Diagnostics & Debug',
     badgeColor: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
     items: [
       { type: 'debugNode', label: 'Debug node', desc: 'Probe payload packets', icon: Bug, color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' },
-      { type: 'debugOutputNode', label: 'Debug Output', desc: 'Live JSON terminal window', icon: Terminal, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
     ]
   }
 ];

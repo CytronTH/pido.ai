@@ -24,6 +24,10 @@ class ConnectionManager:
             if not self.active_connections[room_id]:
                 del self.active_connections[room_id]
 
+    def has_clients(self, room_id: str = "default") -> bool:
+        """Check if there are any active WebSocket connections in the given room."""
+        return bool(self.active_connections.get(room_id))
+
     async def broadcast_json(self, data: dict, room_id: str = "default"):
         """
         Broadcast JSON data to all connected clients in a specific room.
