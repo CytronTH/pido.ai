@@ -21,7 +21,16 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         if db_path is None:
             base_dir = Path(__file__).resolve().parent
-            db_path = str(base_dir / "vision_studio.sqlite")
+            legacy_db = base_dir / "vision_studio.sqlite"
+            new_db = base_dir / "pido_ai.sqlite"
+            # Migrate legacy database if new database does not exist yet
+            if legacy_db.exists() and not new_db.exists():
+                try:
+                    shutil.copy2(legacy_db, new_db)
+                    logger.info(f"Migrated legacy database {legacy_db} to {new_db}")
+                except Exception as e:
+                    logger.warning(f"Could not copy legacy db {legacy_db}: {e}")
+            db_path = str(new_db)
         
         self.db_path = db_path
         sqlite_url = f"sqlite:///{self.db_path}"
@@ -130,6 +139,64 @@ class DatabaseManager:
                     session.add(admin_user)
                     session.commit()
                     logger.info("Created default admin user (admin/admin).")
+
+                # Auto-seed bundled AI models if table is empty
+                existing_model = session.exec(select(AIModel)).first()
+                if not existing_model:
+                    default_models = [
+                        AIModel(
+                            id="model_001",
+                            name="YOLOv8s Default (Hailo-8)",
+                            type="model",
+                            hardware="hailo-8",
+                            hef_path="yolov8s.hef",
+                            so_path="libyolo_hailortpp_post.so",
+                            task="detection",
+                            tags_json=json.dumps(["object_detection", "yolo", "coco80"]),
+                            classes_json=json.dumps([]),
+                        ),
+                        AIModel(
+                            id="model_002",
+                            name="YOLOv8s (Hailo-8L)",
+                            type="model",
+                            hardware="hailo-8l",
+                            hef_path="yolov8s_h8l.hef",
+                            so_path="libyolo_hailortpp_post.so",
+                            task="detection",
+                            tags_json=json.dumps(["object_detection", "yolo", "coco80"]),
+                            classes_json=json.dumps([]),
+                        ),
+                        AIModel(
+                            id="model_003",
+                            name="YOLOv8s Pose (Hailo-8L)",
+                            type="model",
+                            hardware="hailo-8l",
+                            hef_path="yolov8s_pose_h8l_pi.hef",
+                            so_path="libyolov8pose_post.so",
+                            task="pose",
+                            tags_json=json.dumps(["pose_estimation", "keypoints"]),
+                            classes_json=json.dumps([]),
+                        ),
+                    ]
+                    for dm in default_models:
+                        session.add(dm)
+                    session.commit()
+                    logger.info(f"Seeded {len(default_models)} default AI models.")
+
+                # Auto-seed default project if table is empty
+                existing_project = session.exec(select(Project)).first()
+                if not existing_project:
+                    default_project = Project(
+                        id="proj_default",
+                        name="Default Project",
+                        description="Default AI Vision Project",
+                        pipeline_json=json.dumps({"nodes": [], "edges": []}),
+                        dashboard_layout_json=json.dumps([]),
+                        exposed_data_sources_json=json.dumps([]),
+                    )
+                    session.add(default_project)
+                    session.commit()
+                    logger.info("Created default project (Default Project).")
 
             logger.info(f"Database initialized successfully with indexes at {self.db_path}")
         except Exception as e:

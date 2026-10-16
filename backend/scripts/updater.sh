@@ -150,7 +150,7 @@ if [ "$MODE" = "online" ]; then
     update_status "running" "pull" 40 "Fetching latest updates from remote repository..."
     
     # Prevent SQLite git conflicts
-    git update-index --assume-unchanged backend/db/vision_studio.sqlite backend/db/vision_studio.sqlite-shm backend/db/vision_studio.sqlite-wal 2>/dev/null || true
+    git update-index --assume-unchanged backend/db/pido_ai.sqlite backend/db/pido_ai.sqlite-shm backend/db/pido_ai.sqlite-wal 2>/dev/null || true
 
     git fetch origin --tags >> "$LOG_FILE" 2>&1
 
@@ -202,7 +202,7 @@ elif [ "$MODE" = "offline" ]; then
 fi
 
 # Re-ensure assume-unchanged on DB files
-git update-index --assume-unchanged backend/db/vision_studio.sqlite backend/db/vision_studio.sqlite-shm backend/db/vision_studio.sqlite-wal 2>/dev/null || true
+git update-index --assume-unchanged backend/db/pido_ai.sqlite backend/db/pido_ai.sqlite-shm backend/db/pido_ai.sqlite-wal 2>/dev/null || true
 
 # ── Step 3: Install & Sync Dependencies & Build Frontend ──────────────────────
 update_status "running" "install" 70 "Checking and installing dependencies..."

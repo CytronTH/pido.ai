@@ -65,7 +65,7 @@ const QUICK_QUERIES = {
     },
     {
       title: 'List All Tables',
-      desc: 'Explore schema of vision_studio.sqlite',
+      desc: 'Explore schema of pido_ai.sqlite',
       sql: "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
     }
   ]
@@ -192,7 +192,7 @@ export default function SqlExplorer() {
             />
             <div className="flex justify-between items-center mt-2.5">
               <span className="text-[11px] text-fg-subtle font-mono truncate max-w-[180px]">
-                DB: {dbName === 'telemetry' ? 'telemetry_logs.sqlite' : 'vision_studio.sqlite'}
+                DB: {dbName === 'telemetry' ? 'telemetry_logs.sqlite' : 'pido_ai.sqlite'}
               </span>
               <button
                 onClick={handleRunQuery}

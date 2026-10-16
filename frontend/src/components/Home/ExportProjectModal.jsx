@@ -84,7 +84,7 @@ export default function ExportProjectModal({ project, isOpen, onClose }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-fg text-sm">Full Deployment Package (.irivproj)</span>
+                  <span className="font-semibold text-fg text-sm">Full Deployment Package (.pidoproj)</span>
                   <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-medium">
                     Recommended
                   </span>
