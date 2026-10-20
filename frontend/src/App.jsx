@@ -17,6 +17,7 @@ import useAuthStore from './store/useAuthStore';
 import useThemeStore from './store/useThemeStore';
 import usePipelineStore from './store/usePipelineStore';
 import usePermissions from './utils/usePermissions';
+import authFetch from './utils/api';
 import logoImg from './assets/logo-menu.svg';
 import logoDarkImg from './assets/logo-menu-dark.svg';
 import SystemClock from './components/SystemClock';
@@ -24,7 +25,12 @@ import SystemClock from './components/SystemClock';
 function AppContent() {
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
-  const { isAdmin, canStartStop } = usePermissions();
+  const refreshUser = useAuthStore(state => state.refreshUser);
+  const { isAdmin, canStartStop, canViewPipeline, canAssignViewers, isViewer, canAccessProject } = usePermissions();
+
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
   const [activeProject, setActiveProject] = useState(null);
   const [projectStatus, setProjectStatus] = useState(null);
   const [metadata, setMetadata] = useState(null);
@@ -44,13 +50,17 @@ function AppContent() {
     if (pathParts[0] === 'project') {
       const projectId = pathParts[1];
       if (location.state?.project && location.state.project.id === projectId) {
-        setActiveProject(location.state.project);
+        if (canAccessProject(projectId)) {
+          setActiveProject(location.state.project);
+        } else {
+          navigate('/');
+        }
       } else if (!activeProject || activeProject.id !== projectId) {
-        fetch('/api/projects')
+        authFetch('/api/projects')
           .then(res => res.json())
           .then(data => {
-            const proj = data.find(p => p.id === projectId);
-            if (proj) {
+            const proj = Array.isArray(data) ? data.find(p => p.id === projectId) : null;
+            if (proj && canAccessProject(projectId)) {
               setActiveProject(proj);
             } else {
               navigate('/');
@@ -65,7 +75,7 @@ function AppContent() {
         setActiveProject(null);
       }
     }
-  }, [location.pathname, location.state, activeProject, navigate]);
+  }, [location.pathname, location.state, activeProject, navigate, canAccessProject]);
 
   let activeTab = 'home';
   const pathParts = location.pathname.split('/').filter(Boolean);
@@ -381,7 +391,7 @@ function AppContent() {
             {(isSidebarOpen || isMobileDrawerOpen) && <span>Database System</span>}
           </button>
           
-          {user?.role === 'admin' && (
+          {(isAdmin || canAssignViewers) && (
           <button
             onClick={() => {
               navigate('/users');
@@ -436,6 +446,7 @@ function AppContent() {
                 <LayoutDashboard size={18} className="shrink-0" />
                 {(isSidebarOpen || isMobileDrawerOpen) && <span>Live Dashboard</span>}
               </button>
+              {canViewPipeline && (
               <button
                 onClick={() => {
                   navigate(`/project/${activeProject.id}/pipeline`);
@@ -451,6 +462,8 @@ function AppContent() {
                 <GitMerge size={18} className="shrink-0" />
                 {(isSidebarOpen || isMobileDrawerOpen) && <span>Pipeline Builder</span>}
               </button>
+              )}
+              {!isViewer && (
               <button
                 onClick={() => {
                   navigate(`/project/${activeProject.id}/database`);
@@ -466,6 +479,8 @@ function AppContent() {
                 <Database size={18} className="shrink-0" />
                 {(isSidebarOpen || isMobileDrawerOpen) && <span>Project Database</span>}
               </button>
+              )}
+              {!isViewer && (
               <button
                 onClick={() => {
                   setWikiNode(null);
@@ -482,6 +497,7 @@ function AppContent() {
                 <BookOpen size={18} className="shrink-0" />
                 {(isSidebarOpen || isMobileDrawerOpen) && <span>Node Wiki</span>}
               </button>
+              )}
             </>
           )}
         </div>
@@ -652,7 +668,7 @@ function AppContent() {
                </div>
             } />
             <Route path="/users" element={
-               <ProtectedRoute allowedRoles={['admin']}>
+               <ProtectedRoute allowedRoles={['admin', 'engineer', 'editor']}>
                  <div className="flex-1 overflow-y-auto">
                    <UserManagement />
                  </div>
@@ -669,14 +685,18 @@ function AppContent() {
             } />
             <Route path="/project/:projectId/pipeline" element={
                activeProject ? (
-                 <ErrorBoundary>
-                   <div className="h-full flex flex-col p-2 sm:p-4 md:p-6">
-                     <PipelineBuilder 
-                       projectId={activeProject.id} 
-                       onOpenWiki={handleOpenWiki}
-                     />
-                   </div>
-                 </ErrorBoundary>
+                 canViewPipeline ? (
+                   <ErrorBoundary>
+                     <div className="h-full flex flex-col p-2 sm:p-4 md:p-6">
+                       <PipelineBuilder 
+                         projectId={activeProject.id} 
+                         onOpenWiki={handleOpenWiki}
+                       />
+                     </div>
+                   </ErrorBoundary>
+                 ) : (
+                   <Navigate to={`/project/${activeProject.id}/dashboard`} replace />
+                 )
                ) : null
             } />
             <Route path="/project/:projectId/wiki" element={
@@ -723,6 +743,7 @@ function AppContent() {
                 <LayoutDashboard size={18} />
                 <span className="text-[10px]">Dashboard</span>
               </button>
+              {canViewPipeline && (
               <button 
                 onClick={() => navigate(`/project/${activeProject.id}/pipeline`)}
                 className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'pipeline' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
@@ -730,6 +751,8 @@ function AppContent() {
                 <GitMerge size={18} />
                 <span className="text-[10px]">Pipeline</span>
               </button>
+              )}
+              {!isViewer && (
               <button 
                 onClick={() => navigate(`/project/${activeProject.id}/database`)}
                 className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'database' || activeTab === 'logs' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
@@ -737,6 +760,8 @@ function AppContent() {
                 <Database size={18} />
                 <span className="text-[10px]">Database</span>
               </button>
+              )}
+              {!isViewer && (
               <button 
                 onClick={() => { setWikiNode(null); navigate(`/project/${activeProject.id}/wiki`); }}
                 className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 transition-colors ${activeTab === 'wiki' ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-fg-muted hover:text-fg'}`}
@@ -744,6 +769,7 @@ function AppContent() {
                 <BookOpen size={18} />
                 <span className="text-[10px]">Wiki</span>
               </button>
+              )}
             </>
           ) : (
             <button 
