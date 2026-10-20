@@ -11,7 +11,8 @@ class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     username: str = Field(unique=True, index=True)
     hashed_password: str
-    role: str = Field(default="viewer") # admin, editor, viewer
+    role: str = Field(default="viewer") # admin, engineer, operator, viewer
+    allowed_projects_json: str = Field(default="[]") # JSON list of project IDs for viewer
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

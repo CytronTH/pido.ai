@@ -8,7 +8,7 @@ import uuid
 import threading
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -207,6 +207,9 @@ app.include_router(dashboard_versions_router)
 app.include_router(pipeline_versions_router)
 app.include_router(project_data_router)
 app.include_router(target_tracker_router)
+
+from db.models import User
+from .permissions import get_current_user_optional, get_user_allowed_projects, Role
 
 
 @app.get("/", response_model=None)
@@ -1161,11 +1164,24 @@ def write_projects(data):
         session.commit()
 
 @app.get("/api/projects")
-async def get_projects():
-    return read_projects()
+async def get_projects(current_user: Optional[User] = Depends(get_current_user_optional)):
+    all_projects = read_projects()
+    if current_user and current_user.role == Role.VIEWER.value:
+        allowed = get_user_allowed_projects(current_user)
+        if allowed is not None:
+            return [p for p in all_projects if p.get("id") in allowed]
+    return all_projects
 
 @app.post("/api/projects")
-async def save_projects(data: List[Dict[str, Any]]):
+async def save_projects(
+    data: List[Dict[str, Any]],
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role in [Role.VIEWER.value, Role.OPERATOR.value]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role '{current_user.role}' cannot modify projects"
+        )
     write_projects(data)
     return {"status": "success"}
 
@@ -1213,7 +1229,15 @@ async def stop_wiki_sandbox():
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/pipeline/deploy")
-async def deploy_pipeline(payload: PipelinePayload):
+async def deploy_pipeline(
+    payload: PipelinePayload,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role in [Role.VIEWER.value, Role.OPERATOR.value]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role '{current_user.role}' is not authorized to deploy pipelines"
+        )
     project_id = payload.project_id
     deploy_mode = payload.deploy_mode or "modified_nodes"
     logger.info(f"Received pipeline deployment for {project_id}: {len(payload.nodes)} nodes (mode: {deploy_mode})")
@@ -1398,7 +1422,15 @@ async def restore_project_revision_legacy(project_id: str, revision_id: str):
     return res
 
 @app.post("/api/pipeline/stop/{project_id}")
-async def stop_pipeline(project_id: str):
+async def stop_pipeline(
+    project_id: str,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role == Role.VIEWER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot stop running pipelines"
+        )
     is_stopped = False
     if project_id in active_workers:
         active_workers[project_id].stop()
@@ -1439,7 +1471,15 @@ async def get_live_telemetry():
     return telemetry_mgr.get_full_telemetry()
 
 @app.post("/api/projects/{project_id}/start")
-async def start_project(project_id: str):
+async def start_project(
+    project_id: str,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role == Role.VIEWER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot start project runtimes"
+        )
     projects = read_projects()
     project = next((p for p in projects if p["id"] == project_id), None)
     if not project:
@@ -1568,7 +1608,12 @@ except Exception as e:
         }
 
 @app.post("/api/system/restart")
-async def restart_system():
+async def restart_system(current_user: Optional[User] = Depends(get_current_user_optional)):
+    if current_user and current_user.role != Role.ADMIN.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required to restart system"
+        )
     logger.warning("System reboot requested via API")
     import os
     os.system("sudo reboot")
@@ -1650,7 +1695,15 @@ class CounterResetPayload(BaseModel):
     node_id: Optional[str] = None
 
 @app.post("/api/analytics/counts/reset")
-async def reset_counter(payload: CounterResetPayload = CounterResetPayload()):
+async def reset_counter(
+    payload: CounterResetPayload = CounterResetPayload(),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role == Role.VIEWER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot reset counters"
+        )
     try:
         global active_workers
         worker = active_workers.get(payload.project_id)
@@ -1670,7 +1723,15 @@ class ThroughputTogglePayload(BaseModel):
     state: bool
 
 @app.post("/api/analytics/throughput/reset")
-async def reset_throughput(payload: CounterResetPayload = CounterResetPayload()):
+async def reset_throughput(
+    payload: CounterResetPayload = CounterResetPayload(),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role == Role.VIEWER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot reset throughput metrics"
+        )
     try:
         global active_workers
         found = False
@@ -1710,7 +1771,15 @@ async def reset_throughput(payload: CounterResetPayload = CounterResetPayload())
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/analytics/throughput/toggle")
-async def toggle_throughput(payload: ThroughputTogglePayload):
+async def toggle_throughput(
+    payload: ThroughputTogglePayload,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role == Role.VIEWER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot toggle throughput states"
+        )
     try:
         global active_workers
         workers = [active_workers[payload.project_id]] if payload.project_id in active_workers else list(active_workers.values())
@@ -1731,7 +1800,15 @@ class TargetTrackerSetPayload(BaseModel):
     target: int
 
 @app.post("/api/analytics/target_tracker/set")
-async def set_target_tracker(payload: TargetTrackerSetPayload):
+async def set_target_tracker(
+    payload: TargetTrackerSetPayload,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user and current_user.role == Role.VIEWER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot modify target tracker values"
+        )
     try:
         global active_workers
         worker = active_workers.get(payload.project_id)
@@ -1882,7 +1959,12 @@ async def rollup_database() -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/system/shutdown")
-async def shutdown_system():
+async def shutdown_system(current_user: Optional[User] = Depends(get_current_user_optional)):
+    if current_user and current_user.role != Role.ADMIN.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required to shutdown system"
+        )
     logger.warning("System shutdown requested via API")
     import os
     os.system("sudo shutdown now")
