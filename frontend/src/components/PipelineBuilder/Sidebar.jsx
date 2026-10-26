@@ -3,7 +3,7 @@ import {
   Camera, BrainCircuit, Filter, Timer, Code, Hash, ArrowRightLeft, Target, 
   Activity, Database, BookOpen, Image, Video, Type, LineChart, List, Bell, 
   ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, 
-  Info, X, StickyNote, ScanLine 
+  Info, X, StickyNote, ScanLine, QrCode 
 } from 'lucide-react';
 
 export const NODE_CATEGORIES = [
@@ -13,6 +13,7 @@ export const NODE_CATEGORIES = [
     items: [
       { type: 'inputNode', label: 'Input Source', desc: 'Camera or video source', icon: Camera, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
       { type: 'aiNode', label: 'AI Model', desc: 'Hailo-8 NPU inference', icon: BrainCircuit, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' },
+      { type: 'barcodeVisionNode', label: 'Barcode Vision', desc: 'Read Barcode / QR from Camera', icon: QrCode, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
       { type: 'snapshotNode', label: 'Snapshot', desc: 'Capture image frame', icon: Image, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
     ]
   },

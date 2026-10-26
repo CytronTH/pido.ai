@@ -29,6 +29,7 @@ import BuzzerNodeSettings from './settings/BuzzerNodeSettings';
 import RS485NodeSettings from './settings/RS485NodeSettings';
 import CommentNodeSettings from './settings/CommentNodeSettings';
 import DashboardLogNodeSettings from './settings/DashboardLogNodeSettings';
+import BarcodeVisionNodeSettings from './settings/BarcodeVisionNodeSettings';
 
 const settingsComponents = {
   inputNode: InputNodeSettings,
@@ -56,6 +57,7 @@ const settingsComponents = {
   buzzerNode: BuzzerNodeSettings,
   rs485Node: RS485NodeSettings,
   commentNode: CommentNodeSettings,
+  barcodeVisionNode: BarcodeVisionNodeSettings,
 };
 
 export default function NodeSettingsSidebar({ selectedNodeId, isOpen, onClose }) {
