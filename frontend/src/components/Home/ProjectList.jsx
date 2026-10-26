@@ -3,9 +3,10 @@ import { Folder, Plus, Play, Square, Trash2, ArrowRight, Edit2, Check, Video, Ac
 import ExportProjectModal from './ExportProjectModal';
 import ImportProjectModal from './ImportProjectModal';
 import usePermissions from '../../utils/usePermissions';
+import authFetch from '../../utils/api';
 
 export default function ProjectList({ onOpenProject }) {
-  const { canManageProjects, canStartStop } = usePermissions();
+  const { canManageProjects, canStartStop, isViewer } = usePermissions();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -35,7 +36,7 @@ export default function ProjectList({ onOpenProject }) {
 
   const fetchProjects = async () => {
     try {
-      const res = await fetch('/api/projects', { cache: 'no-store' });
+      const res = await authFetch('/api/projects', { cache: 'no-store' });
       const data = await res.json();
       setProjects(data);
       setLoading(false);
@@ -307,9 +308,13 @@ export default function ProjectList({ onOpenProject }) {
             <div className="bg-surface-2/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Folder size={32} className="text-fg-subtle" />
             </div>
-            <h3 className="text-2xl font-bold text-fg-secondary mb-2">No Projects Yet</h3>
+            <h3 className="text-2xl font-bold text-fg-secondary mb-2">
+              {isViewer ? 'No Accessible Projects' : 'No Projects Yet'}
+            </h3>
             <p className="text-fg-subtle mb-8 max-w-md mx-auto">
-              Create your first project to start building AI vision pipelines and analyzing video streams.
+              {isViewer 
+                ? 'Your account currently has no project dashboards assigned. Please contact an Administrator or Engineer to grant access.'
+                : 'Create your first project to start building AI vision pipelines and analyzing video streams.'}
             </p>
             {canManageProjects && (
               <button 

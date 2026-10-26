@@ -122,6 +122,20 @@ class DatabaseManager:
                     conn.commit()
                 except Exception:
                     pass
+
+                # User schema migrations
+                try:
+                    conn.execute(text("ALTER TABLE user ADD COLUMN allowed_projects_json VARCHAR DEFAULT '[]';"))
+                    conn.commit()
+                except Exception:
+                    pass
+
+                # Migrate legacy 'editor' role to 'engineer'
+                try:
+                    conn.execute(text("UPDATE user SET role = 'engineer' WHERE role = 'editor';"))
+                    conn.commit()
+                except Exception:
+                    pass
                 
             from db.auth import get_password_hash
             from sqlmodel import Session, select
