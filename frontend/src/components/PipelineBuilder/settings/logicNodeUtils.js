@@ -23,10 +23,79 @@ export const CONDITION_TYPES = [
   { id: 'count', label: '🔢 นับจำนวน (Count)', desc: 'ตรวจสอบจำนวนชิ้นของวัตถุ' },
   { id: 'confidence', label: '⭐ ความมั่นใจ (Confidence)', desc: 'กรองค่าความมั่นใจของ AI' },
   { id: 'position', label: '🎯 ตำแหน่ง (Position / Centered)', desc: 'ตรวจสอบตำแหน่งกึ่งกลางหรืออยู่ในกรอบ' },
-  { id: 'defect', label: '🔍 ตรวจสอบ Defect (Missing Part)', desc: 'ตรวจสอบชิ้นส่วนย่อยที่ขาดหาย' }
+  { id: 'defect', label: '🔍 ตรวจสอบ Defect (Missing Part)', desc: 'ตรวจสอบชิ้นส่วนย่อยที่ขาดหาย' },
+  { id: 'barcode', label: '🏷️ ตรวจสอบ Barcode / QR Code', desc: 'ตรวจสอบรหัสบาร์โค้ดหรือคิวอาร์โค้ด' }
 ];
 
 export const FACTORY_PRESETS = [
+  {
+    id: 'barcode_match',
+    icon: 'ScanLine',
+    title: 'ตรวจสอบบาร์โค้ดตรงค่า (Barcode Match)',
+    badge: 'บาร์โค้ด / QR',
+    desc: 'ส่งสัญญาณเมื่อรหัสบาร์โค้ดหรือ QR Code ตรงกับรหัสสินค้าที่ระบุ',
+    combineMode: 'and',
+    createRules: () => [
+      {
+        id: 'r_bc_' + Date.now(),
+        type: 'barcode',
+        barcodeOperator: 'equals',
+        value: 'SKU-001',
+        format: 'all'
+      }
+    ]
+  },
+  {
+    id: 'barcode_regex_lot',
+    icon: 'ScanLine',
+    title: 'ตรวจสอบฟอร์แมต Lot No. (Regex)',
+    badge: 'ความถูกต้องรหัส',
+    desc: 'ตรวจสอบรูปแบบรหัส เช่น ขึ้นต้นด้วย LOT ตามด้วยตัวเลข 6 หลัก',
+    combineMode: 'and',
+    createRules: () => [
+      {
+        id: 'r_rg_' + Date.now(),
+        type: 'barcode',
+        barcodeOperator: 'regex',
+        value: '^LOT-\\d{6}$',
+        format: 'all'
+      }
+    ]
+  },
+  {
+    id: 'barcode_whitelist',
+    icon: 'ScanLine',
+    title: 'ตรวจสอบในรายการที่อนุญาต (Whitelist)',
+    badge: 'กลุ่มสินค้า',
+    desc: 'ส่งสัญญาณเมื่อรหัสที่สแกนตรงกับหนึ่งในรายการสินค้าที่กำหนด',
+    combineMode: 'and',
+    createRules: () => [
+      {
+        id: 'r_wl_' + Date.now(),
+        type: 'barcode',
+        barcodeOperator: 'in_list',
+        value: 'ITEM-A, ITEM-B, ITEM-C',
+        format: 'all'
+      }
+    ]
+  },
+  {
+    id: 'qr_only',
+    icon: 'ScanLine',
+    title: 'ตรวจพบคิวอาร์โค้ด (QR Code Only)',
+    badge: 'ชนิดโค้ด',
+    desc: 'ส่งสัญญาณเมื่อมีการสแกนพบโค้ดประเภท 2D QR Code',
+    combineMode: 'and',
+    createRules: () => [
+      {
+        id: 'r_qr_' + Date.now(),
+        type: 'barcode',
+        barcodeOperator: 'has_code',
+        value: '',
+        format: 'QR_CODE'
+      }
+    ]
+  },
   {
     id: 'presence',
     icon: 'Package',
@@ -233,6 +302,48 @@ export function compileRulesToExpression(rules, combineMode = 'and', availableCl
         // Default: 'missing_part' (Centered inspection: centered parent missing child)
         return `is_centered("${parent}") and not centered_has("${child}")`;
       }
+      case 'barcode': {
+        const op = rule.barcodeOperator || 'equals';
+        const val = (rule.value || '').trim();
+        const fmt = rule.format && rule.format !== 'all' ? rule.format : null;
+        let baseExpr = '';
+
+        switch (op) {
+          case 'equals':
+            baseExpr = `barcode == "${val}"`;
+            break;
+          case 'not_equals':
+            baseExpr = `barcode != "${val}"`;
+            break;
+          case 'contains':
+            baseExpr = `contains("${val}")`;
+            break;
+          case 'not_contains':
+            baseExpr = `not contains("${val}")`;
+            break;
+          case 'starts_with':
+            baseExpr = `starts_with("${val}")`;
+            break;
+          case 'ends_with':
+            baseExpr = `ends_with("${val}")`;
+            break;
+          case 'regex':
+            baseExpr = `regex_match(r"${val}")`;
+            break;
+          case 'in_list':
+            baseExpr = `in_list("${val}")`;
+            break;
+          case 'has_code':
+          default:
+            baseExpr = 'has_barcode';
+            break;
+        }
+
+        if (fmt) {
+          baseExpr = `(${baseExpr} and format == "${fmt}")`;
+        }
+        return baseExpr;
+      }
       default:
         return 'count > 0';
     }
@@ -297,6 +408,23 @@ export function getHumanReadableSummary(data, availableClasses = []) {
         }
         return `${parent} ขาด ${child}`;
       }
+      case 'barcode': {
+        const op = r.barcodeOperator || 'equals';
+        const val = r.value || '';
+        const fmtText = r.format && r.format !== 'all' ? ` (${r.format})` : '';
+        switch (op) {
+          case 'equals': return `บาร์โค้ด = "${val}"${fmtText}`;
+          case 'not_equals': return `บาร์โค้ด != "${val}"${fmtText}`;
+          case 'contains': return `บาร์โค้ดมี "${val}"${fmtText}`;
+          case 'not_contains': return `บาร์โค้ดไม่มี "${val}"${fmtText}`;
+          case 'starts_with': return `ขึ้นต้นด้วย "${val}"${fmtText}`;
+          case 'ends_with': return `ลงท้ายด้วย "${val}"${fmtText}`;
+          case 'regex': return `ตรง Regex "${val}"${fmtText}`;
+          case 'in_list': return `อยู่ในรายการ [${val}]${fmtText}`;
+          case 'has_code': return `ตรวจพบบาร์โค้ด${fmtText}`;
+          default: return `บาร์โค้ด ${val}`;
+        }
+      }
       default:
         return 'เงื่อนไข';
     }
@@ -319,6 +447,49 @@ export function parseExpressionToRules(expr) {
       combineMode: 'and',
       rules: [
         { id: 'r_init', type: 'count', targetClass: 'all', operator: '>', value: 0 }
+      ]
+    };
+  }
+
+  // Pattern: barcode == "..."
+  const barcodeEq = trimmed.match(/^barcode\s*==\s*["']([^"']+)["']$/);
+  if (barcodeEq) {
+    return {
+      combineMode: 'and',
+      rules: [
+        { id: 'r_init', type: 'barcode', barcodeOperator: 'equals', value: barcodeEq[1], format: 'all' }
+      ]
+    };
+  }
+
+  // Pattern: starts_with("...")
+  const startsWithMatch = trimmed.match(/^starts_with\(["']([^"']+)["']\)$/);
+  if (startsWithMatch) {
+    return {
+      combineMode: 'and',
+      rules: [
+        { id: 'r_init', type: 'barcode', barcodeOperator: 'starts_with', value: startsWithMatch[1], format: 'all' }
+      ]
+    };
+  }
+
+  // Pattern: contains("...")
+  const containsMatch = trimmed.match(/^contains\(["']([^"']+)["']\)$/);
+  if (containsMatch) {
+    return {
+      combineMode: 'and',
+      rules: [
+        { id: 'r_init', type: 'barcode', barcodeOperator: 'contains', value: containsMatch[1], format: 'all' }
+      ]
+    };
+  }
+
+  // Pattern: has_barcode
+  if (trimmed === 'has_barcode') {
+    return {
+      combineMode: 'and',
+      rules: [
+        { id: 'r_init', type: 'barcode', barcodeOperator: 'has_code', value: '', format: 'all' }
       ]
     };
   }

@@ -225,6 +225,15 @@ async def get_hailo_status() -> Dict[str, Any]:
     from ai_engine.hailo_detector import get_hailo_device_info
     return get_hailo_device_info()
 
+@app.get("/api/hardware/scanner-ports")
+async def get_scanner_ports() -> Dict[str, Any]:
+    """Returns detected serial ports and input devices for barcode scanners."""
+    from hardware.barcode_scanner_manager import list_serial_ports, list_input_devices
+    return {
+        "serial_ports": list_serial_ports(),
+        "input_devices": list_input_devices()
+    }
+
 @app.websocket("/ws/metadata/{project_id}")
 async def websocket_metadata_endpoint(websocket: WebSocket, project_id: str):
     """

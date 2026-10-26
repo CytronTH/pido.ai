@@ -4,6 +4,7 @@ import queue
 import threading
 import json
 import datetime
+import re
 from pathlib import Path
 from collections import deque
 from typing import Dict, Any, List, Optional
@@ -59,14 +60,16 @@ class RateLimitNode(PipelineNode):
 class LogicNode(PipelineNode):
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="logicNode")
-        self.expression = data.get("expression", "count > 0")
-        # Handle shorthand logical operators
-        self.expression = (self.expression
+        # Handle shorthand logical operators while preserving '!='
+        expr = data.get("expression", "count > 0")
+        expr = expr.replace("!=", "__NE__")
+        expr = (expr
             .replace(" && ", " and ")
             .replace(" || ", " or ")
             .replace("&&", " and ")
             .replace("||", " or ")
             .replace("!", " not "))
+        self.expression = expr.replace("__NE__", "!=")
         
         self.debounce_ms = float(data.get("debounceMs", 0)) / 1000.0
         self.output_mode = data.get("outputMode", "on_change")  # "on_change", "rising_edge", "continuous"
@@ -80,6 +83,27 @@ class LogicNode(PipelineNode):
     def process(self, msg: dict):
         payload = msg.get("payload", [])
         
+        # Extract barcode/QR code data from payload or metadata
+        barcode_str = ""
+        barcode_format = ""
+        barcode_codes = []
+        barcode_count = 0
+
+        if isinstance(payload, dict):
+            barcode_str = str(payload.get("barcode") or payload.get("code") or payload.get("text") or "")
+            barcode_format = str(payload.get("format") or payload.get("symbology") or "")
+            barcode_codes = payload.get("codes", [])
+            barcode_count = int(payload.get("count") or (len(barcode_codes) if barcode_codes else (1 if barcode_str else 0)))
+        elif isinstance(payload, str) and not isinstance(payload, bool):
+            barcode_str = payload
+            barcode_format = str(msg.get("metadata", {}).get("format") or "")
+            barcode_codes = []
+            barcode_count = 1 if barcode_str else 0
+        elif isinstance(msg.get("metadata"), dict) and "barcode" in msg["metadata"]:
+            barcode_str = str(msg["metadata"]["barcode"])
+            barcode_format = str(msg["metadata"].get("format", ""))
+            barcode_count = 1 if barcode_str else 0
+
         if isinstance(payload, dict) and "detections" in payload:
             parsed_results = payload["detections"]
         elif isinstance(payload, list):
@@ -245,13 +269,52 @@ class LogicNode(PipelineNode):
                                 return True
                 return False
 
+            def _regex_match(pattern, text=None):
+                target = barcode_str if text is None else str(text)
+                try:
+                    return bool(re.search(str(pattern), target))
+                except Exception:
+                    return False
+
+            def _starts_with(prefix, text=None):
+                target = barcode_str if text is None else str(text)
+                return target.startswith(str(prefix))
+
+            def _ends_with(suffix, text=None):
+                target = barcode_str if text is None else str(text)
+                return target.endswith(str(suffix))
+
+            def _contains(sub, text=None):
+                target = barcode_str if text is None else str(text)
+                return str(sub) in target
+
+            def _in_list(items, text=None):
+                target = barcode_str if text is None else str(text)
+                if isinstance(items, (list, tuple, set)):
+                    return target in [str(x) for x in items]
+                elif isinstance(items, str):
+                    return target in [x.strip() for x in items.split(",") if x.strip()]
+                return False
+
             eval_ctx = {
                 "msg": msg,
                 "context": msg.get("context", {}),
-                "count": len(parsed_results),
+                "count": len(parsed_results) if parsed_results else barcode_count,
                 "labels": label_set,
                 "detections": parsed_results,
                 "payload": payload,
+                "barcode": barcode_str,
+                "code": barcode_str,
+                "format": barcode_format,
+                "symbology": barcode_format,
+                "has_barcode": bool(barcode_str),
+                "barcode_count": barcode_count,
+                "regex_match": _regex_match,
+                "match": _regex_match,
+                "starts_with": _starts_with,
+                "ends_with": _ends_with,
+                "contains": _contains,
+                "in_list": _in_list,
                 "has": _has,
                 "label_count": _label_count,
                 "label_confidence": _label_confidence,
@@ -268,6 +331,7 @@ class LogicNode(PipelineNode):
                 "confidence": max(all_confidences) if all_confidences else 0.0,
                 "min": min, "max": max, "len": len,
                 "any": any, "all": all, "abs": abs, "round": round,
+                "str": str, "int": int, "float": float,
                 "True": True, "False": False,
                 "true": True, "false": False,
             }
@@ -332,6 +396,9 @@ class LogicNode(PipelineNode):
             return None
 
         msg["payload"] = final_val
+        if barcode_str:
+            msg["barcode"] = barcode_str
+            msg["format"] = barcode_format
         return msg
 
 class CounterNode(PipelineNode):
@@ -1842,6 +1909,154 @@ class RS485OutputNode(PipelineNode):
                 logger.error(f"RS485 output error on node {self.node_id}: {e}")
 
         self._last_is_active = is_active
+        return msg
+
+class BarcodeScannerNode(PipelineNode):
+    """
+    BarcodeScannerNode handles hardware barcode readers:
+    1. USB Serial / CDC-ACM (/dev/ttyACM*, /dev/ttyUSB*)
+    2. USB HID Keyboard (direct evdev event monitoring)
+    3. TCP/IP Socket (Industrial Ethernet barcode scanner)
+    """
+    def __init__(self, node_id, data, router):
+        super().__init__(node_id, data, router, node_type="barcodeScannerNode")
+        self.label = data.get("label", "Barcode Scanner")
+        self.connection_type = str(data.get("connectionType", "serial")).lower()  # "serial", "hid", "tcp"
+        self.port = str(data.get("port", "/dev/ttyACM0"))
+        self.baudrate = int(data.get("baudrate", 9600))
+        self.delimiter = str(data.get("delimiter", "\r\n"))
+        self.device_path = str(data.get("devicePath", "auto"))
+        self.tcp_host = str(data.get("tcpHost", "192.168.1.100"))
+        self.tcp_port = int(data.get("tcpPort", 9004))
+        
+        # Filtering & Sanitization
+        self.debounce_ms = float(data.get("debounceMs", 800))
+        self.strip_prefix = str(data.get("stripPrefix", ""))
+        self.strip_suffix = str(data.get("stripSuffix", ""))
+        self.regex_filter = str(data.get("regexFilter", ""))
+        self.output_format = str(data.get("outputFormat", "SCANNER"))
+        
+        self.last_scanned_code = ""
+        self.last_scanned_time = 0.0
+        self.reader = None
+
+    def on_pipeline_start(self):
+        self.start_reader()
+
+    def start_reader(self):
+        if self.reader:
+            try:
+                self.reader.stop()
+            except Exception:
+                pass
+            self.reader = None
+
+        try:
+            from hardware.barcode_scanner_manager import (
+                SerialScannerReader, HIDScannerReader, TCPScannerReader
+            )
+            if self.connection_type == "serial":
+                self.reader = SerialScannerReader(
+                    port=self.port,
+                    baudrate=self.baudrate,
+                    delimiter=self.delimiter,
+                    on_scan=self.handle_scanned_code
+                )
+            elif self.connection_type == "hid":
+                self.reader = HIDScannerReader(
+                    device_path=self.device_path,
+                    on_scan=self.handle_scanned_code
+                )
+            elif self.connection_type == "tcp":
+                self.reader = TCPScannerReader(
+                    host=self.tcp_host,
+                    port=self.tcp_port,
+                    delimiter=self.delimiter,
+                    on_scan=self.handle_scanned_code
+                )
+            if self.reader:
+                self.reader.start()
+                logger.info(f"BarcodeScannerNode [{self.node_id}] started ({self.connection_type})")
+        except Exception as e:
+            logger.error(f"Error starting BarcodeScannerNode reader [{self.node_id}]: {e}")
+
+    def handle_scanned_code(self, raw_code: str):
+        if not raw_code:
+            return
+
+        code = raw_code.strip()
+
+        # Strip configured prefix and suffix
+        if self.strip_prefix and code.startswith(self.strip_prefix):
+            code = code[len(self.strip_prefix):]
+        if self.strip_suffix and code.endswith(self.strip_suffix):
+            code = code[:-len(self.strip_suffix)]
+
+        code = code.strip()
+        if not code:
+            return
+
+        # Check regex filter if configured
+        if self.regex_filter:
+            try:
+                match = re.search(self.regex_filter, code)
+                if not match:
+                    logger.debug(f"BarcodeScannerNode [{self.node_id}] dropped '{code}' (regex mismatch)")
+                    return
+                # If regex has capture group 1, extract it
+                if match.groups():
+                    code = match.group(1)
+            except Exception as e:
+                logger.warning(f"Barcode regex error on [{self.node_id}]: {e}")
+
+        # Debounce duplicate scan
+        now = time.time()
+        debounce_sec = self.debounce_ms / 1000.0
+        if debounce_sec > 0 and (now - self.last_scanned_time < debounce_sec) and (code == self.last_scanned_code):
+            logger.debug(f"BarcodeScannerNode [{self.node_id}] debounced duplicate '{code}'")
+            return
+
+        self.last_scanned_code = code
+        self.last_scanned_time = now
+
+        msg = {
+            "payload": code,
+            "barcode": code,
+            "format": self.output_format,
+            "metadata": {
+                "source": "barcode_scanner",
+                "source_type": self.connection_type,
+                "node_id": self.node_id,
+                "timestamp": now
+            }
+        }
+
+        # Inject into router BFS graph
+        self.router.inject_message(self.node_id, msg)
+
+        # Notify UI via WebSocket
+        if self.router.metadata_callback:
+            try:
+                self.router.metadata_callback({
+                    "type": "barcode_scan",
+                    "node_id": self.node_id,
+                    "barcode": code,
+                    "format": self.output_format,
+                    "connection_type": self.connection_type,
+                    "timestamp": now
+                })
+            except Exception as ex:
+                logger.debug(f"WebSocket metadata callback error: {ex}")
+
+    def cleanup(self):
+        if self.reader:
+            try:
+                self.reader.stop()
+            except Exception as e:
+                logger.debug(f"Error stopping reader on [{self.node_id}]: {e}")
+            self.reader = None
+
+    def process(self, msg: dict) -> dict:
         return msg
 
 class SnapshotNode(PipelineNode):

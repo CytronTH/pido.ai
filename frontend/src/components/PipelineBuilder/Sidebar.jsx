@@ -3,7 +3,7 @@ import {
   Camera, BrainCircuit, Filter, Timer, Code, Hash, ArrowRightLeft, Target, 
   Activity, Database, BookOpen, Image, Video, Type, LineChart, List, Bell, 
   ToggleLeft, ToggleRight, BellRing, Lightbulb, Settings2, Bug, 
-  Info, X, StickyNote 
+  Info, X, StickyNote, ScanLine 
 } from 'lucide-react';
 
 export const NODE_CATEGORIES = [
@@ -47,6 +47,7 @@ export const NODE_CATEGORIES = [
       { type: 'buzzerNode', label: 'Active Buzzer', desc: 'External Buzzer output', icon: BellRing, color: 'text-red-500 bg-red-500/10 border-red-500/20' },
       { type: 'ledNode', label: 'LED / PWM Driver', desc: 'Hardware PWM (3.3V)', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20' },
       { type: 'rs485Node', label: 'RS485 Modbus', desc: 'USB/Serial RS485 Modbus', icon: Settings2, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
+      { type: 'barcodeScannerNode', label: 'Barcode Scanner', desc: 'USB Serial / HID / TCP scanner', icon: ScanLine, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
     ]
   },
   {

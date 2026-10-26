@@ -3,7 +3,7 @@ import {
   Zap, Code, LayoutList, Plus, Trash2, Radio, Check, Copy, 
   AlertTriangle, Crosshair, Package, Binary, ShieldAlert, Sparkles, 
   Maximize2, Users, ChevronDown, ChevronRight, Activity, ArrowRight, 
-  Settings2, Sliders, CheckCircle2, XCircle
+  Settings2, Sliders, CheckCircle2, XCircle, ScanLine, QrCode
 } from 'lucide-react';
 import usePipelineStore from '../../../store/usePipelineStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -24,12 +24,24 @@ const SNIPPETS = [
   { label: 'Defect (Missing Date)', expr: 'is_centered("cup") and not centered_has("expire_date")' },
   { label: 'A and B together',  expr: 'has("cup") and has("expire_date")' },
   { label: 'A or B',           expr: 'has("cup") or has("bottle")' },
+  { label: 'Barcode Match',     expr: 'barcode == "SKU-1001"' },
+  { label: 'Barcode Starts With', expr: 'starts_with("LOT-")' },
+  { label: 'Barcode in List',   expr: 'in_list("A1, A2, A3")' },
+  { label: 'QR Code Only',      expr: 'format == "QR_CODE"' },
 ];
 
 const VARS_REF = [
-  ['msg["payload"]',            'list   — the payload detections'],
-  ['count',                     'int    — total detections in ROI'],
+  ['msg["payload"]',            'list/any — payload data'],
+  ['barcode / code',            'str    — decoded barcode / QR text'],
+  ['format / symbology',        'str    — QR_CODE, EAN_13, CODE_128, etc.'],
+  ['has_barcode',               'bool   — True if any barcode/QR is detected'],
+  ['count',                     'int    — total detections in ROI / codes count'],
   ['has("label")',              'bool   — label exists in ROI'],
+  ['starts_with("prefix")',     'bool   — True if barcode starts with prefix'],
+  ['ends_with("suffix")',       'bool   — True if barcode ends with suffix'],
+  ['contains("text")',          'bool   — True if barcode contains text'],
+  ['regex_match(r"pattern")',   'bool   — True if barcode matches regex'],
+  ['in_list(["A", "B"])',       'bool   — True if barcode is in list'],
   ['is_centered("label")',      'bool   — label is centered in ROI'],
   ['centered_has("label")',     'bool   — centered object contains label inside'],
   ['centered_missing("label")', 'bool   — centered object missing label'],
@@ -274,6 +286,13 @@ export default function LogicNodeSettings({ nodeId, data, onChange, isSidebar = 
         targetClass: pClass,
         operator: '>=',
         value: 75
+      };
+    } else if (newType === 'barcode') {
+      defaults = {
+        type: 'barcode',
+        barcodeOperator: 'equals',
+        value: 'SKU-001',
+        format: 'all'
       };
     }
 
@@ -680,6 +699,74 @@ export default function LogicNodeSettings({ nodeId, data, onChange, isSidebar = 
                       </div>
                     </div>
                   )}
+
+                  {/* Type 6: Barcode / QR Code */}
+                  {rule.type === 'barcode' && (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-fg-subtle block mb-1">ตัวดำเนินการเปรียบเทียบ</label>
+                          <select
+                            className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-fg font-medium"
+                            value={rule.barcodeOperator || 'equals'}
+                            onChange={(e) => handleUpdateRule(idx, { barcodeOperator: e.target.value })}
+                          >
+                            <option value="equals">== ตรงกับค่า (Equals)</option>
+                            <option value="not_equals">!= ไม่ตรงกับค่า (Not Equals)</option>
+                            <option value="contains">🔍 มีข้อความ (Contains)</option>
+                            <option value="not_contains">🚫 ไม่มีข้อความ (Not Contains)</option>
+                            <option value="starts_with">🔤 ขึ้นต้นด้วย (Starts With)</option>
+                            <option value="ends_with">🔤 ลงท้ายด้วย (Ends With)</option>
+                            <option value="regex">⚡ ตรงตาม Regex Pattern</option>
+                            <option value="in_list">📋 อยู่ในรายการ (In Allowed List)</option>
+                            <option value="has_code">✅ มีการอ่านโค้ดใดๆ (Any Code Detected)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-fg-subtle block mb-1">ชนิดสัญลักษณ์ (Format)</label>
+                          <select
+                            className="w-full bg-surface border border-line-strong rounded p-1 text-xs text-fg font-medium"
+                            value={rule.format || 'all'}
+                            onChange={(e) => handleUpdateRule(idx, { format: e.target.value })}
+                          >
+                            <option value="all">🌐 ทุกชนิด (Any Format)</option>
+                            <option value="QR_CODE">📱 QR Code (2D)</option>
+                            <option value="EAN_13">🏷️ EAN-13 (สินค้าทั่วไป)</option>
+                            <option value="CODE_128">📦 Code 128 (คลังสินค้า)</option>
+                            <option value="CODE_39">🏷️ Code 39</option>
+                            <option value="UPC_A">🏷️ UPC-A</option>
+                            <option value="DATA_MATRIX">🔲 Data Matrix (2D)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {rule.barcodeOperator !== 'has_code' && (
+                        <div>
+                          <label className="text-[10px] text-fg-subtle block mb-1">
+                            {rule.barcodeOperator === 'in_list' 
+                              ? 'รายการสินค้าที่อนุญาต (คั่นด้วยเครื่องหมายจุลภาค ,)' 
+                              : rule.barcodeOperator === 'regex' 
+                              ? 'Regex Pattern เช่น ^LOT-\\d{6}$' 
+                              : 'ข้อความหรือรหัสที่ต้องการเปรียบเทียบ'}
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full bg-surface border border-line-strong rounded p-1.5 text-xs font-mono text-fg placeholder:text-fg-subtle focus:outline-none focus:border-orange-500"
+                            placeholder={
+                              rule.barcodeOperator === 'in_list' 
+                                ? 'SKU-001, SKU-002, SKU-003' 
+                                : rule.barcodeOperator === 'regex' 
+                                ? '^LOT-\\d{6}$' 
+                                : 'เช่น SKU-12345'
+                            }
+                            value={rule.value ?? ''}
+                            onChange={(e) => handleUpdateRule(idx, { value: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -757,7 +844,9 @@ export default function LogicNodeSettings({ nodeId, data, onChange, isSidebar = 
 
                 <div className="flex items-center justify-between pt-2 border-t border-line/60">
                   <span className="text-[10px] font-mono text-fg-subtle truncate max-w-[180px]">
-                    Target: {presetTargetClass || availableClasses[0] || 'cup'}
+                    {preset.id.startsWith('barcode_') || preset.id.startsWith('qr_')
+                      ? 'Target: Barcode / QR Code'
+                      : `Target: ${presetTargetClass || availableClasses[0] || 'cup'}`}
                   </span>
                   <button
                     type="button"
