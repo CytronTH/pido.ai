@@ -4,6 +4,7 @@ import queue
 import threading
 import json
 import datetime
+import re
 from pathlib import Path
 from collections import deque
 from typing import Dict, Any, List, Optional
@@ -59,14 +60,16 @@ class RateLimitNode(PipelineNode):
 class LogicNode(PipelineNode):
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="logicNode")
-        self.expression = data.get("expression", "count > 0")
-        # Handle shorthand logical operators
-        self.expression = (self.expression
+        # Handle shorthand logical operators while preserving '!='
+        expr = data.get("expression", "count > 0")
+        expr = expr.replace("!=", "__NE__")
+        expr = (expr
             .replace(" && ", " and ")
             .replace(" || ", " or ")
             .replace("&&", " and ")
             .replace("||", " or ")
             .replace("!", " not "))
+        self.expression = expr.replace("__NE__", "!=")
         
         self.debounce_ms = float(data.get("debounceMs", 0)) / 1000.0
         self.output_mode = data.get("outputMode", "on_change")  # "on_change", "rising_edge", "continuous"
@@ -80,6 +83,27 @@ class LogicNode(PipelineNode):
     def process(self, msg: dict):
         payload = msg.get("payload", [])
         
+        # Extract barcode/QR code data from payload or metadata
+        barcode_str = ""
+        barcode_format = ""
+        barcode_codes = []
+        barcode_count = 0
+
+        if isinstance(payload, dict):
+            barcode_str = str(payload.get("barcode") or payload.get("code") or payload.get("text") or "")
+            barcode_format = str(payload.get("format") or payload.get("symbology") or "")
+            barcode_codes = payload.get("codes", [])
+            barcode_count = int(payload.get("count") or (len(barcode_codes) if barcode_codes else (1 if barcode_str else 0)))
+        elif isinstance(payload, str) and not isinstance(payload, bool):
+            barcode_str = payload
+            barcode_format = str(msg.get("metadata", {}).get("format") or "")
+            barcode_codes = []
+            barcode_count = 1 if barcode_str else 0
+        elif isinstance(msg.get("metadata"), dict) and "barcode" in msg["metadata"]:
+            barcode_str = str(msg["metadata"]["barcode"])
+            barcode_format = str(msg["metadata"].get("format", ""))
+            barcode_count = 1 if barcode_str else 0
+
         if isinstance(payload, dict) and "detections" in payload:
             parsed_results = payload["detections"]
         elif isinstance(payload, list):
@@ -245,13 +269,52 @@ class LogicNode(PipelineNode):
                                 return True
                 return False
 
+            def _regex_match(pattern, text=None):
+                target = barcode_str if text is None else str(text)
+                try:
+                    return bool(re.search(str(pattern), target))
+                except Exception:
+                    return False
+
+            def _starts_with(prefix, text=None):
+                target = barcode_str if text is None else str(text)
+                return target.startswith(str(prefix))
+
+            def _ends_with(suffix, text=None):
+                target = barcode_str if text is None else str(text)
+                return target.endswith(str(suffix))
+
+            def _contains(sub, text=None):
+                target = barcode_str if text is None else str(text)
+                return str(sub) in target
+
+            def _in_list(items, text=None):
+                target = barcode_str if text is None else str(text)
+                if isinstance(items, (list, tuple, set)):
+                    return target in [str(x) for x in items]
+                elif isinstance(items, str):
+                    return target in [x.strip() for x in items.split(",") if x.strip()]
+                return False
+
             eval_ctx = {
                 "msg": msg,
                 "context": msg.get("context", {}),
-                "count": len(parsed_results),
+                "count": len(parsed_results) if parsed_results else barcode_count,
                 "labels": label_set,
                 "detections": parsed_results,
                 "payload": payload,
+                "barcode": barcode_str,
+                "code": barcode_str,
+                "format": barcode_format,
+                "symbology": barcode_format,
+                "has_barcode": bool(barcode_str),
+                "barcode_count": barcode_count,
+                "regex_match": _regex_match,
+                "match": _regex_match,
+                "starts_with": _starts_with,
+                "ends_with": _ends_with,
+                "contains": _contains,
+                "in_list": _in_list,
                 "has": _has,
                 "label_count": _label_count,
                 "label_confidence": _label_confidence,
@@ -268,6 +331,7 @@ class LogicNode(PipelineNode):
                 "confidence": max(all_confidences) if all_confidences else 0.0,
                 "min": min, "max": max, "len": len,
                 "any": any, "all": all, "abs": abs, "round": round,
+                "str": str, "int": int, "float": float,
                 "True": True, "False": False,
                 "true": True, "false": False,
             }
@@ -332,6 +396,9 @@ class LogicNode(PipelineNode):
             return None
 
         msg["payload"] = final_val
+        if barcode_str:
+            msg["barcode"] = barcode_str
+            msg["format"] = barcode_format
         return msg
 
 class CounterNode(PipelineNode):
@@ -1844,6 +1911,536 @@ class RS485OutputNode(PipelineNode):
         self._last_is_active = is_active
         return msg
 
+class BarcodeScannerNode(PipelineNode):
+    """
+    BarcodeScannerNode handles hardware barcode readers:
+    1. USB Serial / CDC-ACM (/dev/ttyACM*, /dev/ttyUSB*)
+    2. USB HID Keyboard (direct evdev event monitoring)
+    3. TCP/IP Socket (Industrial Ethernet barcode scanner)
+    """
+    def __init__(self, node_id, data, router):
+        super().__init__(node_id, data, router, node_type="barcodeScannerNode")
+        self.label = data.get("label", "Barcode Scanner")
+        self.connection_type = str(data.get("connectionType", "serial")).lower()  # "serial", "hid", "tcp"
+        self.port = str(data.get("port", "/dev/ttyACM0"))
+        self.baudrate = int(data.get("baudrate", 9600))
+        self.delimiter = str(data.get("delimiter", "\r\n"))
+        self.device_path = str(data.get("devicePath", "auto"))
+        self.tcp_host = str(data.get("tcpHost", "192.168.1.100"))
+        self.tcp_port = int(data.get("tcpPort", 9004))
+        
+        # Filtering & Sanitization
+        self.debounce_ms = float(data.get("debounceMs", 800))
+        self.strip_prefix = str(data.get("stripPrefix", ""))
+        self.strip_suffix = str(data.get("stripSuffix", ""))
+        self.regex_filter = str(data.get("regexFilter", ""))
+        self.output_format = str(data.get("outputFormat", "SCANNER"))
+        
+        self.last_scanned_code = ""
+        self.last_scanned_time = 0.0
+        self.reader = None
+
+    def on_pipeline_start(self):
+        self.start_reader()
+
+    def start_reader(self):
+        if self.reader:
+            try:
+                self.reader.stop()
+            except Exception:
+                pass
+            self.reader = None
+
+        try:
+            from hardware.barcode_scanner_manager import (
+                SerialScannerReader, HIDScannerReader, TCPScannerReader
+            )
+            if self.connection_type == "serial":
+                self.reader = SerialScannerReader(
+                    port=self.port,
+                    baudrate=self.baudrate,
+                    delimiter=self.delimiter,
+                    on_scan=self.handle_scanned_code
+                )
+            elif self.connection_type == "hid":
+                self.reader = HIDScannerReader(
+                    device_path=self.device_path,
+                    on_scan=self.handle_scanned_code
+                )
+            elif self.connection_type == "tcp":
+                self.reader = TCPScannerReader(
+                    host=self.tcp_host,
+                    port=self.tcp_port,
+                    delimiter=self.delimiter,
+                    on_scan=self.handle_scanned_code
+                )
+            if self.reader:
+                self.reader.start()
+                logger.info(f"BarcodeScannerNode [{self.node_id}] started ({self.connection_type})")
+        except Exception as e:
+            logger.error(f"Error starting BarcodeScannerNode reader [{self.node_id}]: {e}")
+
+    def handle_scanned_code(self, raw_code: str):
+        if not raw_code:
+            return
+
+        code = raw_code.strip()
+
+        # Strip configured prefix and suffix
+        if self.strip_prefix and code.startswith(self.strip_prefix):
+            code = code[len(self.strip_prefix):]
+        if self.strip_suffix and code.endswith(self.strip_suffix):
+            code = code[:-len(self.strip_suffix)]
+
+        code = code.strip()
+        if not code:
+            return
+
+        # Check regex filter if configured
+        if self.regex_filter:
+            try:
+                match = re.search(self.regex_filter, code)
+                if not match:
+                    logger.debug(f"BarcodeScannerNode [{self.node_id}] dropped '{code}' (regex mismatch)")
+                    return
+                # If regex has capture group 1, extract it
+                if match.groups():
+                    code = match.group(1)
+            except Exception as e:
+                logger.warning(f"Barcode regex error on [{self.node_id}]: {e}")
+
+        # Debounce duplicate scan
+        now = time.time()
+        debounce_sec = self.debounce_ms / 1000.0
+        if debounce_sec > 0 and (now - self.last_scanned_time < debounce_sec) and (code == self.last_scanned_code):
+            logger.debug(f"BarcodeScannerNode [{self.node_id}] debounced duplicate '{code}'")
+            return
+
+        self.last_scanned_code = code
+        self.last_scanned_time = now
+
+        msg = {
+            "payload": code,
+            "barcode": code,
+            "format": self.output_format,
+            "metadata": {
+                "source": "barcode_scanner",
+                "source_type": self.connection_type,
+                "node_id": self.node_id,
+                "timestamp": now
+            }
+        }
+
+        # Inject into router BFS graph
+        self.router.inject_message(self.node_id, msg)
+
+        # Notify UI via WebSocket
+        if self.router.metadata_callback:
+            try:
+                self.router.metadata_callback({
+                    "type": "barcode_scan",
+                    "node_id": self.node_id,
+                    "barcode": code,
+                    "format": self.output_format,
+                    "connection_type": self.connection_type,
+                    "timestamp": now
+                })
+            except Exception as ex:
+                logger.debug(f"WebSocket metadata callback error: {ex}")
+
+    def cleanup(self):
+        if self.reader:
+            try:
+                self.reader.stop()
+            except Exception as e:
+                logger.debug(f"Error stopping reader on [{self.node_id}]: {e}")
+            self.reader = None
+
+    def process(self, msg: dict) -> dict:
+        return msg
+
+class BarcodeVisionNode(PipelineNode):
+    """
+    BarcodeVisionNode decodes Barcodes and QR Codes from camera streams.
+    Modes:
+    1. 'continuous': Decodes at configurable scanFps (default 5 FPS) from camera stream.
+    2. 'triggered': Decodes latest frame on incoming truthy message (snapshot-style).
+    """
+    def __init__(self, node_id, data, router):
+        super().__init__(node_id, data, router, node_type="barcodeVisionNode")
+        self.label = data.get("label", "Barcode Vision")
+        self.camera_id = data.get("cameraId")
+        self.scan_mode = str(data.get("scanMode", "continuous")).lower()
+        self.scan_fps = max(0.5, min(30.0, float(data.get("scanFps", 5.0))))
+        self.code_types = str(data.get("codeTypes", "all")).lower()
+        self.roi = data.get("roi", {"x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0})
+        self.debounce_ms = float(data.get("debounceMs", 1000.0))
+        self.only_on_change = bool(data.get("onlyOnChange", True))
+        self.replace_payload = bool(data.get("replacePayload", True))
+        self.strip_prefix = str(data.get("stripPrefix", ""))
+        self.strip_suffix = str(data.get("stripSuffix", ""))
+        self.regex_filter = str(data.get("regexFilter", ""))
+
+        self.cap_running = False
+        self.cap_thread = None
+        self._stop_event = threading.Event()
+        self.latest_frame = None
+        self.current_rtsp_url = None
+        self.last_scanned_code = ""
+        self.last_scanned_time = 0.0
+        self.last_had_codes = False
+
+        self.detector = None
+        try:
+            from ai_engine.barcode_vision import BarcodeVisionDetector
+            self.detector = BarcodeVisionDetector()
+        except Exception as e:
+            logger.error(f"BarcodeVisionNode [{self.node_id}] failed to initialize detector: {e}")
+
+    def on_pipeline_start(self):
+        stream_id, raw_camera_id, rtsp_url = self._resolve_stream_info()
+        if rtsp_url:
+            self._start_capture_thread(rtsp_url)
+
+    def _resolve_stream_info(self, msg: dict = None) -> tuple:
+        stream_id = None
+        raw_camera_id = None
+
+        if msg:
+            cid = msg.get("camera_id") or msg.get("metadata", {}).get("camera_id")
+            if cid:
+                stream_id = str(cid)
+                raw_camera_id = str(cid)
+        if not stream_id and self.camera_id:
+            stream_id = str(self.camera_id)
+
+        visited = set()
+        queue = [self.node_id]
+        ai_node = None
+        input_node = None
+        while queue:
+            curr = queue.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            for src_id, targets in self.router.edges.items():
+                target_ids = [t[0] if isinstance(t, tuple) else t for t in targets]
+                if curr in target_ids:
+                    src_node = self.router.nodes.get(src_id)
+                    if src_node:
+                        ntype = getattr(src_node, 'node_type', '') or src_node.data.get("type", "")
+                        if ntype == 'aiNode' and not ai_node:
+                            ai_node = src_node
+                        elif ntype == 'inputNode':
+                            if not input_node:
+                                input_node = src_node
+                            scid = getattr(src_node, 'camera_id', None) or src_node.data.get("cameraId") or src_node.data.get("entityId")
+                            if scid and not raw_camera_id:
+                                raw_camera_id = str(scid)
+                    queue.append(src_id)
+
+        if hasattr(self.router, "pipeline_config") and self.router.pipeline_config:
+            streams = getattr(self.router.pipeline_config, "camera_streams", [])
+            for cs in streams:
+                if (ai_node and getattr(cs, "ai_node_id", None) == ai_node.node_id) or \
+                   (input_node and getattr(cs, "input_node_id", None) == input_node.node_id) or \
+                   (stream_id and cs.stream_id == stream_id):
+                    stream_id = cs.stream_id
+                    if not raw_camera_id:
+                        raw_camera_id = getattr(cs, "camera_id", None)
+                    break
+            if not stream_id and streams:
+                stream_id = streams[0].stream_id
+                if not raw_camera_id:
+                    raw_camera_id = getattr(streams[0], "camera_id", None)
+
+        if not stream_id and raw_camera_id:
+            stream_id = raw_camera_id
+        if not raw_camera_id and stream_id:
+            raw_camera_id = stream_id
+
+        rtsp_url = None
+        try:
+            from media_server.camera_manager import camera_mgr
+            for cid in [raw_camera_id, stream_id]:
+                if cid:
+                    url = camera_mgr.get_rtsp_url(cid)
+                    if url:
+                        rtsp_url = url
+                        break
+        except Exception:
+            pass
+
+        if not rtsp_url:
+            if raw_camera_id:
+                rtsp_url = f"rtsp://127.0.0.1:8554/shared_{raw_camera_id}"
+            elif stream_id:
+                rtsp_url = f"rtsp://127.0.0.1:8554/{self.router.project_id}_{stream_id}"
+
+        return stream_id, raw_camera_id, rtsp_url
+
+    def _resolve_camera_id(self, msg: dict = None) -> str:
+        stream_id, raw_camera_id, _ = self._resolve_stream_info(msg)
+        return stream_id or raw_camera_id or ""
+
+    def _start_capture_thread(self, rtsp_url: str):
+        if self.cap_running and self.current_rtsp_url == rtsp_url:
+            return
+        if self.cap_running:
+            self.cleanup()
+
+        self.cap_running = True
+        self._stop_event.clear()
+        self.current_rtsp_url = rtsp_url
+        self.cap_thread = threading.Thread(target=self._capture_and_scan_loop, args=(rtsp_url,), daemon=True)
+        self.cap_thread.start()
+
+    def _capture_and_scan_loop(self, rtsp_url: str):
+        import cv2, time
+        logger.info(f"BarcodeVisionNode [{self.node_id}] starting stream capture on {rtsp_url}")
+        gst_pipeline = (
+            f"rtspsrc location={rtsp_url} protocols=tcp latency=0 ! "
+            f"rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! "
+            f"appsink drop=true max-buffers=1 sync=false"
+        )
+
+        last_scan_time = 0.0
+
+        while self.cap_running and not self._stop_event.is_set():
+            cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(rtsp_url)
+            if not cap.isOpened():
+                if self._stop_event.wait(0.5):
+                    break
+                continue
+
+            logger.info(f"BarcodeVisionNode [{self.node_id}] capture connected to {rtsp_url}")
+            fail_count = 0
+            while self.cap_running and not self._stop_event.is_set() and cap.isOpened():
+                ret, frame = cap.read()
+                if ret:
+                    fail_count = 0
+                    self.latest_frame = frame
+
+                    if self.scan_mode == "continuous":
+                        now = time.time()
+                        scan_interval = 1.0 / self.scan_fps
+                        if now - last_scan_time >= scan_interval:
+                            last_scan_time = now
+                            self._scan_and_dispatch(frame, rtsp_url)
+                else:
+                    fail_count += 1
+                    if fail_count > 30:
+                        break
+                    time.sleep(0.005)
+
+            cap.release()
+            if self.cap_running and not self._stop_event.is_set():
+                self._stop_event.wait(0.5)
+
+    def _sanitize_code(self, raw_code: str) -> str:
+        code = str(raw_code).strip()
+        if self.strip_prefix and code.startswith(self.strip_prefix):
+            code = code[len(self.strip_prefix):]
+        if self.strip_suffix and code.endswith(self.strip_suffix):
+            code = code[:-len(self.strip_suffix)]
+        code = code.strip()
+        if self.regex_filter and code:
+            try:
+                m = re.search(self.regex_filter, code)
+                if not m:
+                    return ""
+                if m.groups():
+                    code = m.group(1)
+            except Exception as e:
+                logger.warning(f"BarcodeVision regex filter error on [{self.node_id}]: {e}")
+        return code
+
+    def _scan_and_dispatch(self, frame, rtsp_url: str):
+        if not self.detector or frame is None:
+            return
+        try:
+            detected = self.detector.detect_and_decode(frame, roi=self.roi, code_types=self.code_types)
+        except Exception as e:
+            logger.debug(f"BarcodeVisionNode detection error: {e}")
+            detected = []
+
+        valid_codes = []
+        for item in detected:
+            clean = self._sanitize_code(item.get("text", ""))
+            if clean:
+                valid_codes.append({
+                    **item,
+                    "text": clean,
+                    "raw_text": item.get("text", "")
+                })
+
+        now = time.time()
+        camera_id = self._resolve_camera_id()
+
+        if valid_codes:
+            self.last_had_codes = True
+            primary = valid_codes[0]
+            code_text = primary["text"]
+            code_fmt = primary.get("format", "BARCODE")
+
+            debounce_sec = self.debounce_ms / 1000.0
+            is_debounced = (
+                debounce_sec > 0 and 
+                (now - self.last_scanned_time < debounce_sec) and 
+                (code_text == self.last_scanned_code)
+            )
+            is_duplicate = self.only_on_change and (code_text == self.last_scanned_code)
+
+            if not is_debounced and not is_duplicate:
+                self.last_scanned_code = code_text
+                self.last_scanned_time = now
+
+                msg = {
+                    "payload": code_text,
+                    "barcode": code_text,
+                    "format": code_fmt,
+                    "count": len(valid_codes),
+                    "codes": valid_codes,
+                    "value": True,
+                    "camera_id": camera_id,
+                    "metadata": {
+                        "source": "barcode_vision",
+                        "scan_mode": "continuous",
+                        "node_id": self.node_id,
+                        "camera_id": camera_id,
+                        "timestamp": now
+                    }
+                }
+                self.router.inject_message(self.node_id, msg)
+
+            if self.router.metadata_callback:
+                try:
+                    self.router.metadata_callback({
+                        "type": "barcode_vision",
+                        "node_id": self.node_id,
+                        "camera_id": camera_id,
+                        "codes": valid_codes,
+                        "timestamp": now
+                    })
+                except Exception as ex:
+                    logger.debug(f"BarcodeVision WebSocket callback error: {ex}")
+        else:
+            if self.last_had_codes:
+                self.last_had_codes = False
+                if self.router.metadata_callback:
+                    try:
+                        self.router.metadata_callback({
+                            "type": "barcode_vision",
+                            "node_id": self.node_id,
+                            "camera_id": camera_id,
+                            "codes": [],
+                            "timestamp": now
+                        })
+                    except Exception:
+                        pass
+            if self.last_scanned_code and (now - self.last_scanned_time > 1.5):
+                self.last_scanned_code = ""
+
+    def process(self, msg: dict) -> dict:
+        if self.scan_mode != "triggered":
+            return msg
+
+        payload = msg.get("payload")
+        if isinstance(payload, dict) and ("just_completed" in payload or "is_complete" in payload):
+            is_triggered = bool(payload.get("value", payload.get("just_completed", payload.get("is_complete", False))))
+        elif isinstance(payload, dict) and "newly_counted" in payload:
+            is_triggered = payload["newly_counted"] > 0
+        elif isinstance(payload, dict) and "detections" in payload:
+            is_triggered = len(payload["detections"]) > 0
+        elif isinstance(payload, list):
+            is_triggered = len(payload) > 0
+        elif isinstance(payload, dict) and "value" in payload:
+            is_triggered = bool(payload["value"])
+        else:
+            is_triggered = bool(payload)
+
+        if not is_triggered:
+            return msg
+
+        frame = None
+        if self.latest_frame is not None:
+            frame = self.latest_frame.copy()
+        else:
+            stream_id, raw_camera_id, rtsp_url = self._resolve_stream_info(msg)
+            if rtsp_url:
+                import cv2
+                cap = cv2.VideoCapture(rtsp_url)
+                if cap.isOpened():
+                    ret, f = cap.read()
+                    if ret:
+                        frame = f
+                    cap.release()
+
+        detected = []
+        if frame is not None and self.detector:
+            try:
+                detected = self.detector.detect_and_decode(frame, roi=self.roi, code_types=self.code_types)
+            except Exception as e:
+                logger.debug(f"Triggered BarcodeVision decode error: {e}")
+
+        valid_codes = []
+        for item in detected:
+            clean = self._sanitize_code(item.get("text", ""))
+            if clean:
+                valid_codes.append({
+                    **item,
+                    "text": clean,
+                    "raw_text": item.get("text", "")
+                })
+
+        now = time.time()
+        camera_id = self._resolve_camera_id(msg)
+        code_text = valid_codes[0]["text"] if valid_codes else ""
+        code_fmt = valid_codes[0].get("format", "") if valid_codes else ""
+
+        out_msg = {
+            **msg,
+            "payload": code_text if (self.replace_payload or not msg.get("payload")) else msg.get("payload"),
+            "barcode": code_text,
+            "format": code_fmt,
+            "count": len(valid_codes),
+            "codes": valid_codes,
+            "value": bool(valid_codes),
+            "camera_id": camera_id,
+            "metadata": {
+                **msg.get("metadata", {}),
+                "source": "barcode_vision",
+                "scan_mode": "triggered",
+                "node_id": self.node_id,
+                "camera_id": camera_id,
+                "timestamp": now
+            }
+        }
+
+        if self.router.metadata_callback:
+            try:
+                self.router.metadata_callback({
+                    "type": "barcode_vision",
+                    "node_id": self.node_id,
+                    "camera_id": camera_id,
+                    "codes": valid_codes,
+                    "timestamp": now
+                })
+            except Exception:
+                pass
+
+        return out_msg
+
+    def cleanup(self):
+        self.cap_running = False
+        self._stop_event.set()
+        if self.cap_thread and self.cap_thread.is_alive():
+            self.cap_thread.join(timeout=1.0)
+        self.cap_thread = None
+        self.current_rtsp_url = None
+
 class SnapshotNode(PipelineNode):
     def __init__(self, node_id, data, router):
         super().__init__(node_id, data, router, node_type="snapshotNode")
@@ -2682,14 +3279,21 @@ class MessageRouter:
                         new_node.last_emit_time = getattr(old_node, 'last_emit_time', 0.0)
                         new_node.last_ws_val = getattr(old_node, 'last_ws_val', None)
                         new_node.first_true = getattr(old_node, 'first_true', None)
-                    # Preserve SnapshotNode frame cache and cleanly restart loop on new node
+                    # Preserve BarcodeVisionNode / SnapshotNode frame cache and cleanly restart loop on new node
                     if hasattr(old_node, 'cap_running') and hasattr(new_node, 'cap_running'):
                         new_node.latest_frame = getattr(old_node, 'latest_frame', None)
-                        new_node.frame_buffer = list(getattr(old_node, 'frame_buffer', []))
+                        if hasattr(new_node, 'frame_buffer'):
+                            new_node.frame_buffer = list(getattr(old_node, 'frame_buffer', []))
                         try:
                             old_node.cleanup()
                         except Exception as e:
-                            logger.error(f"Error cleaning up old SnapshotNode {nid}: {e}")
+                            logger.error(f"Error cleaning up old node {nid}: {e}")
+                    # Clean up old BarcodeScannerNode reader
+                    if getattr(old_node, 'node_type', '') == 'barcodeScannerNode':
+                        try:
+                            old_node.cleanup()
+                        except Exception as e:
+                            logger.error(f"Error cleaning up old BarcodeScannerNode {nid}: {e}")
                     # Preserve UnitThroughputNode state
                     if hasattr(old_node, 'current_count') and hasattr(new_node, 'current_count') and getattr(new_node, 'node_type', '') == 'unitThroughputNode':
                         new_node.current_count = old_node.current_count

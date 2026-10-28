@@ -264,7 +264,7 @@ export default function VideoWidget({ metadata, projectId, config, dataSources =
         ctx.fillText(roiLbl, x * W + 4, y * H - 4);
       }
 
-      let items = currentMetadata.data || currentMetadata.detections || [];
+      let items = currentMetadata.data || currentMetadata.detections || currentMetadata.codes || [];
       const now = Date.now();
       
       if (items.length > 0) {
@@ -282,7 +282,30 @@ export default function VideoWidget({ metadata, projectId, config, dataSources =
       const lineThickness = currentMetadata.bbox_line_thickness || 2;
       const fontThickness = currentMetadata.bbox_font_thickness || 1;
 
-      if (taskType === 'detection') {
+      if (taskType === 'barcode_vision' || currentMetadata.codes) {
+        const codesList = currentMetadata.codes || items || [];
+        codesList.forEach((code) => {
+          if (!code.bbox || !Array.isArray(code.bbox) || code.bbox.length < 4) return;
+          const [xmin, ymin, xmax, ymax] = code.bbox;
+          const x = xmin * W, y = ymin * H;
+          const w = (xmax - xmin) * W, h = (ymax - ymin) * H;
+
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(x, y, w, h);
+
+          const fmt = code.format || 'CODE';
+          const txt = code.text || '';
+          const label = `[${fmt}] ${txt}`;
+          const fontSize = 11;
+          ctx.font = `bold ${fontSize}px monospace`;
+          const tw = ctx.measureText(label).width + 8;
+          ctx.fillStyle = 'rgba(6, 182, 212, 0.9)';
+          ctx.fillRect(x, Math.max(y - (fontSize + 6), 0), tw, fontSize + 6);
+          ctx.fillStyle = '#000';
+          ctx.fillText(label, x + 4, Math.max(y - 4, fontSize + 1));
+        });
+      } else if (taskType === 'detection') {
         if (drawMode !== 'backend' && drawMode !== 'none') {
           items.forEach(det => {
             const [xmin, ymin, xmax, ymax] = det.bbox;

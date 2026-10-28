@@ -5,7 +5,7 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-from ai_engine.message_router import MessageRouter, PipelineNode, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, RS485OutputNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
+from ai_engine.message_router import MessageRouter, PipelineNode, LogicNode, RateLimitNode, FunctionNode, ActionNode, HardwareOutputNode, RS485OutputNode, BarcodeScannerNode, BarcodeVisionNode, DashboardOutputNode, CounterNode, FlowCounterNode, UnitThroughputNode, TargetTrackerNode, SnapshotNode, DatabaseWriterNode, CollectionWriterNode
 
 class CameraStreamConfig:
     def __init__(self, stream_id: str):
@@ -162,6 +162,10 @@ class PipelineParser:
                 router.add_node(nid, HardwareOutputNode(nid, ndata, router, hw_type="buzzer"))
             elif ntype == "rs485Node":
                 router.add_node(nid, RS485OutputNode(nid, ndata, router))
+            elif ntype == "barcodeScannerNode":
+                router.add_node(nid, BarcodeScannerNode(nid, ndata, router))
+            elif ntype == "barcodeVisionNode":
+                router.add_node(nid, BarcodeVisionNode(nid, ndata, router))
             elif ntype == "digitalInputNode":
                 config.digital_inputs.append({
                     "id": nid,

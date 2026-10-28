@@ -24,6 +24,8 @@ import DigitalOutputNode from './nodes/DigitalOutputNode';
 import LEDNode from './nodes/LEDNode';
 import BuzzerNode from './nodes/BuzzerNode';
 import RS485Node from './nodes/RS485Node';
+import BarcodeScannerNode from './nodes/BarcodeScannerNode';
+import BarcodeVisionNode from './nodes/BarcodeVisionNode';
 import CommentNode from './nodes/CommentNode';
 import ButtonEdge from './edges/ButtonEdge';
 
@@ -56,6 +58,8 @@ export const DEFAULT_NODE_NAMES = {
   buzzerNode: 'Active Buzzer',
   ledNode: 'LED / PWM Driver',
   rs485Node: 'RS485 Modbus',
+  barcodeScannerNode: 'Barcode Scanner',
+  barcodeVisionNode: 'Barcode Vision (Camera)',
   commentNode: 'Comment / Note',
 };
 
@@ -89,6 +93,8 @@ export const nodeTypes = {
   ledNode: memo(LEDNode),
   buzzerNode: memo(BuzzerNode),
   rs485Node: memo(RS485Node),
+  barcodeScannerNode: memo(BarcodeScannerNode),
+  barcodeVisionNode: memo(BarcodeVisionNode),
   commentNode: memo(CommentNode),
 };
 
